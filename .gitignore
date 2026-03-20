@@ -1,0 +1,21 @@
+# Node dependencies and package manager noise
+node_modules/
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local environment and workspace files
+.env.local
+*.code-workspace
+
+# Local Factorio runtime and test scratch data
+.factorio/
+.factorio-test/
+.factorio-test.local.json
+
+# Common OS and language caches
+.DS_Store
+Thumbs.db
+__pycache__/
+.pytest_cache/
