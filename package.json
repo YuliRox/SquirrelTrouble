@@ -1,0 +1,27 @@
+{
+  "scripts": {
+    "postinstall": "node scripts/patch-factorio-test-cli.js",
+    "blueprint:extract": "node tools/blueprint_extract.js",
+    "blueprint:normalize-merge": "node tools/blueprint_normalize_merge.js",
+    "blueprint:ruin-template": "node tools/blueprint_ruin_template.js",
+    "blueprint:wear-profile": "node tools/blueprint_wear_profile.js",
+    "blueprint:compile-sectors": "node tools/blueprint_compile_sectors.js",
+    "blueprint:regenerate": "bash tools/build_central_district_from_blueprint.sh",
+    "blueprint:build:central-district": "bash tools/build_central_district_from_blueprint.sh",
+    "test": "bash scripts/test-factorio.sh run",
+    "test:watch": "bash scripts/test-factorio.sh run -w",
+    "test:gui": "bash scripts/test-factorio.sh run -g",
+    "inspect:surface": "bash scripts/inspect-desert.sh --mode=surface",
+    "inspect:perimeter": "bash scripts/inspect-desert.sh --mode=perimeter-authoring",
+    "inspect:desert": "npm run inspect:surface",
+    "blueprint:regenerate:conservative": "bash tools/build_central_district_from_blueprint.sh",
+    "blueprint:regenerate:aggressive": "bash tools/build_central_district_from_blueprint.sh",
+    "test:node": "node --test tools/tests/*.test.js"
+  },
+  "dependencies": {
+    "factoriomod-debug": "^2.0.10"
+  },
+  "devDependencies": {
+    "factorio-test-cli": "^3.5.1"
+  }
+}

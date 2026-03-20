@@ -1,0 +1,11 @@
+{
+  "name": "squirrel_madness",
+  "version": "0.1.0",
+  "title": "Squirrel Madness",
+  "author": "Sandra Schuhmacher",
+  "factorio_version": "2.0",
+  "dependencies": [
+    "base >= 2.0.0"
+  ],
+  "description": "Scenario-first scaffold for squirrel-driven industrial ecology on Nauvis."
+}
