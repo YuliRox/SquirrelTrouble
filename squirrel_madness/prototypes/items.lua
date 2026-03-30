@@ -24,8 +24,12 @@ data:extend({
   {
     type = "item",
     name = "squirrel-feeder",
-    icon = "__base__/graphics/icons/wooden-chest.png",
-    icon_size = 64,
+    icons = {
+      {
+        icon = "__squirrel_madness__/graphics/icons/wooden-feeder-icon.png",
+        icon_size = 120
+      }
+    },
     subgroup = "storage",
     order = "n[squirrel]-b[feeder]",
     place_result = "squirrel-feeder",
