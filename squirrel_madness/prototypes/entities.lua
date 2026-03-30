@@ -227,7 +227,8 @@ squirrel.run_animation = {
   direction_count = 8,
   line_length = 6,
   lines_per_file = 1,
-  animation_speed = 0.18
+  animation_speed = 0.42,
+  scale = 1.75
 }
 
 local nut_tree = clone_tree("tree-04", "nut-tree")

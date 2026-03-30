@@ -580,6 +580,8 @@ local function find_targets(record, report, tick)
   return best
 end
 
+local stop_entity
+
 local function move_entity(entity, destination)
   local ok = pcall(function()
     entity.set_command({
@@ -591,11 +593,14 @@ local function move_entity(entity, destination)
   end)
 
   if not ok then
-    entity.teleport(destination)
+    stop_entity(entity)
+    return false
   end
+
+  return true
 end
 
-local function stop_entity(entity)
+function stop_entity(entity)
   pcall(function()
     entity.set_command({
       type = defines.command.stop,
@@ -644,6 +649,7 @@ local function enter_idle(record, entity, tick)
   record.intent = nil
   record.target = nil
   record.destination = nil
+  record.arrival_distance = nil
   record.action_due_tick = tick + idle_pause_duration(record)
   record.next_decision_tick = record.action_due_tick
   stop_entity(entity)
@@ -655,6 +661,7 @@ local function send_home(record, entity, tick)
   record.intent = nil
   record.stash_id = nil
   record.destination = clone_position(record.home_position)
+  record.arrival_distance = 0.8
   record.action_due_tick = tick + constants.squirrel_move_timeout
   record.next_decision_tick = tick + constants.squirrel_decision_interval
   move_entity(entity, record.home_position)
@@ -859,6 +866,7 @@ local function start_retreat(record, entity, tick)
   record.intent = "deposit"
   record.target = stash and serialize_target(stash, "stash") or nil
   record.destination = stash and clone_position(stash.position) or clone_position(record.home_position)
+  record.arrival_distance = 0.8
   record.action_due_tick = tick + constants.squirrel_move_timeout
   record.next_decision_tick = tick + constants.squirrel_decision_interval
   move_entity(entity, record.destination)
@@ -877,6 +885,7 @@ local function start_roam(record, entity, tick)
   record.intent = nil
   record.target = nil
   record.destination = clone_position(destination)
+  record.arrival_distance = 0.8
   record.action_due_tick = tick + constants.squirrel_move_timeout
   record.next_decision_tick = tick + constants.squirrel_decision_interval
   move_entity(entity, destination)
@@ -887,6 +896,7 @@ local function start_target_run(record, entity, target, intent, tick)
   record.intent = intent
   record.target = target
   record.destination = clone_position(target.position)
+  record.arrival_distance = 0.45
   record.action_due_tick = tick + constants.squirrel_move_timeout
   record.next_decision_tick = tick + constants.squirrel_decision_interval
   move_entity(entity, target.position)
@@ -896,10 +906,11 @@ local function start_belt_block(record, entity, belt_entity, tick)
   record.mode = "blocking"
   record.intent = "steal"
   record.target = serialize_target(belt_entity, "belt", record.target and record.target.item_name or nil, 1)
-  record.destination = clone_position(belt_entity.position)
+  record.destination = nil
+  record.arrival_distance = nil
   record.action_due_tick = tick + constants.squirrel_belt_block_duration
   record.next_decision_tick = tick + constants.squirrel_decision_interval
-  entity.teleport(belt_entity.position)
+  stop_entity(entity)
 end
 
 local function remove_belt_item(belt_entity, item_name)
@@ -1095,7 +1106,8 @@ local function create_record(entity, home_position, region_x, region_y, tick)
     last_loot_name = nil,
     stash_id = nil,
     render_id = nil,
-    roam_step = 0
+    roam_step = 0,
+    arrival_distance = 0.8
   }
 
   get_squirrel_store()[squirrel_id] = record
@@ -1200,8 +1212,10 @@ local function process_arrival(record, entity, tick)
     if record.target.target_type == "belt" then
       if record.intent == "inspect" then
         record.mode = "inspect"
+        record.destination = nil
+        record.arrival_distance = nil
         record.action_due_tick = tick + constants.squirrel_curious_pause_duration
-        entity.teleport(target_entity.position)
+        stop_entity(entity)
       else
         start_belt_block(record, entity, target_entity, tick)
       end
@@ -1298,13 +1312,21 @@ function squirrels.on_tick(tick)
       if entity and entity.valid then
         if record.mode == "idle" and tick >= record.next_decision_tick then
           process_idle_decision(record, entity, tick)
-        elseif record.mode == "roam" and record.destination and reached_position(entity, record.destination) then
+        elseif
+          record.mode == "roam"
+          and record.destination
+          and reached_position(entity, record.destination, record.arrival_distance)
+        then
           process_arrival(record, entity, tick)
         elseif record.mode == "roam" and tick >= record.action_due_tick then
           enter_idle(record, entity, tick)
         elseif tick >= record.action_due_tick then
           process_arrival(record, entity, tick)
-        elseif record.mode ~= "roam" and record.destination and reached_position(entity, record.destination) then
+        elseif
+          record.mode ~= "roam"
+          and record.destination
+          and reached_position(entity, record.destination, record.arrival_distance)
+        then
           process_arrival(record, entity, tick)
         end
       end
