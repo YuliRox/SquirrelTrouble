@@ -130,7 +130,6 @@ feeder.picture = feeder_picture(
 )
 
 local empty_feeder = clone_container("wooden-chest", "squirrel-feeder-empty")
-empty_feeder.hidden = true
 empty_feeder.icon = "__squirrel_madness__/graphics/icons/wooden-feeder-icon.png"
 empty_feeder.icon_size = 64
 empty_feeder.inventory_size = 1
@@ -167,7 +166,6 @@ steel_feeder.picture = feeder_picture(
 )
 
 local empty_steel_feeder = clone_container("steel-chest", "steel-squirrel-feeder-empty")
-empty_steel_feeder.hidden = true
 empty_steel_feeder.icon = "__squirrel_madness__/graphics/icons/steel-feeder-icon.png"
 empty_steel_feeder.icon_size = 64
 empty_steel_feeder.inventory_size = 2
