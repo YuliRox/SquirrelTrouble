@@ -212,21 +212,22 @@ squirrel.ai_settings.destroy_when_commands_fail = false
 squirrel.ai_settings.path_resolution_modifier = -4
 squirrel.run_animation = {
   filenames = {
-    "__squirrel_madness__/graphics/entities/squirrel/rotations/north.png",
-    "__squirrel_madness__/graphics/entities/squirrel/rotations/north-east.png",
-    "__squirrel_madness__/graphics/entities/squirrel/rotations/east.png",
-    "__squirrel_madness__/graphics/entities/squirrel/rotations/south-east.png",
-    "__squirrel_madness__/graphics/entities/squirrel/rotations/south.png",
-    "__squirrel_madness__/graphics/entities/squirrel/rotations/south-west.png",
-    "__squirrel_madness__/graphics/entities/squirrel/rotations/west.png",
-    "__squirrel_madness__/graphics/entities/squirrel/rotations/north-west.png"
+    "__squirrel_madness__/graphics/entities/squirrel/run-strips/north.png",
+    "__squirrel_madness__/graphics/entities/squirrel/run-strips/north-east.png",
+    "__squirrel_madness__/graphics/entities/squirrel/run-strips/east.png",
+    "__squirrel_madness__/graphics/entities/squirrel/run-strips/south-east.png",
+    "__squirrel_madness__/graphics/entities/squirrel/run-strips/south.png",
+    "__squirrel_madness__/graphics/entities/squirrel/run-strips/south-west.png",
+    "__squirrel_madness__/graphics/entities/squirrel/run-strips/west.png",
+    "__squirrel_madness__/graphics/entities/squirrel/run-strips/north-west.png"
   },
   width = 48,
   height = 48,
-  frame_count = 1,
+  frame_count = 6,
   direction_count = 8,
-  line_length = 1,
-  lines_per_file = 1
+  line_length = 6,
+  lines_per_file = 1,
+  animation_speed = 0.18
 }
 
 local nut_tree = clone_tree("tree-04", "nut-tree")
