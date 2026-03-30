@@ -28,6 +28,34 @@ local function distance_squared(left, right)
   return (dx * dx) + (dy * dy)
 end
 
+local function nearest_player_distance_squared(surface_index, position)
+  local nearest
+
+  for _, player in ipairs(game.connected_players) do
+    if player.valid and player.surface and player.surface.index == surface_index then
+      local distance = distance_squared(player.position, position)
+      if not nearest or distance < nearest then
+        nearest = distance
+      end
+    end
+  end
+
+  return nearest
+end
+
+local function position_respects_player_buffer(surface_index, position, minimum_distance)
+  if not minimum_distance then
+    return true
+  end
+
+  local nearest = nearest_player_distance_squared(surface_index, position)
+  if not nearest then
+    return true
+  end
+
+  return nearest >= (minimum_distance * minimum_distance)
+end
+
 local function position_with_offset(origin, angle, distance)
   return {
     x = origin.x + (math.cos(angle) * distance),
@@ -240,16 +268,17 @@ local function region_report(surface_index, region_x, region_y, tick)
   return regions.get_region_report_by_coord(surface, region_x, region_y, tick)
 end
 
-local function can_spawn_at(surface, position, force)
-  return surface.can_place_entity({
+local function can_spawn_at(surface, position, force, minimum_player_distance)
+  return position_respects_player_buffer(surface.index, position, minimum_player_distance)
+    and surface.can_place_entity({
     name = constants.names.squirrel,
     position = position,
     force = force
   })
 end
 
-local function spawn_position_near_anchor(surface, anchor, radius, force)
-  if can_spawn_at(surface, anchor, force) then
+local function spawn_position_near_anchor(surface, anchor, radius, force, minimum_player_distance)
+  if can_spawn_at(surface, anchor, force, minimum_player_distance) then
     return clone_position(anchor)
   end
 
@@ -265,13 +294,18 @@ local function spawn_position_near_anchor(surface, anchor, radius, force)
         y = anchor.y + (math.sin(angle) * current_radius)
       }
 
-      if can_spawn_at(surface, candidate, force) then
+      if can_spawn_at(surface, candidate, force, minimum_player_distance) then
         return candidate
       end
     end
   end
 
-  return surface.find_non_colliding_position(constants.names.squirrel, anchor, max_radius, 0.5, false)
+  local fallback = surface.find_non_colliding_position(constants.names.squirrel, anchor, max_radius, 0.5, false)
+  if fallback and position_respects_player_buffer(surface.index, fallback, minimum_player_distance) then
+    return fallback
+  end
+
+  return nil
 end
 
 local function region_search_anchors(area)
@@ -333,11 +367,23 @@ local function squirrel_population_target(report)
   end
 
   local target = 1
-  if report.habitat_pressure >= 50 or report.squirrel_unrest >= 55 then
+  if
+    report.tree_count >= constants.squirrel_stable_tree_count
+    or report.forest_health >= 25
+    or report.squirrel_trust >= 35
+  then
     target = target + 1
   end
 
-  if report.habitat_pressure >= 80 then
+  if
+    report.tree_count >= constants.squirrel_dense_tree_count
+    or report.forest_health >= 40
+    or report.squirrel_trust >= 50
+  then
+    target = target + 1
+  end
+
+  if report.habitat_pressure >= 60 or report.squirrel_unrest >= 55 then
     target = target + 1
   end
 
@@ -765,12 +811,20 @@ local function start_retreat(record, entity, tick)
 end
 
 local function start_roam(record, entity, tick)
-  local angle_seed = (record.squirrel_id or 1) + tick
+  record.roam_step = (record.roam_step or 0) + 1
+
+  local angle_seed = ((record.squirrel_id or 1) * 67) + (record.roam_step * 97)
   local angle = ((angle_seed % 360) / 180) * math.pi
+  local distance_span = math.max(
+    0,
+    constants.squirrel_home_wander_distance - constants.squirrel_home_wander_min_distance
+  )
+  local distance_seed = (((record.squirrel_id or 1) * 31) + (record.roam_step * 17)) % 100
+  local distance = constants.squirrel_home_wander_min_distance + ((distance_seed / 100) * distance_span)
   local destination = position_with_offset(
     record.home_position,
     angle,
-    constants.squirrel_home_wander_distance
+    distance
   )
 
   local surface = game.surfaces[record.surface_index]
@@ -883,9 +937,20 @@ local function eligible_spawn_position(surface, region_x, region_y, existing_cou
     area = area,
     type = "tree"
   })
+  local minimum_distances = {
+    constants.squirrel_spawn_player_buffer,
+    constants.squirrel_spawn_relaxed_player_buffer
+  }
 
   if #trees > 0 then
     table.sort(trees, function(left, right)
+      local left_distance = nearest_player_distance_squared(surface.index, left.position) or math.huge
+      local right_distance = nearest_player_distance_squared(surface.index, right.position) or math.huge
+
+      if left_distance ~= right_distance then
+        return left_distance > right_distance
+      end
+
       if left.position.y == right.position.y then
         return left.position.x < right.position.x
       end
@@ -906,18 +971,29 @@ local function eligible_spawn_position(surface, region_x, region_y, existing_cou
       {x = tree.position.x - 3, y = tree.position.y - 3}
     }
 
-    for _, anchor in ipairs(anchors) do
-      local position = spawn_position_near_anchor(surface, anchor, 10, force)
-      if position then
-        return position
+    for _, minimum_distance in ipairs(minimum_distances) do
+      for _, anchor in ipairs(anchors) do
+        local position = spawn_position_near_anchor(surface, anchor, 10, force, minimum_distance)
+        if position then
+          return position
+        end
       end
     end
   end
 
-  for _, anchor in ipairs(region_search_anchors(area)) do
-    local position = spawn_position_near_anchor(surface, anchor, 14, force)
-    if position then
-      return position
+  local anchors = region_search_anchors(area)
+  table.sort(anchors, function(left, right)
+    local left_distance = nearest_player_distance_squared(surface.index, left) or math.huge
+    local right_distance = nearest_player_distance_squared(surface.index, right) or math.huge
+    return left_distance > right_distance
+  end)
+
+  for _, minimum_distance in ipairs(minimum_distances) do
+    for _, anchor in ipairs(anchors) do
+      local position = spawn_position_near_anchor(surface, anchor, 14, force, minimum_distance)
+      if position then
+        return position
+      end
     end
   end
 
@@ -977,7 +1053,8 @@ local function create_record(entity, home_position, region_x, region_y, tick)
     last_action_tick = 0,
     last_loot_name = nil,
     stash_id = nil,
-    render_id = nil
+    render_id = nil,
+    roam_step = 0
   }
 
   get_squirrel_store()[squirrel_id] = record
@@ -1378,6 +1455,17 @@ function squirrels.debug_force_chest_scavenge(surface_index, squirrel_id, positi
     stash_id = stash_id,
     count = carried_count
   }
+end
+
+function squirrels.debug_advance_runtime(duration, start_tick)
+  local final_tick = start_tick or game.tick
+
+  for _ = 1, duration do
+    final_tick = final_tick + 1
+    squirrels.on_tick(final_tick)
+  end
+
+  return squirrels.debug_report(nil, final_tick)
 end
 
 function squirrels.debug_report(surface_index, tick)

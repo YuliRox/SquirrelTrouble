@@ -39,6 +39,23 @@ local function spawn_forest(count, origin)
   return trees
 end
 
+local function fill_region_with_forest(region_x, region_y, spacing)
+  local area = regions.region_area(region_x, region_y)
+  local trees = {}
+  local step = spacing or 5
+
+  for x = area.left_top.x + 4, area.right_bottom.x - 4, step do
+    for y = area.left_top.y + 4, area.right_bottom.y - 4, step do
+      trees[#trees + 1] = track_entity(surface().create_entity({
+        name = TREE_NAME,
+        position = {x = x, y = y}
+      }))
+    end
+  end
+
+  return trees
+end
+
 local function square_area(origin, radius)
   return {
     left_top = {x = origin.x - radius, y = origin.y - radius},
@@ -138,8 +155,59 @@ describe("milestone 4 squirrel nuisance runtime", function()
     local report = remote.call(constants.mod_name, "debug_get_squirrel_report", surface().index)
 
     assert.equal(0, barren)
-    assert.is_true(created > 0)
+    assert.is_true(created >= 2)
     assert.equal(created, #report.squirrels)
+  end)
+
+  it("prefers spawning squirrels outside the player's immediate view when the forest has space", function()
+    local coord = regions.position_to_region_coord(FOREST_ORIGIN)
+
+    fill_region_with_forest(coord.x, coord.y, 6)
+    player().teleport({
+      x = FOREST_ORIGIN.x + 8,
+      y = FOREST_ORIGIN.y + 8
+    }, surface())
+
+    local created = remote.call(constants.mod_name, "debug_force_region_squirrels", surface().index, FOREST_ORIGIN.x, FOREST_ORIGIN.y)
+    local report = remote.call(constants.mod_name, "debug_get_squirrel_report", surface().index)
+
+    assert.is_true(created >= 1)
+    assert.is_true(#report.squirrels >= 1)
+
+    for _, squirrel in ipairs(report.squirrels) do
+      local dx = squirrel.position.x - player().position.x
+      local dy = squirrel.position.y - player().position.y
+      local distance_squared = (dx * dx) + (dy * dy)
+
+      assert.is_true(distance_squared >= (constants.squirrel_spawn_relaxed_player_buffer ^ 2))
+    end
+  end)
+
+  it("keeps spawned squirrels present across multiple runtime updates", function()
+    spawn_forest(24, FOREST_ORIGIN)
+    remote.call(constants.mod_name, "debug_force_region_squirrels", surface().index, FOREST_ORIGIN.x, FOREST_ORIGIN.y)
+
+    local before = remote.call(constants.mod_name, "debug_get_squirrel_report", surface().index)
+    local before_ids = {}
+
+    for _, squirrel in ipairs(before.squirrels) do
+      before_ids[squirrel.squirrel_id] = true
+    end
+
+    local after = remote.call(
+      constants.mod_name,
+      "debug_advance_squirrel_runtime",
+      constants.squirrel_move_timeout + constants.squirrel_decision_interval + 180
+    )
+
+    assert.is_true(#before.squirrels >= 2)
+    assert.is_true(#after.squirrels >= #before.squirrels)
+
+    for _, squirrel in ipairs(after.squirrels) do
+      before_ids[squirrel.squirrel_id] = nil
+    end
+
+    assert.equal(0, table_size(before_ids))
   end)
 
   it("tracks calm, curious, mischievous, agitated, and grieving state selection", function()

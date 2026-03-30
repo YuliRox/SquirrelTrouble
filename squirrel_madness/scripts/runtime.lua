@@ -523,6 +523,10 @@ local function install_remote_interface()
       storage_lib.ensure()
       return squirrels.debug_force_chest_scavenge(surface_index, squirrel_id, {x = x, y = y}, game.tick)
     end,
+    debug_advance_squirrel_runtime = function(duration)
+      storage_lib.ensure()
+      return squirrels.debug_advance_runtime(duration, game.tick)
+    end,
     debug_cleanup_empty_stashes = function(surface_index)
       storage_lib.ensure()
       return squirrels.cleanup_empty_stashes(surface_index)
