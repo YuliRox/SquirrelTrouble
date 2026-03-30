@@ -11,6 +11,53 @@ local function clone_container(name)
   return prototype
 end
 
+local function create_survey_station()
+  local source = data.raw.radar and data.raw.radar["radar"]
+  if not source then
+    error("Expected base radar prototype to exist")
+  end
+
+  local survey_station_tint = {r = 0.32, g = 0.52, b = 0.34, a = 0.55}
+  local prototype = table.deepcopy(source)
+
+  prototype.name = "forest-survey-station"
+  prototype.icons = {
+    {
+      icon = "__base__/graphics/icons/radar.png",
+      icon_size = 64,
+      tint = {r = 0.32, g = 0.52, b = 0.34, a = 1}
+    }
+  }
+  prototype.minable = {mining_time = 0.2, result = "forest-survey-station"}
+  prototype.fast_replaceable_group = nil
+  prototype.localised_name = {"entity-name.forest-survey-station"}
+  prototype.localised_description = {"entity-description.forest-survey-station"}
+  prototype.energy_usage = "60kW"
+  prototype.energy_per_sector = "1J"
+  prototype.energy_per_nearby_scan = "1J"
+  prototype.max_distance_of_sector_revealed = 0
+  prototype.max_distance_of_nearby_sector_revealed = 0
+  prototype.radius_minimap_visualisation_color = {0, 0, 0, 0}
+  prototype.working_sound = nil
+  prototype.open_sound = nil
+  prototype.close_sound = nil
+
+  if prototype.integration_patch then
+    prototype.integration_patch.tint = survey_station_tint
+    prototype.integration_patch.tint_as_overlay = true
+  end
+
+  if prototype.pictures and prototype.pictures.layers then
+    local main_layer = prototype.pictures.layers[1]
+    if main_layer then
+      main_layer.tint = survey_station_tint
+      main_layer.tint_as_overlay = true
+    end
+  end
+
+  return prototype
+end
+
 local function clone_tree(source_name, new_name)
   local source = data.raw.tree and data.raw.tree[source_name]
   if not source then
@@ -26,6 +73,21 @@ local function clone_tree(source_name, new_name)
   return prototype
 end
 
+local function clone_unit(source_name, new_name)
+  local source = data.raw.unit and data.raw.unit[source_name]
+  if not source then
+    error("Expected base unit prototype " .. source_name .. " to exist")
+  end
+
+  local prototype = table.deepcopy(source)
+  prototype.name = new_name
+  prototype.localised_name = {"entity-name." .. new_name}
+  prototype.localised_description = {"entity-description." .. new_name}
+  prototype.autoplace = nil
+  prototype.order = "b[animal]-a[" .. new_name .. "]"
+  return prototype
+end
+
 local feeder = clone_container("squirrel-feeder")
 feeder.icon = "__base__/graphics/icons/wooden-chest.png"
 feeder.icon_size = 64
@@ -33,19 +95,46 @@ feeder.inventory_size = 1
 feeder.fast_replaceable_group = nil
 feeder.localised_description = {"entity-description.squirrel-feeder"}
 
-local survey = clone_container("forest-survey-station")
-survey.icon = "__base__/graphics/icons/small-lamp.png"
-survey.icon_size = 64
-survey.inventory_size = 1
-survey.localised_description = {"entity-description.forest-survey-station"}
+local survey = create_survey_station()
 
 local stash = clone_container("forest-stash")
 stash.icon = "__base__/graphics/icons/wooden-chest.png"
 stash.icon_size = 64
-stash.hidden = true
 stash.inventory_size = 8
 stash.minable = nil
+stash.destructible = false
 stash.localised_description = {"entity-description.forest-stash"}
+
+local squirrel = clone_unit("small-biter", "squirrel")
+squirrel.icon = "__squirrel_madness__/graphics/icons/squirrel.png"
+squirrel.icon_size = 48
+squirrel.max_health = 30
+squirrel.healing_per_tick = 0
+squirrel.vision_distance = 15
+squirrel.movement_speed = 0.08
+squirrel.distance_per_frame = 0.08
+squirrel.distraction_cooldown = 30
+squirrel.ai_settings = squirrel.ai_settings or {}
+squirrel.ai_settings.destroy_when_commands_fail = false
+squirrel.ai_settings.path_resolution_modifier = -4
+squirrel.run_animation = {
+  filenames = {
+    "__squirrel_madness__/graphics/entities/squirrel/rotations/north.png",
+    "__squirrel_madness__/graphics/entities/squirrel/rotations/north-east.png",
+    "__squirrel_madness__/graphics/entities/squirrel/rotations/east.png",
+    "__squirrel_madness__/graphics/entities/squirrel/rotations/south-east.png",
+    "__squirrel_madness__/graphics/entities/squirrel/rotations/south.png",
+    "__squirrel_madness__/graphics/entities/squirrel/rotations/south-west.png",
+    "__squirrel_madness__/graphics/entities/squirrel/rotations/west.png",
+    "__squirrel_madness__/graphics/entities/squirrel/rotations/north-west.png"
+  },
+  width = 48,
+  height = 48,
+  frame_count = 1,
+  direction_count = 8,
+  line_length = 1,
+  lines_per_file = 1
+}
 
 local nut_tree = clone_tree("tree-04", "nut-tree")
 nut_tree.icon = "__base__/graphics/icons/tree-04.png"
@@ -57,6 +146,18 @@ nut_tree.minable = {
   result = "nut",
   count = 5
 }
+
+local harvested_nut_tree = clone_tree("dry-tree", "nut-tree-harvested")
+harvested_nut_tree.icon = "__base__/graphics/icons/dry-tree.png"
+harvested_nut_tree.icon_size = 64
+harvested_nut_tree.emissions_per_second = {pollution = -0.0015}
+harvested_nut_tree.minable = {
+  mining_particle = "wooden-particle",
+  mining_time = 0.35,
+  result = "wood",
+  count = 1
+}
+harvested_nut_tree.localised_description = {"entity-description.nut-tree-harvested"}
 
 local nut_sapling = clone_tree("dry-tree", "nut-sapling")
 nut_sapling.icon = "__base__/graphics/icons/tree-04.png"
@@ -71,7 +172,9 @@ nut_sapling.minable = {
 nut_sapling.localised_description = {"entity-description.nut-sapling"}
 
 data:extend({
+  squirrel,
   nut_tree,
+  harvested_nut_tree,
   nut_sapling,
   feeder,
   survey,
