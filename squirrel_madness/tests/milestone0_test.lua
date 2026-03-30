@@ -132,6 +132,20 @@ describe("milestone 0 scaffold", function()
     end
   end)
 
+  it("disables vanilla chest item overlays on feeder variants", function()
+    for _, name in ipairs({
+      constants.names.feeder,
+      constants.names.feeder_empty,
+      constants.names.steel_feeder,
+      constants.names.steel_feeder_empty
+    }) do
+      local spec = prototypes.entity[name].icon_draw_specification
+      assert.is_not_nil(spec)
+      assert.equal(0, spec.scale)
+      assert.equal(0, spec.scale_for_many)
+    end
+  end)
+
   it("places the survey station as a powered radar scaffold instead of a container", function()
     local entity = surface().create_entity({
       name = constants.names.survey_station,

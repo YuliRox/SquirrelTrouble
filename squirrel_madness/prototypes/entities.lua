@@ -117,6 +117,7 @@ feeder.icon = "__squirrel_madness__/graphics/icons/wooden-feeder-icon.png"
 feeder.icon_size = 64
 feeder.inventory_size = 1
 feeder.fast_replaceable_group = nil
+feeder.icon_draw_specification = {scale = 0, scale_for_many = 0}
 feeder.localised_description = {"entity-description.squirrel-feeder"}
 feeder.picture = feeder_picture(
   "__squirrel_madness__/graphics/entities/structures/wooden-feeder.png",
@@ -134,6 +135,7 @@ empty_feeder.icon = "__squirrel_madness__/graphics/icons/wooden-feeder-icon.png"
 empty_feeder.icon_size = 64
 empty_feeder.inventory_size = 1
 empty_feeder.fast_replaceable_group = nil
+empty_feeder.icon_draw_specification = {scale = 0, scale_for_many = 0}
 empty_feeder.localised_name = {"entity-name.squirrel-feeder"}
 empty_feeder.localised_description = {"entity-description.squirrel-feeder"}
 empty_feeder.minable.result = "squirrel-feeder"
@@ -153,6 +155,7 @@ steel_feeder.icon = "__squirrel_madness__/graphics/icons/steel-feeder-icon.png"
 steel_feeder.icon_size = 64
 steel_feeder.inventory_size = 2
 steel_feeder.fast_replaceable_group = nil
+steel_feeder.icon_draw_specification = {scale = 0, scale_for_many = 0}
 steel_feeder.localised_description = {"entity-description.steel-squirrel-feeder"}
 steel_feeder.picture = feeder_picture(
   "__squirrel_madness__/graphics/entities/structures/steel-feeder.png",
@@ -170,6 +173,7 @@ empty_steel_feeder.icon = "__squirrel_madness__/graphics/icons/steel-feeder-icon
 empty_steel_feeder.icon_size = 64
 empty_steel_feeder.inventory_size = 2
 empty_steel_feeder.fast_replaceable_group = nil
+empty_steel_feeder.icon_draw_specification = {scale = 0, scale_for_many = 0}
 empty_steel_feeder.localised_name = {"entity-name.steel-squirrel-feeder"}
 empty_steel_feeder.localised_description = {"entity-description.steel-squirrel-feeder"}
 empty_steel_feeder.minable.result = "steel-squirrel-feeder"

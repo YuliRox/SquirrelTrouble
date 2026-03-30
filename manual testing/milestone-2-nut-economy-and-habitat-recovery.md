@@ -117,11 +117,12 @@ Setup shortcuts:
 ```
 
 Checklist:
-- [ ] Complete `Wildlife Diversion` or apply the setup shortcuts.
-- [ ] Confirm the Wildlife Diversion guidance message appears once.
+- [X] Complete `Wildlife Diversion` or apply the setup shortcuts.
+- [X] Confirm the Wildlife Diversion guidance message appears once.
 - [ ] Place a `Squirrel Feeder` on the forest edge.
 - [ ] Confirm the newly placed feeder shows the empty wooden feeder art, not a vanilla chest or the stocked art.
 - [ ] Confirm the feeder art and footprint make sense at that location.
+- [ ] Confirm the feeder does not show a large floating item icon above it when stocked.
 - [ ] Place a `Forest Survey Station` nearby.
 - [ ] Place the `Solar Panel` and a `Small Electric Pole` so the survey station is powered.
 - [ ] If it is night, wait for daylight before comparing reports.
