@@ -595,6 +595,60 @@ local function move_entity(entity, destination)
   end
 end
 
+local function stop_entity(entity)
+  pcall(function()
+    entity.set_command({
+      type = defines.command.stop,
+      distraction = defines.distraction.none
+    })
+  end)
+end
+
+local function bounded_roam_destination(record, entity)
+  local origin = (entity and entity.valid and entity.position) or record.home_position
+  local angle_seed = ((record.squirrel_id or 1) * 67) + (record.roam_step * 97)
+  local angle = ((angle_seed % 360) / 180) * math.pi
+  local step_span = math.max(
+    0,
+    constants.squirrel_roam_step_max_distance - constants.squirrel_roam_step_min_distance
+  )
+  local distance_seed = (((record.squirrel_id or 1) * 31) + (record.roam_step * 17)) % 100
+  local step_distance = constants.squirrel_roam_step_min_distance + ((distance_seed / 100) * step_span)
+  local candidate = position_with_offset(origin, angle, step_distance)
+  local home_distance = math.sqrt(distance_squared(candidate, record.home_position))
+
+  if home_distance > constants.squirrel_home_wander_distance then
+    local return_angle = math.atan(
+      record.home_position.y - origin.y,
+      record.home_position.x - origin.x
+    )
+    local bounded_distance = math.min(
+      step_distance,
+      math.max(constants.squirrel_home_wander_min_distance, home_distance - constants.squirrel_home_wander_min_distance)
+    )
+
+    candidate = position_with_offset(origin, return_angle, bounded_distance)
+  end
+
+  return candidate
+end
+
+local function idle_pause_duration(record)
+  local pause_span = math.max(0, constants.squirrel_idle_pause_max - constants.squirrel_idle_pause_min)
+  local pause_seed = (((record.squirrel_id or 1) * 19) + ((record.roam_step or 0) * 23)) % (pause_span + 1)
+  return constants.squirrel_idle_pause_min + pause_seed
+end
+
+local function enter_idle(record, entity, tick)
+  record.mode = "idle"
+  record.intent = nil
+  record.target = nil
+  record.destination = nil
+  record.action_due_tick = tick + idle_pause_duration(record)
+  record.next_decision_tick = record.action_due_tick
+  stop_entity(entity)
+end
+
 local function send_home(record, entity, tick)
   record.mode = "roam"
   record.target = nil
@@ -812,24 +866,11 @@ end
 
 local function start_roam(record, entity, tick)
   record.roam_step = (record.roam_step or 0) + 1
-
-  local angle_seed = ((record.squirrel_id or 1) * 67) + (record.roam_step * 97)
-  local angle = ((angle_seed % 360) / 180) * math.pi
-  local distance_span = math.max(
-    0,
-    constants.squirrel_home_wander_distance - constants.squirrel_home_wander_min_distance
-  )
-  local distance_seed = (((record.squirrel_id or 1) * 31) + (record.roam_step * 17)) % 100
-  local distance = constants.squirrel_home_wander_min_distance + ((distance_seed / 100) * distance_span)
-  local destination = position_with_offset(
-    record.home_position,
-    angle,
-    distance
-  )
+  local destination = bounded_roam_destination(record, entity)
 
   local surface = game.surfaces[record.surface_index]
   if surface then
-    destination = surface.find_non_colliding_position(constants.names.squirrel, destination, 6, 0.5, true) or destination
+    destination = surface.find_non_colliding_position(constants.names.squirrel, destination, 4, 0.5, true) or destination
   end
 
   record.mode = "roam"
@@ -1145,6 +1186,11 @@ end
 local function process_arrival(record, entity, tick)
   local target_entity = resolve_target(record)
 
+  if record.mode == "roam" then
+    enter_idle(record, entity, tick)
+    return
+  end
+
   if record.mode == "approach" then
     if not target_entity then
       send_home(record, entity, tick)
@@ -1250,11 +1296,15 @@ function squirrels.on_tick(tick)
     for _, record in pairs(get_squirrel_store()) do
       local entity = resolve_entity_reference(record.entity)
       if entity and entity.valid then
-        if record.mode == "roam" and tick >= record.next_decision_tick then
+        if record.mode == "idle" and tick >= record.next_decision_tick then
           process_idle_decision(record, entity, tick)
+        elseif record.mode == "roam" and record.destination and reached_position(entity, record.destination) then
+          process_arrival(record, entity, tick)
+        elseif record.mode == "roam" and tick >= record.action_due_tick then
+          enter_idle(record, entity, tick)
         elseif tick >= record.action_due_tick then
           process_arrival(record, entity, tick)
-        elseif record.destination and reached_position(entity, record.destination) then
+        elseif record.mode ~= "roam" and record.destination and reached_position(entity, record.destination) then
           process_arrival(record, entity, tick)
         end
       end
@@ -1487,6 +1537,7 @@ function squirrels.debug_report(surface_index, tick)
           carrying = record.carrying and record.carrying.name or nil,
           stash_id = record.stash_id,
           position = clone_position(entity.position),
+          home_position = clone_position(record.home_position),
           last_action_tick = record.last_action_tick
         }
       end

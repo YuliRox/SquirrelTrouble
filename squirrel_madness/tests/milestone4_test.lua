@@ -210,6 +210,29 @@ describe("milestone 4 squirrel nuisance runtime", function()
     assert.equal(0, table_size(before_ids))
   end)
 
+  it("keeps calm squirrels close to their forest home while roaming", function()
+    spawn_forest(24, FOREST_ORIGIN)
+    remote.call(constants.mod_name, "debug_force_region_squirrels", surface().index, FOREST_ORIGIN.x, FOREST_ORIGIN.y)
+
+    local report = remote.call(
+      constants.mod_name,
+      "debug_advance_squirrel_runtime",
+      (constants.squirrel_update_interval * 8) + constants.squirrel_idle_pause_max
+    )
+
+    assert.is_true(#report.squirrels >= 2)
+
+    for _, squirrel in ipairs(report.squirrels) do
+      local dx = squirrel.position.x - squirrel.home_position.x
+      local dy = squirrel.position.y - squirrel.home_position.y
+      local distance_squared = (dx * dx) + (dy * dy)
+      local allowed_distance = constants.squirrel_home_wander_distance + constants.squirrel_roam_step_max_distance
+
+      assert.is_true(distance_squared <= (allowed_distance * allowed_distance))
+      assert.is_true(squirrel.mode == "idle" or squirrel.mode == "roam")
+    end
+  end)
+
   it("tracks calm, curious, mischievous, agitated, and grieving state selection", function()
     local trees = spawn_forest(18, FOREST_ORIGIN)
 
