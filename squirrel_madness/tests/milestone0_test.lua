@@ -58,6 +58,16 @@ describe("milestone 0 scaffold", function()
     assert.is_not_nil(prototypes.custom_input[constants.names.relocation_input])
   end)
 
+  it("keeps nuts lightweight enough to read sensibly in rocket logistics", function()
+    local nut = prototypes.item[constants.names.nut]
+    local wood = prototypes.item["wood"]
+
+    assert.is_not_nil(nut)
+    assert.is_not_nil(wood)
+    assert.is_true(nut.weight > 0)
+    assert.is_true(nut.weight < wood.weight)
+  end)
+
   it("unlocks restoration recipes in the intended order", function()
     local force = player_force()
 

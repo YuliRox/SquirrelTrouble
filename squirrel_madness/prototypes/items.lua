@@ -8,7 +8,8 @@ data:extend({
     icon_size = 64,
     subgroup = "intermediate-product",
     order = "n[squirrel]-a[nut]",
-    stack_size = 100
+    stack_size = 100,
+    weight = 100 * grams
   },
   {
     type = "item",
