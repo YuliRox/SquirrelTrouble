@@ -31,6 +31,7 @@ The intended arc is:
 - Make squirrel behavior understandable rather than arbitrary.
 - Ensure the long-term solution is automatable, not manual busywork.
 - Reward forest preservation and restoration with practical ecological benefits.
+- Reward direct ecological care such as replanting and healing damaged groves.
 - Tie squirrel well-being to pollution and nearby biter aggression.
 
 ## High-Level Pillars
@@ -79,6 +80,7 @@ Factors that increase it:
 - low pollution
 - active squirrel feeders
 - recent reforestation
+- recent tree healing or stump recovery
 
 Factors that decrease it:
 
@@ -116,6 +118,7 @@ Factors that increase it:
 - keeping forest belts intact
 - maintaining stocked feeders
 - restoring nut trees
+- healing damaged groves
 - relocating rather than killing squirrels
 
 Factors that decrease it:
@@ -140,6 +143,7 @@ Habitat pressure rises when:
 Habitat pressure falls when:
 
 - forests are preserved or restored
+- damaged trees are healed and eligible stumps are regrown
 - feeders are stocked
 - nut trees are replanted
 - squirrels are relocated into healthy forest
@@ -188,7 +192,7 @@ Uses:
 
 ### Squirrel Feeder
 
-A specialized chest-like entity placed by the player.
+A specialized chest-like wildlife feeder placed by the player.
 
 Purpose:
 
@@ -197,11 +201,35 @@ Purpose:
 - visible signal that an area is being managed
 - practical wildlife diversion infrastructure
 
+Planned tiers:
+
+- `Wooden Squirrel Feeder`: early, cheap, low-capacity feeder that reads like a simple chest or trough of nuts near the forest edge
+- `Iron Squirrel Feeder`: later, higher-capacity feeder that keeps busy factory-edge hotspots calmer for longer without changing the core squirrel logic
+
 Rules:
 
 - squirrels prefer stocked feeders over stealing
+- the wooden feeder is the first peace offering; the iron feeder is the scaled-up version for heavier pressure and longer uptime
 - empty feeders become disappointment points and can increase unrest
 - feeders are best placed near forest edges and safe corridors
+- feeder tiers should differ mostly by capacity, durability, and uptime, not by introducing separate squirrel behaviors
+
+### Tree Treatment Kit
+
+A nonlethal ecological restoration tool inspired by forestry care rather than combat.
+
+Purpose:
+
+- heal damaged trees
+- regrow eligible stumps or burned groves
+- provide a direct restoration option besides planting
+
+Rules:
+
+- works on trees, damaged groves, and eligible stumps, not on buildings
+- improves local habitat recovery but does not replace preserving forests
+- grants a modest trust benefit when used to restore damaged habitat
+- should become automatable later if it proves too manual
 
 ### Forest Stash
 
@@ -558,7 +586,7 @@ Purpose:
 
 Unlocks:
 
-- squirrel feeders
+- `Wooden Squirrel Feeder`
 
 Purpose:
 
@@ -590,6 +618,7 @@ Purpose:
 
 Unlocks or improves:
 
+- `Iron Squirrel Feeder`
 - stronger nut tree pollution absorption
 - stronger local peace-zone effects
 - improved squirrel preference for feeders over theft
@@ -609,13 +638,14 @@ Purpose:
 ### Mid Game
 
 - nuisance becomes serious enough to disrupt belts and storage
-- player unlocks squirrel feeders and nut restoration
+- player unlocks wooden squirrel feeders and nut restoration
 - forest stewardship becomes a real logistical consideration
 - research begins turning squirrel management into an automatable subsystem
 
 ### Mid/Late Game
 
 - relocation drones unlock
+- iron squirrel feeders unlock as the larger-capacity coexistence tool for sustained hotspots
 - player can deliberately design forest corridors and sanctuary zones
 - cooperation starts outperforming brute-force expansion
 
@@ -809,7 +839,7 @@ A region qualifies as a healthy sanctuary region when:
 
 #### Stocked Squirrel Feeder
 
-A squirrel feeder counts as stocked when it contains at least `50` nuts.
+A squirrel feeder counts as stocked when it contains at least the tier-specific nut threshold needed to satisfy squirrels locally. Wooden and iron feeders should use the same preference logic but different capacities and refill cadence.
 
 #### Active Peace Zone
 

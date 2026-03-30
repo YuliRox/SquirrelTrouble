@@ -60,13 +60,13 @@ Setup shortcuts:
 
 Checklist:
 - [X] Place the survey station inside the same forest patch you used for the broad survey.
-- [ ] Place the `Solar Panel` and a `Small Electric Pole` so the survey station is powered.
-- [ ] If it is night, wait for daylight before continuing.
+- [X] Place the `Solar Panel` and a `Small Electric Pole` so the survey station is powered.
+- [X] If it is night, wait for daylight before continuing.
 - [X] Stand beside the powered survey station and press `ALT+S`.
-- [ ] Confirm the report switches to exact numeric values.
-- [ ] Walk a short distance away but keep the station selected.
-- [ ] Press `ALT+S` again.
-- [ ] Confirm the exact report still feels anchored to the station area rather than your current tile.
+- [X] Confirm the report switches to exact numeric values.
+- [X] Walk a short distance away but keep the station selected.
+- [X] Press `ALT+S` again.
+- [X] Confirm the exact report still feels anchored to the station area rather than your current tile.
 
 Pass condition:
 - The powered station-based inspection flow is spatially coherent and clearly more precise than broad survey mode.
@@ -78,13 +78,13 @@ Preconditions:
 - Take an exact survey baseline before cutting anything.
 
 Checklist:
-- [ ] Survey the untouched patch once and note the overall tone of the report.
-- [ ] Mine at least three nearby trees inside the same forest region.
-- [ ] Confirm the deforestation warning message appears after the heavier local loss.
-- [ ] Survey the same patch again.
-- [ ] Confirm the report reads worse than the untouched baseline.
-- [ ] Walk to a separate untouched forest patch and survey there as a control.
-- [ ] Confirm the untouched patch still feels healthier than the damaged one.
+- [X] Survey the untouched patch once and note the overall tone of the report.
+- [X] Mine at least three nearby trees inside the same forest region.
+- [X] Confirm the deforestation warning message appears after the heavier local loss.
+- [X] Survey the same patch again.
+- [X] Confirm the report reads worse than the untouched baseline.
+- [X] Walk to a separate untouched forest patch and survey there as a control.
+- [X] Confirm the untouched patch still feels healthier than the damaged one.
 
 Pass condition:
 - Normal player tree cutting causes a visible and understandable local ecology penalty.
@@ -104,11 +104,11 @@ Setup shortcuts:
 ```
 
 Checklist:
-- [ ] Place active burner machines inside or immediately beside the forest patch.
-- [ ] Let them run for at least 20 seconds.
-- [ ] Survey the same region again.
-- [ ] Confirm pollution becomes part of the explanation for the region state.
-- [ ] Confirm the polluted patch reads worse than it did before the burners were running.
+- [X] Place active burner machines inside or immediately beside the forest patch.
+- [X] Let them run for at least 20 seconds.
+- [X] Survey the same region again.
+- [X] Confirm pollution becomes part of the explanation for the region state.
+- [X] Confirm the polluted patch reads worse than it did before the burners were running.
 
 Pass condition:
 - Local industry visibly feeds back into the ecology report instead of feeling disconnected from it.

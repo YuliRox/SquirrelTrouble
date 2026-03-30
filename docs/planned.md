@@ -74,6 +74,12 @@ Exit criteria:
 
 ### 1. Region Ecology Foundation
 
+Validation:
+
+- manual playtest passed on 2026-03-30
+  - exact survey readouts now require a powered survey station
+  - broad and exact survey modes both behaved correctly in live play
+
 Deliverables:
 
 - implement region mapping for `2x2` chunk regions

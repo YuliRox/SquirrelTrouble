@@ -1,6 +1,6 @@
 # squirrel_madness — Shared Agent Instructions
 
-`AGENTS.md` in this directory is a symlink to this file so Codex and Claude Code stay in sync. Edit this `CLAUDE.md` target, not the symlink.
+This file is the shared agent instruction source for this checkout. Keep any parallel assistant-instruction copy aligned with it if one exists in another environment.
 
 ## Repo Purpose
 
@@ -14,6 +14,7 @@ The mod theme is scarcity, salvage, and ruined infrastructure. Prefer changes th
 - `docs/` contains stable design and behavior references.
 - `docs/features/` documents implemented systems.
 - `docs/hooks.md` is the runtime event map.
+- `manual testing/` contains milestone-specific manual playtest checklists for in-game validation.
 - `tools/` contains blueprint extraction, normalization, ruin-template, wear-profile, and sector-compilation tooling.
 - `scripts/` contains shell wrappers for Factorio tests and world inspection.
 - `planning/` and brainstorming docs are design input, not the operational source of truth.
@@ -24,7 +25,9 @@ The mod theme is scarcity, salvage, and ruined infrastructure. Prefer changes th
 - Prefer repo evidence over stale prose. When behavior docs and code disagree, update the docs or note the mismatch.
 - Keep Space Age content behind `if mods["space-age"] then`.
 - Favor small, targeted edits over broad rewrites unless the task explicitly calls for restructuring.
-- Features demand tests. There should be no untested edges. When implementing functionality, always implement and accompanying test to verfiy functionality behaves as expected.
+- Features demand tests. There should be no untested edges. When implementing functionality, always implement and accompanying test to verfiy functionality behaves as expected. Alway try to optimize the test surface if you feel that certain features miss tests.
+- For each milestone, create a manual playtest document for ingame testing.
+- When planning milestones, explicitly note whether a playtest is a hard stop before further milestone work and summarize what that playtest must validate.
 
 ## Canonical References
 
@@ -32,6 +35,8 @@ The mod theme is scarcity, salvage, and ruined infrastructure. Prefer changes th
 - Runtime hooks: [docs/hooks.md](docs/hooks.md)
 - Feature behavior: `docs/features/*.md`
 - Roadmap: [docs/planned.md](docs/planned.md)
+- Manual playtest authoring: [docs/manual-playtests.md](docs/manual-playtests.md)
+- Factorio art style reference: [docs/factorio-art-style-reference.md](docs/factorio-art-style-reference.md)
 
 ## Additional Rule Files
 

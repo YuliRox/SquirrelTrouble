@@ -111,6 +111,7 @@ local function ensure_region_shape(region, surface_index, region_x, region_y)
   region.canopy_score = region.canopy_score or 0
   region.nut_tree_bonus = region.nut_tree_bonus or 0
   region.stocked_feeder_bonus = region.stocked_feeder_bonus or 0
+  region.reforestation_bonus = region.reforestation_bonus or 0
   region.empty_feeder_penalty = region.empty_feeder_penalty or 0
   region.recent_tree_loss_penalty = region.recent_tree_loss_penalty or 0
   region.rolling_pollution_penalty = region.rolling_pollution_penalty or 0
@@ -203,6 +204,10 @@ local function region_drivers(region)
 
   if region.stocked_feeder_bonus >= 10 then
     drivers[#drivers + 1] = "stocked-feeders"
+  end
+
+  if region.reforestation_bonus >= 4 then
+    drivers[#drivers + 1] = "recovering-grove"
   end
 
   if region.empty_feeder_penalty >= 6 then
@@ -315,6 +320,11 @@ function regions.recompute_region(surface, region_x, region_y, tick)
     0,
     constants.max_stocked_feeder_bonus
   )
+  local reforestation_bonus = clamp(
+    sapling_count * constants.reforestation_bonus_per_sapling,
+    0,
+    constants.max_reforestation_bonus
+  )
   local empty_feeder_penalty = clamp(
     empty_feeders * constants.empty_feeder_penalty_per_feeder,
     0,
@@ -340,26 +350,43 @@ function regions.recompute_region(surface, region_x, region_y, tick)
   region.canopy_score = round(canopy_score)
   region.nut_tree_bonus = round(nut_tree_bonus)
   region.stocked_feeder_bonus = round(stocked_feeder_bonus)
+  region.reforestation_bonus = round(reforestation_bonus)
   region.empty_feeder_penalty = round(empty_feeder_penalty)
   region.recent_tree_loss_penalty = round(recent_tree_loss_penalty)
   region.rolling_pollution_penalty = round(rolling_pollution_penalty)
   region.forest_health = round(clamp(
-    canopy_score + nut_tree_bonus + stocked_feeder_bonus - rolling_pollution_penalty - recent_tree_loss_penalty,
+    canopy_score + nut_tree_bonus + stocked_feeder_bonus + reforestation_bonus - rolling_pollution_penalty - recent_tree_loss_penalty,
     0,
     100
   ))
   region.squirrel_unrest = round(clamp(
-    10 + recent_tree_loss_penalty + rolling_pollution_penalty + empty_feeder_penalty - stocked_feeder_bonus - (region.forest_health * 0.15),
+    10
+      + recent_tree_loss_penalty
+      + rolling_pollution_penalty
+      + empty_feeder_penalty
+      - stocked_feeder_bonus
+      - (reforestation_bonus * 0.35)
+      - (region.forest_health * 0.15),
     0,
     100
   ))
   region.squirrel_trust = round(clamp(
-    45 + stocked_feeder_bonus + nut_tree_bonus - empty_feeder_penalty - (recent_tree_loss_penalty * 0.65) - (rolling_pollution_penalty * 0.35),
+    45
+      + stocked_feeder_bonus
+      + nut_tree_bonus
+      + (reforestation_bonus * 0.5)
+      - empty_feeder_penalty
+      - (recent_tree_loss_penalty * 0.65)
+      - (rolling_pollution_penalty * 0.35),
     0,
     100
   ))
   region.habitat_pressure = round(clamp(
-    ((100 - region.forest_health) * 0.55) + (region.squirrel_unrest * 0.65) + empty_feeder_penalty - (stocked_feeder_bonus * 0.4),
+    ((100 - region.forest_health) * 0.55)
+      + (region.squirrel_unrest * 0.65)
+      + empty_feeder_penalty
+      - (stocked_feeder_bonus * 0.4)
+      - (reforestation_bonus * 0.5),
     0,
     100
   ))
@@ -419,6 +446,7 @@ function regions.serialize(region)
     canopy_score = region.canopy_score,
     nut_tree_bonus = region.nut_tree_bonus,
     stocked_feeder_bonus = region.stocked_feeder_bonus,
+    reforestation_bonus = region.reforestation_bonus,
     empty_feeder_penalty = region.empty_feeder_penalty,
     recent_tree_loss_penalty = region.recent_tree_loss_penalty,
     rolling_pollution_penalty = region.rolling_pollution_penalty,

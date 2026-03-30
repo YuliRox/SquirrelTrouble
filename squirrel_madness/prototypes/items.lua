@@ -1,8 +1,10 @@
+local survey_station_icon_tint = {r = 0.32, g = 0.52, b = 0.34, a = 1}
+
 data:extend({
   {
     type = "item",
     name = "nut",
-    icon = "__base__/graphics/icons/wood.png",
+    icon = "__squirrel_madness__/graphics/icons/nut.png",
     icon_size = 64,
     subgroup = "intermediate-product",
     order = "n[squirrel]-a[nut]",
@@ -31,8 +33,13 @@ data:extend({
   {
     type = "item",
     name = "forest-survey-station",
-    icon = "__base__/graphics/icons/small-lamp.png",
-    icon_size = 64,
+    icons = {
+      {
+        icon = "__base__/graphics/icons/radar.png",
+        icon_size = 64,
+        tint = survey_station_icon_tint
+      }
+    },
     subgroup = "production-machine",
     order = "n[squirrel]-c[survey]",
     place_result = "forest-survey-station",

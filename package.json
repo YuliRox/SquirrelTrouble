@@ -8,7 +8,7 @@
     "blueprint:compile-sectors": "node tools/blueprint_compile_sectors.js",
     "blueprint:regenerate": "bash tools/build_central_district_from_blueprint.sh",
     "blueprint:build:central-district": "bash tools/build_central_district_from_blueprint.sh",
-    "test": "bash scripts/test-factorio.sh run",
+    "test": "npm run test:node && bash scripts/test-factorio.sh run",
     "test:watch": "bash scripts/test-factorio.sh run -w",
     "test:gui": "bash scripts/test-factorio.sh run -g",
     "inspect:surface": "bash scripts/inspect-desert.sh --mode=surface",

@@ -16,12 +16,19 @@ local function surface()
   return game.surfaces["nauvis"] or game.surfaces[1]
 end
 
+local function player()
+  return game.players[1]
+end
+
 local function reset_runtime_storage()
   storage.regions = {}
   storage.last_refresh_tick = 0
   storage.seeded_chunks = {}
   storage.saplings = {}
   storage.next_sapling_id = 1
+  storage.harvested_nut_trees = {}
+  storage.next_harvested_nut_tree_id = 1
+  storage.pending_entity_replacements = {}
   storage.force_tutorials = {}
 end
 
@@ -103,11 +110,20 @@ before_each(function()
   spawned_entities = {}
   surface().clear_pollution()
   reset_runtime_storage()
+  player().teleport({x = 0, y = 0}, surface())
+  local inventory = player().get_main_inventory()
+  if inventory then
+    inventory.clear()
+  end
 end)
 
 after_each(function()
   surface().clear_pollution()
   reset_runtime_storage()
+  local inventory = player().get_main_inventory()
+  if inventory then
+    inventory.clear()
+  end
 end)
 
 describe("milestone 2 habitat recovery", function()
@@ -132,6 +148,7 @@ describe("milestone 2 habitat recovery", function()
     }
     local cleanup_names = {
       constants.names.nut_tree,
+      constants.names.nut_tree_harvested,
       constants.names.nut_sapling,
       constants.names.feeder
     }
@@ -147,6 +164,7 @@ describe("milestone 2 habitat recovery", function()
 
     destroy_named_entities(starting_grove_area(), {
       constants.names.nut_tree,
+      constants.names.nut_tree_harvested,
       constants.names.nut_sapling,
       constants.names.feeder
     })
@@ -273,7 +291,10 @@ describe("milestone 2 habitat recovery", function()
     assert.equal(1, after.sapling_count)
     assert.equal(0, after.nut_tree_count)
     assert.equal(before.tree_count, after.tree_count)
-    assert.equal(before.forest_health, after.forest_health)
+    assert.is_true(after.reforestation_bonus > before.reforestation_bonus)
+    assert.is_true(after.forest_health > before.forest_health)
+    assert.is_true(after.squirrel_trust > before.squirrel_trust)
+    assert.is_true(after.habitat_pressure < before.habitat_pressure)
   end)
 
   it("matures planted saplings into nut trees and improves local habitat", function()
@@ -307,6 +328,81 @@ describe("milestone 2 habitat recovery", function()
     assert.equal(0, after.sapling_count)
     assert.is_true(after.forest_health > before.forest_health)
     assert.is_true(after.squirrel_trust > before.squirrel_trust)
+  end)
+
+  it("harvests nut trees without counting as deforestation", function()
+    local position = {x = SAPLING_ORIGIN.x + 12, y = SAPLING_ORIGIN.y}
+    local nut_tree = track_entity(surface().create_entity({
+      name = constants.names.nut_tree,
+      position = position,
+      force = "neutral"
+    }))
+    local before = remote.call(
+      constants.mod_name,
+      "force_recompute_at_position",
+      surface().index,
+      position.x,
+      position.y
+    )
+
+    player().teleport({x = position.x + 1, y = position.y}, surface())
+
+    assert.is_not_nil(nut_tree)
+    assert.is_true(player().mine_entity(nut_tree, true))
+    assert.equal(1, habitat.resolve_pending_replacements(game.tick + 1, surface().index))
+
+    local after = remote.call(
+      constants.mod_name,
+      "force_recompute_at_position",
+      surface().index,
+      position.x,
+      position.y
+    )
+    local harvested = surface().find_entities_filtered({
+      position = position,
+      name = constants.names.nut_tree_harvested,
+      limit = 1
+    })[1]
+
+    assert.is_not_nil(harvested)
+    assert.equal(5, player().get_main_inventory().get_item_count(constants.names.nut))
+    assert.equal(0, after.recent_tree_loss)
+    assert.equal(0, after.recent_tree_loss_penalty)
+    assert.equal(before.tree_count, after.tree_count)
+    assert.equal(0, after.nut_tree_count)
+    assert.is_true(storage.force_tutorials[player().force.index].harvest_hint)
+  end)
+
+  it("lets picked nut trees recover into mature nut trees", function()
+    local position = {x = SAPLING_ORIGIN.x + 20, y = SAPLING_ORIGIN.y}
+    local nut_tree = track_entity(surface().create_entity({
+      name = constants.names.nut_tree,
+      position = position,
+      force = "neutral"
+    }))
+
+    player().teleport({x = position.x + 1, y = position.y}, surface())
+
+    assert.is_not_nil(nut_tree)
+    assert.is_true(player().mine_entity(nut_tree, true))
+    assert.equal(1, habitat.resolve_pending_replacements(game.tick + 1, surface().index))
+    assert.equal(1, count_storage_entries(storage.harvested_nut_trees))
+    assert.equal(
+      1,
+      habitat.force_recover_all_harvested_nut_trees(
+        game.tick + constants.nut_tree_harvest_regrowth_time,
+        surface().index
+      )
+    )
+
+    local recovered = surface().find_entities_filtered({
+      position = position,
+      name = constants.names.nut_tree,
+      limit = 1
+    })[1]
+
+    assert.is_not_nil(recovered)
+    assert.equal(0, count_storage_entries(storage.harvested_nut_trees))
   end)
 
   it("clears stale sapling records when the entity disappears before maturation", function()

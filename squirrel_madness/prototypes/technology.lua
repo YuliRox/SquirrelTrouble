@@ -2,7 +2,7 @@ data:extend({
   {
     type = "technology",
     name = "arboriculture",
-    icon = "__base__/graphics/technology/automation.png",
+    icon = "__base__/graphics/technology/automation-1.png",
     icon_size = 256,
     effects = {
       {
@@ -22,7 +22,7 @@ data:extend({
   {
     type = "technology",
     name = "wildlife-diversion",
-    icon = "__base__/graphics/technology/logistics.png",
+    icon = "__base__/graphics/technology/logistics-1.png",
     icon_size = 256,
     prerequisites = {"arboriculture"},
     effects = {
@@ -44,7 +44,7 @@ data:extend({
   {
     type = "technology",
     name = "forest-surveying",
-    icon = "__base__/graphics/technology/optics.png",
+    icon = "__base__/graphics/technology/radar.png",
     icon_size = 256,
     prerequisites = {"wildlife-diversion", "electronics"},
     effects = {

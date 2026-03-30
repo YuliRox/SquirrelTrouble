@@ -53,22 +53,69 @@ local function create_neutral_entity(surface, name, position, raise_built)
   })
 end
 
-local function remove_sapling_records(surface_index, position)
-  for sapling_id, sapling in pairs(storage.saplings) do
-    if sapling.surface_index == surface_index and positions_equal(sapling.position, position) then
-      storage.saplings[sapling_id] = nil
-    end
-  end
-end
-
-local function find_sapling(surface, position)
+local function find_named_entity(surface, name, position)
   local matches = surface.find_entities_filtered({
     position = position,
-    name = constants.names.nut_sapling,
+    name = name,
     limit = 1
   })
 
   return matches[1]
+end
+
+local function remove_tracked_entries(entries, surface_index, position)
+  for entry_id, entry in pairs(entries) do
+    if entry.surface_index == surface_index and positions_equal(entry.position, position) then
+      entries[entry_id] = nil
+    end
+  end
+end
+
+local function register_tracked_entry(entries, next_id_key, surface_index, position, mature_tick)
+  local entry_id = storage[next_id_key]
+  storage[next_id_key] = entry_id + 1
+  entries[entry_id] = {
+    surface_index = surface_index,
+    position = clone_position(position),
+    mature_tick = mature_tick
+  }
+  return entries[entry_id]
+end
+
+local function mature_tracked_entries(entries, current_tick, surface_index, current_name, next_name)
+  local matured = 0
+
+  for entry_id, entry in pairs(entries) do
+    if entry.mature_tick <= current_tick and (not surface_index or entry.surface_index == surface_index) then
+      local surface = game.surfaces[entry.surface_index]
+      if surface then
+        local entity = find_named_entity(surface, current_name, entry.position)
+        if entity and entity.valid then
+          local position = clone_position(entity.position)
+          entity.destroy()
+
+          local replacement = create_neutral_entity(surface, next_name, position, false)
+          if replacement and replacement.valid then
+            matured = matured + 1
+            regions.mark_dirty(surface.index, position)
+          end
+        end
+      end
+
+      entries[entry_id] = nil
+    end
+  end
+
+  return matured
+end
+
+local function schedule_entity_replacement(surface_index, position, name, due_tick)
+  storage.pending_entity_replacements[#storage.pending_entity_replacements + 1] = {
+    surface_index = surface_index,
+    position = clone_position(position),
+    name = name,
+    due_tick = due_tick
+  }
 end
 
 local function collect_seed_candidates(surface, area)
@@ -79,7 +126,12 @@ local function collect_seed_candidates(surface, area)
   local candidates = {}
 
   for _, tree in ipairs(trees) do
-    if tree.valid and tree.name ~= constants.names.nut_tree and tree.name ~= constants.names.nut_sapling then
+    if
+      tree.valid
+      and tree.name ~= constants.names.nut_tree
+      and tree.name ~= constants.names.nut_tree_harvested
+      and tree.name ~= constants.names.nut_sapling
+    then
       candidates[#candidates + 1] = tree
     end
   end
@@ -168,6 +220,46 @@ local function top_up_starting_grove(surface, spawn_position, remaining)
         regions.mark_dirty(surface.index, position)
       end
     end
+  end
+
+  return created
+end
+
+function habitat.resolve_pending_replacements(current_tick, surface_index)
+  local replacements = storage.pending_entity_replacements
+  if #replacements == 0 then
+    return 0
+  end
+
+  local write_index = 1
+  local created = 0
+
+  for read_index = 1, #replacements do
+    local replacement = replacements[read_index]
+    if replacement.due_tick <= current_tick and (not surface_index or replacement.surface_index == surface_index) then
+      local surface = game.surfaces[replacement.surface_index]
+      if surface then
+        local entity = create_neutral_entity(surface, replacement.name, replacement.position, false)
+        if entity and entity.valid then
+          created = created + 1
+          regions.mark_dirty(surface.index, replacement.position)
+
+          if replacement.name == constants.names.nut_tree_harvested then
+            habitat.register_harvested_nut_tree(entity, current_tick)
+          end
+        else
+          replacements[write_index] = replacement
+          write_index = write_index + 1
+        end
+      end
+    else
+      replacements[write_index] = replacement
+      write_index = write_index + 1
+    end
+  end
+
+  for index = write_index, #replacements do
+    replacements[index] = nil
   end
 
   return created
@@ -274,49 +366,31 @@ function habitat.register_sapling(entity, tick)
     return nil
   end
 
-  remove_sapling_records(entity.surface.index, entity.position)
-
-  local sapling_id = storage.next_sapling_id
-  storage.next_sapling_id = sapling_id + 1
-  storage.saplings[sapling_id] = {
-    surface_index = entity.surface.index,
-    position = clone_position(entity.position),
-    mature_tick = (tick or game.tick) + constants.nut_sapling_growth_time
-  }
+  remove_tracked_entries(storage.saplings, entity.surface.index, entity.position)
+  local sapling = register_tracked_entry(
+    storage.saplings,
+    "next_sapling_id",
+    entity.surface.index,
+    entity.position,
+    (tick or game.tick) + constants.nut_sapling_growth_time
+  )
   regions.mark_dirty(entity.surface.index, entity.position)
 
-  return storage.saplings[sapling_id]
+  return sapling
 end
 
 function habitat.unregister_sapling(surface_index, position)
-  remove_sapling_records(surface_index, position)
+  remove_tracked_entries(storage.saplings, surface_index, position)
 end
 
 function habitat.mature_ready_saplings(current_tick, surface_index)
-  local matured = 0
-
-  for sapling_id, sapling in pairs(storage.saplings) do
-    if sapling.mature_tick <= current_tick and (not surface_index or sapling.surface_index == surface_index) then
-      local surface = game.surfaces[sapling.surface_index]
-      if surface then
-        local entity = find_sapling(surface, sapling.position)
-        if entity and entity.valid then
-          local position = clone_position(entity.position)
-          entity.destroy()
-
-          local tree = create_neutral_entity(surface, constants.names.nut_tree, position, false)
-          if tree and tree.valid then
-            matured = matured + 1
-            regions.mark_dirty(surface.index, position)
-          end
-        end
-      end
-
-      storage.saplings[sapling_id] = nil
-    end
-  end
-
-  return matured
+  return mature_tracked_entries(
+    storage.saplings,
+    current_tick,
+    surface_index,
+    constants.names.nut_sapling,
+    constants.names.nut_tree
+  )
 end
 
 function habitat.force_mature_all_saplings(current_tick, surface_index)
@@ -327,6 +401,61 @@ function habitat.force_mature_all_saplings(current_tick, surface_index)
   end
 
   return habitat.mature_ready_saplings(current_tick, surface_index)
+end
+
+function habitat.register_harvested_nut_tree(entity, tick)
+  if not (entity and entity.valid and entity.name == constants.names.nut_tree_harvested and is_supported_surface(entity.surface)) then
+    return nil
+  end
+
+  remove_tracked_entries(storage.harvested_nut_trees, entity.surface.index, entity.position)
+  return register_tracked_entry(
+    storage.harvested_nut_trees,
+    "next_harvested_nut_tree_id",
+    entity.surface.index,
+    entity.position,
+    (tick or game.tick) + constants.nut_tree_harvest_regrowth_time
+  )
+end
+
+function habitat.unregister_harvested_nut_tree(surface_index, position)
+  remove_tracked_entries(storage.harvested_nut_trees, surface_index, position)
+end
+
+function habitat.recover_ready_harvested_nut_trees(current_tick, surface_index)
+  return mature_tracked_entries(
+    storage.harvested_nut_trees,
+    current_tick,
+    surface_index,
+    constants.names.nut_tree_harvested,
+    constants.names.nut_tree
+  )
+end
+
+function habitat.force_recover_all_harvested_nut_trees(current_tick, surface_index)
+  for _, harvested_tree in pairs(storage.harvested_nut_trees) do
+    if not surface_index or harvested_tree.surface_index == surface_index then
+      harvested_tree.mature_tick = current_tick
+    end
+  end
+
+  return habitat.recover_ready_harvested_nut_trees(current_tick, surface_index)
+end
+
+function habitat.harvest_nut_tree(entity, tick)
+  if not (entity and entity.valid and entity.name == constants.names.nut_tree and is_supported_surface(entity.surface)) then
+    return false
+  end
+
+  schedule_entity_replacement(
+    entity.surface.index,
+    entity.position,
+    constants.names.nut_tree_harvested,
+    (tick or game.tick) + 1
+  )
+  regions.mark_dirty(entity.surface.index, entity.position)
+
+  return true
 end
 
 function habitat.maybe_show_deforestation_hint(player_index, surface, position, tick)
@@ -370,6 +499,25 @@ function habitat.maybe_show_sapling_hint(player_index)
   player.print({"message.squirrel-madness-sapling-planted"})
 end
 
+function habitat.maybe_show_harvest_hint(player_index)
+  if not player_index then
+    return
+  end
+
+  local player = game.get_player(player_index)
+  if not (player and player.valid and player.force) then
+    return
+  end
+
+  local tutorials = get_force_tutorials(player.force.index)
+  if tutorials.harvest_hint then
+    return
+  end
+
+  tutorials.harvest_hint = true
+  player.print({"message.squirrel-madness-nut-tree-harvested"})
+end
+
 function habitat.on_research_finished(research)
   if not (research and research.valid and research.force and research.force.valid) then
     return
@@ -377,10 +525,10 @@ function habitat.on_research_finished(research)
 
   local tutorials = get_force_tutorials(research.force.index)
 
-  if research.name == "arboriculture" and not tutorials.arboriculture_hint then
+  if research.name == constants.technologies.arboriculture and not tutorials.arboriculture_hint then
     tutorials.arboriculture_hint = true
     research.force.print({"message.squirrel-madness-arboriculture-hint"})
-  elseif research.name == "wildlife-diversion" and not tutorials.wildlife_diversion_hint then
+  elseif research.name == constants.technologies.wildlife_diversion and not tutorials.wildlife_diversion_hint then
     tutorials.wildlife_diversion_hint = true
     research.force.print({"message.squirrel-madness-wildlife-diversion-hint"})
   end

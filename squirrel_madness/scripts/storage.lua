@@ -1,13 +1,22 @@
 local storage_lib = {}
 
 function storage_lib.ensure()
-  storage.version = storage.version or 3
+  storage.version = storage.version or 6
   storage.regions = storage.regions or {}
   storage.last_refresh_tick = storage.last_refresh_tick or 0
   storage.seeded_chunks = storage.seeded_chunks or {}
   storage.saplings = storage.saplings or {}
   storage.next_sapling_id = storage.next_sapling_id or 1
+  storage.harvested_nut_trees = storage.harvested_nut_trees or {}
+  storage.next_harvested_nut_tree_id = storage.next_harvested_nut_tree_id or 1
+  storage.pending_entity_replacements = storage.pending_entity_replacements or {}
   storage.force_tutorials = storage.force_tutorials or {}
+  storage.squirrels = storage.squirrels or {}
+  storage.next_squirrel_id = storage.next_squirrel_id or 1
+  storage.squirrel_stashes = storage.squirrel_stashes or {}
+  storage.next_squirrel_stash_id = storage.next_squirrel_stash_id or 1
+  storage.squirrel_region_activity = storage.squirrel_region_activity or {}
+  storage.squirrel_target_cooldowns = storage.squirrel_target_cooldowns or {}
 end
 
 return storage_lib

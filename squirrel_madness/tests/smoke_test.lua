@@ -8,12 +8,19 @@ local function surface()
   return game.surfaces["nauvis"] or game.surfaces[1]
 end
 
+local function player()
+  return game.players[1]
+end
+
 local function reset_region_storage()
   storage.regions = {}
   storage.last_refresh_tick = 0
   storage.seeded_chunks = {}
   storage.saplings = {}
   storage.next_sapling_id = 1
+  storage.harvested_nut_trees = {}
+  storage.next_harvested_nut_tree_id = 1
+  storage.pending_entity_replacements = {}
   storage.force_tutorials = {}
 end
 
@@ -35,11 +42,20 @@ end
 before_each(function()
   surface().clear_pollution()
   reset_region_storage()
+  player().teleport({x = 0, y = 0}, surface())
+  local inventory = player().get_main_inventory()
+  if inventory then
+    inventory.clear()
+  end
 end)
 
 after_each(function()
   surface().clear_pollution()
   reset_region_storage()
+  local inventory = player().get_main_inventory()
+  if inventory then
+    inventory.clear()
+  end
 end)
 
 describe("regions.position_to_region_coord", function()
@@ -118,6 +134,20 @@ describe("region ecology metrics", function()
     assert.is_true(after.squirrel_unrest > before.squirrel_unrest)
     assert.is_true(after.habitat_pressure > before.habitat_pressure)
     assert.is_true(after.recent_tree_loss_penalty > 0)
+  end)
+
+  it("tracks actual player mining as recent tree loss", function()
+    local tree = trees[1]
+
+    player().teleport({x = tree.position.x + 1, y = tree.position.y}, surface())
+
+    assert.is_true(player().mine_entity(tree, true))
+
+    local after = remote.call(constants.mod_name, "get_region_at_position", surface().index, forest_origin.x, forest_origin.y)
+
+    assert.equal(1, after.recent_tree_loss)
+    assert.is_true(after.recent_tree_loss_penalty > 0)
+    assert.is_true(after.squirrel_unrest > 0)
   end)
 
   it("uses a rolling pollution average in exact reports", function()
