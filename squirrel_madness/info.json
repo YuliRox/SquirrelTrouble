@@ -4,6 +4,7 @@
   "title": "Squirrel Madness",
   "author": "Sandra Schuhmacher",
   "factorio_version": "2.0",
+  "thumbnail": "thumbnail.png",
   "dependencies": [
     "base >= 2.0.0"
   ],
