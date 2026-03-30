@@ -94,6 +94,27 @@ feeder.icon_size = 64
 feeder.inventory_size = 1
 feeder.fast_replaceable_group = nil
 feeder.localised_description = {"entity-description.squirrel-feeder"}
+feeder.picture = {
+  layers = {
+    {
+      filename = "__squirrel_madness__/graphics/entities/structures/wooden-feeder.png",
+      priority = "extra-high",
+      width = 62,
+      height = 72,
+      shift = util.by_pixel(0.5, -2),
+      scale = 0.5
+    },
+    {
+      filename = "__squirrel_madness__/graphics/entities/structures/wooden-feeder-shadow.png",
+      priority = "extra-high",
+      width = 104,
+      height = 40,
+      shift = util.by_pixel(10, 6.5),
+      draw_as_shadow = true,
+      scale = 0.5
+    }
+  }
+}
 
 local survey = create_survey_station()
 
