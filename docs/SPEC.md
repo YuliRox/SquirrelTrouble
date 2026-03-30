@@ -204,12 +204,12 @@ Purpose:
 Planned tiers:
 
 - `Wooden Squirrel Feeder`: early, cheap, low-capacity feeder that reads like a simple chest or trough of nuts near the forest edge
-- `Iron Squirrel Feeder`: later, higher-capacity feeder that keeps busy factory-edge hotspots calmer for longer without changing the core squirrel logic
+- `Steel Squirrel Feeder`: later, higher-capacity feeder that keeps busy factory-edge hotspots calmer for longer without changing the core squirrel logic
 
 Rules:
 
 - squirrels prefer stocked feeders over stealing
-- the wooden feeder is the first peace offering; the iron feeder is the scaled-up version for heavier pressure and longer uptime
+- the wooden feeder is the first peace offering; the steel feeder is the scaled-up version for heavier pressure and longer uptime
 - empty feeders become disappointment points and can increase unrest
 - feeders are best placed near forest edges and safe corridors
 - feeder tiers should differ mostly by capacity, durability, and uptime, not by introducing separate squirrel behaviors
@@ -618,7 +618,7 @@ Purpose:
 
 Unlocks or improves:
 
-- `Iron Squirrel Feeder`
+- `Steel Squirrel Feeder`
 - stronger nut tree pollution absorption
 - stronger local peace-zone effects
 - improved squirrel preference for feeders over theft
@@ -839,7 +839,7 @@ A region qualifies as a healthy sanctuary region when:
 
 #### Stocked Squirrel Feeder
 
-A squirrel feeder counts as stocked when it contains at least the tier-specific nut threshold needed to satisfy squirrels locally. Wooden and iron feeders should use the same preference logic but different capacities and refill cadence.
+A squirrel feeder counts as stocked when it contains at least the tier-specific nut threshold needed to satisfy squirrels locally. Wooden and steel feeders should use the same preference logic but different capacities and refill cadence.
 
 #### Active Peace Zone
 

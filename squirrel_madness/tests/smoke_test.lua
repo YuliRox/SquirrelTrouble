@@ -22,6 +22,7 @@ local function reset_region_storage()
   storage.next_harvested_nut_tree_id = 1
   storage.pending_entity_replacements = {}
   storage.force_tutorials = {}
+  storage.feeders = {}
 end
 
 local function spawn_forest(count, origin)

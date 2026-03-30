@@ -78,6 +78,7 @@ local function reset_runtime_storage()
   storage.next_harvested_nut_tree_id = 1
   storage.pending_entity_replacements = {}
   storage.force_tutorials = {}
+  storage.feeders = {}
   storage.squirrels = {}
   storage.next_squirrel_id = 1
   storage.squirrel_stashes = {}
@@ -288,6 +289,26 @@ describe("milestone 4 squirrel nuisance runtime", function()
     assert.is_true(result.count >= 1)
     assert.is_true(inventory.get_item_count("iron-gear-wheel") < 8)
     assert.equal(1, #report.stashes)
+  end)
+
+  it("does not treat feeders as chest-scavenge targets", function()
+    local trees = spawn_forest(18, CHEST_ORIGIN)
+    local squirrel_id = remote.call(constants.mod_name, "debug_spawn_squirrel", surface().index, CHEST_ORIGIN.x, CHEST_ORIGIN.y)
+    local feeder = track_entity(surface().create_entity({
+      name = constants.names.feeder,
+      position = {x = CHEST_ORIGIN.x + 8, y = CHEST_ORIGIN.y + 8},
+      force = game.forces.player
+    }))
+    local inventory = feeder.get_inventory(defines.inventory.chest)
+
+    inventory.insert({name = constants.names.nut, count = 8})
+
+    for index = 1, 8 do
+      regions.note_tree_loss(surface().index, trees[index].position, 1, game.tick)
+      trees[index].destroy()
+    end
+
+    assert.is_nil(remote.call(constants.mod_name, "debug_force_chest_scavenge", surface().index, squirrel_id, feeder.position.x, feeder.position.y))
   end)
 
   it("exposes remote/debug inspection for squirrel state and local nuisance actions", function()

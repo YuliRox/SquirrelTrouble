@@ -10,6 +10,8 @@ constants.active_region_radius = 2
 constants.metric_min = 0
 constants.metric_max = 100
 constants.stocked_feeder_threshold = 20
+constants.feeder_visual_stock_threshold = 1
+constants.feeder_visual_update_interval = 15
 constants.recent_tree_loss_window = 60 * 60 * 5
 constants.pollution_sample_limit = 18
 constants.full_canopy_tree_count = 72
@@ -64,7 +66,8 @@ constants.squirrel_force_name = "squirrel-madness-fauna"
 constants.technologies = {
   arboriculture = "arboriculture",
   wildlife_diversion = "wildlife-diversion",
-  forest_surveying = "forest-surveying"
+  forest_surveying = "forest-surveying",
+  ecological_stabilization = "ecological-stabilization"
 }
 
 constants.names = {
@@ -75,10 +78,48 @@ constants.names = {
   nut_tree_harvested = "nut-tree-harvested",
   squirrel = "squirrel",
   feeder = "squirrel-feeder",
+  feeder_empty = "squirrel-feeder-empty",
+  steel_feeder = "steel-squirrel-feeder",
+  steel_feeder_empty = "steel-squirrel-feeder-empty",
   stash = "forest-stash",
   survey_station = "forest-survey-station",
   survey_input = "squirrel-madness-open-region-survey",
   relocation_input = "squirrel-madness-relocate-selected-squirrel"
+}
+
+constants.feeder_entity_names = {
+  constants.names.feeder,
+  constants.names.feeder_empty,
+  constants.names.steel_feeder,
+  constants.names.steel_feeder_empty
+}
+
+constants.feeder_item_names = {
+  constants.names.feeder,
+  constants.names.steel_feeder
+}
+
+constants.feeder_variant_by_name = {
+  [constants.names.feeder] = {
+    item = constants.names.feeder,
+    full = constants.names.feeder,
+    empty = constants.names.feeder_empty
+  },
+  [constants.names.feeder_empty] = {
+    item = constants.names.feeder,
+    full = constants.names.feeder,
+    empty = constants.names.feeder_empty
+  },
+  [constants.names.steel_feeder] = {
+    item = constants.names.steel_feeder,
+    full = constants.names.steel_feeder,
+    empty = constants.names.steel_feeder_empty
+  },
+  [constants.names.steel_feeder_empty] = {
+    item = constants.names.steel_feeder,
+    full = constants.names.steel_feeder,
+    empty = constants.names.steel_feeder_empty
+  }
 }
 
 return constants

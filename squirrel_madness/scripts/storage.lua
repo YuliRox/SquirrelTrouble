@@ -11,6 +11,7 @@ function storage_lib.ensure()
   storage.next_harvested_nut_tree_id = storage.next_harvested_nut_tree_id or 1
   storage.pending_entity_replacements = storage.pending_entity_replacements or {}
   storage.force_tutorials = storage.force_tutorials or {}
+  storage.feeders = storage.feeders or {}
   storage.squirrels = storage.squirrels or {}
   storage.next_squirrel_id = storage.next_squirrel_id or 1
   storage.squirrel_stashes = storage.squirrel_stashes or {}

@@ -182,13 +182,13 @@ Playtest focus:
 - confirm players can understand relocation targeting and destination outcomes
 - confirm stepping retaliation, death messaging, and revenge-wave escalation are readable and attributable
 - confirm hotspot stabilization feels possible without killing squirrels
-- confirm the progression from wooden to iron feeders is readable and worth the upgrade in live play
+- confirm the progression from wooden to steel feeders is readable and worth the upgrade in live play
 
 Deliverables:
 
 - finish survey station UX and remaining broad-state feedback polish
 - put the relocation tool in the player's hands with readable affordances
-- add the `Iron Squirrel Feeder` as the higher-capacity factory-edge feeder tier without introducing a separate squirrel ruleset
+- add the `Steel Squirrel Feeder` as the higher-capacity factory-edge feeder tier without introducing a separate squirrel ruleset
 - declare `robot_tree_farm_update` as a dependency and gate its automation through a later ecology technology
 - integrate Robot Tree Farm-style forestry automation so planted and healed groves can scale into normal logistics play
 - polish tree-healing feedback so damaged groves, valid targets, and successful recovery are readable
@@ -198,7 +198,7 @@ Deliverables:
 Exit criteria:
 
 - the player can intentionally stabilize hotspots without killing squirrels
-- iron feeders and late-game forestry automation plug into the ecology branch instead of bypassing it
+- steel feeders and late-game forestry automation plug into the ecology branch instead of bypassing it
 - one accidental squirrel death is painful but survivable
 - the reason for every escalation is readable in-world or through the survey station
 
@@ -267,7 +267,7 @@ Hold until v1 is readable and stable:
 5. Land the squirrel runtime foundation before tuning visible nuisance behavior.
 6. Introduce visible squirrel nuisance only after the spawn, state, and targeting systems are trustworthy, then stop for the first mandatory in-game playtest before Milestone 5.
 7. Land retaliation and relocation foundations before tuning feedback, tree care readability, iron-feeder scaling, and forestry automation.
-8. Finalize mitigation, feedback, nonlethal control, the iron feeder upgrade path, and Robot Tree Farm-gated forestry automation, then stop for the second mandatory in-game playtest before Milestone 7.
+8. Finalize mitigation, feedback, nonlethal control, the steel feeder upgrade path, and Robot Tree Farm-gated forestry automation, then stop for the second mandatory in-game playtest before Milestone 7.
 9. Land sanctuary scoring and peace-zone foundations before tuning the endgame.
 10. Ship `Coexistence Victory` only after sanctuary behavior, peace zones, and the final validation window pass a dedicated endgame playtest before Milestone 9.
 

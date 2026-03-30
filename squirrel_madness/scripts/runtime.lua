@@ -1,4 +1,5 @@
 local constants = require("scripts.constants")
+local feeders = require("scripts.feeders")
 local habitat = require("scripts.habitat")
 local regions = require("scripts.regions")
 local squirrels = require("scripts.squirrels")
@@ -223,15 +224,19 @@ end
 
 local function on_init()
   storage_lib.ensure()
+  feeders.rebuild_tracking()
   local nauvis = game.surfaces[constants.primary_surface_name]
   if nauvis then
     habitat.ensure_starting_grove(nauvis)
   end
+  feeders.sync_registered()
   refresh_active_regions()
 end
 
 local function on_configuration_changed()
   storage_lib.ensure()
+  feeders.rebuild_tracking()
+  feeders.sync_registered()
 end
 
 local function on_periodic_refresh()
@@ -245,6 +250,10 @@ end
 local function on_tick(event)
   if storage and storage.pending_entity_replacements and #storage.pending_entity_replacements > 0 then
     habitat.resolve_pending_replacements(event.tick)
+  end
+
+  if event.tick % constants.feeder_visual_update_interval == 0 then
+    feeders.sync_registered()
   end
 
   squirrels.on_tick(event.tick)
@@ -296,7 +305,13 @@ local function on_entity_removed(event)
     return
   end
 
-  if entity.name == constants.names.feeder or entity.name == constants.names.survey_station then
+  if feeders.is_feeder_entity(entity) then
+    feeders.unregister(entity)
+    regions.mark_dirty(entity.surface.index, entity.position)
+    return
+  end
+
+  if entity.name == constants.names.survey_station then
     regions.mark_dirty(entity.surface.index, entity.position)
   end
 end
@@ -314,7 +329,8 @@ local function on_entity_created(event)
     if event.player_index then
       habitat.maybe_show_sapling_hint(event.player_index)
     end
-  elseif entity.name == constants.names.feeder then
+  elseif feeders.is_feeder_entity(entity) then
+    feeders.register(entity)
     regions.mark_dirty(entity.surface.index, entity.position)
 
     if event.player_index then
@@ -412,6 +428,15 @@ local function install_remote_interface()
         energy = station.energy,
         powered = is_powered_survey_station(station)
       }
+    end,
+    debug_sync_feeders = function(surface_index)
+      storage_lib.ensure()
+      feeders.rebuild_tracking(surface_index)
+      return feeders.sync_registered(surface_index)
+    end,
+    debug_get_feeder_state = function(surface_index, x, y)
+      storage_lib.ensure()
+      return feeders.debug_state(surface_index, {x = x, y = y})
     end,
     force_recompute_at_position = function(surface_index, x, y)
       storage_lib.ensure()

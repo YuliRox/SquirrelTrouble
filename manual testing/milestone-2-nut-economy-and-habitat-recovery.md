@@ -18,10 +18,10 @@ Preconditions:
 - Do not use map editor or console for this section.
 
 Checklist:
-- [ ] Walk a few screens around spawn, prioritizing nearby forest.
-- [ ] Confirm you can find multiple `Nut Tree` entities near the starting area.
-- [ ] Hover likely candidates and confirm the tooltip or selection name clearly identifies `Nut Tree`.
-- [ ] Confirm you can intentionally target the same `Nut Tree` again once you know what you are looking for, even if the mature tree art is still interim.
+- [X] Walk a few screens around spawn, prioritizing nearby forest.
+- [X] Confirm you can find multiple `Nut Tree` entities near the starting area.
+- [X] Hover likely candidates and confirm the tooltip or selection name clearly identifies `Nut Tree`.
+- [X] Confirm you can intentionally target the same `Nut Tree` again once you know what you are looking for, even if the mature tree art is still interim.
 
 Pass condition:
 - The player can discover and intentionally use an early nut source through ordinary exploration plus normal hover/selection feedback.
@@ -33,10 +33,10 @@ Preconditions:
 - Keep inventory space free.
 
 Checklist:
-- [ ] Mine the `Nut Tree` by hand.
-- [ ] Confirm nuts appear in the inventory.
-- [ ] Confirm the tree becomes a `Picked Nut Tree` instead of disappearing completely.
-- [ ] Confirm the harvest hint message appears the first time and reads like sustainable harvesting guidance.
+- [X] Mine the `Nut Tree` by hand.
+- [X] Confirm nuts appear in the inventory.
+- [X] Confirm the tree becomes a `Picked Nut Tree` instead of disappearing completely.
+- [X] Confirm the harvest hint message appears the first time and reads like sustainable harvesting guidance.
 
 Pass condition:
 - Nut collection feels like picking and recovery, not clear-cutting.
@@ -48,11 +48,11 @@ Preconditions:
 - Leave the picked tree untouched.
 
 Checklist:
-- [ ] Wait roughly 5 in-game minutes.
-- [ ] Revisit the same spot.
-- [ ] Confirm the `Picked Nut Tree` has turned back into a mature `Nut Tree`.
-- [ ] Harvest it again.
-- [ ] Confirm the same visible loop repeats cleanly.
+- [X] Wait roughly 5 in-game minutes.
+- [X] Revisit the same spot.
+- [X] Confirm the `Picked Nut Tree` has turned back into a mature `Nut Tree`.
+- [X] Harvest it again.
+- [X] Confirm the same visible loop repeats cleanly.
 
 Pass condition:
 - Picked trees participate in a readable renewable-food loop.
@@ -71,13 +71,13 @@ Setup shortcuts:
 ```
 
 Checklist:
-- [ ] Complete `Arboriculture` or apply the setup shortcut.
-- [ ] Confirm the Arboriculture guidance message appears once.
-- [ ] Select a `Nut Sapling` in the inventory.
-- [ ] Hover open ground at a forest edge or cleared patch.
-- [ ] Confirm the placement preview appears normally and does not show missing art.
-- [ ] Place the sapling.
-- [ ] Confirm the planted sapling is visibly smaller or weaker-looking than a mature `Nut Tree` and is easy to identify later.
+- [X] Complete `Arboriculture` or apply the setup shortcut.
+- [X] Confirm the Arboriculture guidance message appears once.
+- [X] Select a `Nut Sapling` in the inventory.
+- [X] Hover open ground at a forest edge or cleared patch.
+- [X] Confirm the placement preview appears normally and does not show missing art.
+- [X] Place the sapling.
+- [X] Confirm the planted sapling is visibly smaller or weaker-looking than a mature `Nut Tree` and is easy to identify later.
 
 Pass condition:
 - Replanting reads clearly as a deliberate habitat-restoration action.
@@ -89,10 +89,10 @@ Preconditions:
 - Leave the saplings undisturbed.
 
 Checklist:
-- [ ] Wait roughly 12 in-game minutes.
-- [ ] Revisit the planted area.
-- [ ] Confirm each surviving sapling has turned into a mature `Nut Tree`.
-- [ ] Confirm the transition is easy to notice when returning to the grove.
+- [X] Wait roughly 12 in-game minutes.
+- [X] Revisit the planted area.
+- [X] Confirm each surviving sapling has turned into a mature `Nut Tree`.
+- [X] Confirm the transition is easy to notice when returning to the grove.
 
 Pass condition:
 - Slow reforestation is visually legible and understandable in normal play.
@@ -120,11 +120,13 @@ Checklist:
 - [ ] Complete `Wildlife Diversion` or apply the setup shortcuts.
 - [ ] Confirm the Wildlife Diversion guidance message appears once.
 - [ ] Place a `Squirrel Feeder` on the forest edge.
+- [ ] Confirm the newly placed feeder shows the empty wooden feeder art, not a vanilla chest or the stocked art.
 - [ ] Confirm the feeder art and footprint make sense at that location.
 - [ ] Place a `Forest Survey Station` nearby.
 - [ ] Place the `Solar Panel` and a `Small Electric Pole` so the survey station is powered.
 - [ ] If it is night, wait for daylight before comparing reports.
 - [ ] Survey the region before stocking the feeder.
+- [ ] Insert a single nut and confirm the feeder switches from the empty art to the stocked wooden feeder art.
 - [ ] Insert at least 20 nuts into the feeder.
 - [ ] Survey the same region again.
 - [ ] Confirm the post-stocking report reads calmer or more trusted than the pre-stocking report.

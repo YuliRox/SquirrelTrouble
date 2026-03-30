@@ -30,6 +30,7 @@ local function reset_runtime_storage()
   storage.next_harvested_nut_tree_id = 1
   storage.pending_entity_replacements = {}
   storage.force_tutorials = {}
+  storage.feeders = {}
 end
 
 local function count_storage_entries(entries)
@@ -150,7 +151,10 @@ describe("milestone 2 habitat recovery", function()
       constants.names.nut_tree,
       constants.names.nut_tree_harvested,
       constants.names.nut_sapling,
-      constants.names.feeder
+      constants.names.feeder,
+      constants.names.feeder_empty,
+      constants.names.steel_feeder,
+      constants.names.steel_feeder_empty
     }
 
     for _, entity in ipairs(surface().find_entities_filtered({
@@ -166,7 +170,10 @@ describe("milestone 2 habitat recovery", function()
       constants.names.nut_tree,
       constants.names.nut_tree_harvested,
       constants.names.nut_sapling,
-      constants.names.feeder
+      constants.names.feeder,
+      constants.names.feeder_empty,
+      constants.names.steel_feeder,
+      constants.names.steel_feeder_empty
     })
   end)
 
@@ -505,5 +512,104 @@ describe("milestone 2 habitat recovery", function()
     assert.is_true(with_feeder.squirrel_unrest < without_feeder.squirrel_unrest)
     assert.is_true(with_feeder.squirrel_trust > without_feeder.squirrel_trust)
     assert.is_true(with_feeder.habitat_pressure < without_feeder.habitat_pressure)
+  end)
+
+  it("swaps wooden feeder art between empty and stocked variants", function()
+    local position = {x = RECOVERY_ORIGIN.x + 20, y = RECOVERY_ORIGIN.y + 4}
+    local feeder = track_entity(surface().create_entity({
+      name = constants.names.feeder_empty,
+      position = position,
+      force = game.forces.player
+    }))
+    local inventory = feeder.get_inventory(defines.inventory.chest)
+
+    assert.equal(constants.names.feeder_empty, remote.call(
+      constants.mod_name,
+      "debug_get_feeder_state",
+      surface().index,
+      position.x,
+      position.y
+    ).name)
+
+    inventory.insert({name = constants.names.nut, count = 1})
+    remote.call(constants.mod_name, "debug_sync_feeders", surface().index)
+
+    local stocked_state = remote.call(
+      constants.mod_name,
+      "debug_get_feeder_state",
+      surface().index,
+      position.x,
+      position.y
+    )
+
+    assert.equal(constants.names.feeder, stocked_state.name)
+    assert.equal(1, stocked_state.nut_count)
+
+    local stocked_entity = surface().find_entities_filtered({
+      area = {
+        {position.x - 0.2, position.y - 0.2},
+        {position.x + 0.2, position.y + 0.2}
+      },
+      name = constants.feeder_entity_names,
+      limit = 1
+    })[1]
+    local stocked_inventory = stocked_entity.get_inventory(defines.inventory.chest)
+    stocked_inventory.remove({name = constants.names.nut, count = 1})
+    remote.call(constants.mod_name, "debug_sync_feeders", surface().index)
+
+    local empty_state = remote.call(
+      constants.mod_name,
+      "debug_get_feeder_state",
+      surface().index,
+      position.x,
+      position.y
+    )
+
+    assert.equal(constants.names.feeder_empty, empty_state.name)
+    assert.equal(0, empty_state.nut_count)
+  end)
+
+  it("counts stocked steel feeders using the larger feeder tier", function()
+    local position = {x = RECOVERY_ORIGIN.x + 28, y = RECOVERY_ORIGIN.y + 4}
+    local steel_feeder = track_entity(surface().create_entity({
+      name = constants.names.steel_feeder_empty,
+      position = position,
+      force = game.forces.player
+    }))
+    local without_feeder = remote.call(
+      constants.mod_name,
+      "force_recompute_at_position",
+      surface().index,
+      RECOVERY_ORIGIN.x,
+      RECOVERY_ORIGIN.y
+    )
+    local inventory = steel_feeder.get_inventory(defines.inventory.chest)
+
+    assert.equal(2, #inventory)
+    assert.equal(constants.stocked_feeder_threshold, inventory.insert({
+      name = constants.names.nut,
+      count = constants.stocked_feeder_threshold
+    }))
+    remote.call(constants.mod_name, "debug_sync_feeders", surface().index)
+
+    local with_feeder = remote.call(
+      constants.mod_name,
+      "force_recompute_at_position",
+      surface().index,
+      RECOVERY_ORIGIN.x,
+      RECOVERY_ORIGIN.y
+    )
+    local state = remote.call(
+      constants.mod_name,
+      "debug_get_feeder_state",
+      surface().index,
+      position.x,
+      position.y
+    )
+
+    assert.equal(constants.names.steel_feeder, state.name)
+    assert.equal(1, with_feeder.feeder_count)
+    assert.equal(1, with_feeder.stocked_feeders)
+    assert.is_true(with_feeder.squirrel_unrest < without_feeder.squirrel_unrest)
   end)
 end)

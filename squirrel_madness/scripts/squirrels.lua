@@ -519,7 +519,7 @@ local function find_targets(record, report, tick)
       area = area,
       type = {"container", "logistic-container"}
     })) do
-      if entity.valid and not target_is_on_cooldown(entity, tick) then
+      if entity.valid and not constants.feeder_variant_by_name[entity.name] and not target_is_on_cooldown(entity, tick) then
         local candidate = choose_chest_item(entity, preferred_item_name, report)
         if candidate then
           candidate.score = candidate.score - (distance_squared(record.home_position, entity.position) * 0.02)
@@ -1333,6 +1333,10 @@ function squirrels.debug_force_chest_scavenge(surface_index, squirrel_id, positi
     limit = 1
   })[1]
   if not (chest and chest.valid) then
+    return nil
+  end
+
+  if constants.feeder_variant_by_name[chest.name] then
     return nil
   end
 

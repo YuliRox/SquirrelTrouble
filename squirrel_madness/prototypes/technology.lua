@@ -87,7 +87,12 @@ data:extend({
     icon = "__base__/graphics/technology/solar-energy.png",
     icon_size = 256,
     prerequisites = {"wildlife-relocation", "solar-energy"},
-    effects = {},
+    effects = {
+      {
+        type = "unlock-recipe",
+        recipe = "steel-squirrel-feeder"
+      }
+    },
     unit = {
       count = 150,
       time = 30,

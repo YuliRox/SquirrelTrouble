@@ -24,15 +24,21 @@ data:extend({
   {
     type = "item",
     name = "squirrel-feeder",
-    icons = {
-      {
-        icon = "__squirrel_madness__/graphics/icons/wooden-feeder-icon.png",
-        icon_size = 120
-      }
-    },
+    icon = "__squirrel_madness__/graphics/icons/wooden-feeder-icon.png",
+    icon_size = 64,
     subgroup = "storage",
     order = "n[squirrel]-b[feeder]",
-    place_result = "squirrel-feeder",
+    place_result = "squirrel-feeder-empty",
+    stack_size = 50
+  },
+  {
+    type = "item",
+    name = "steel-squirrel-feeder",
+    icon = "__squirrel_madness__/graphics/icons/steel-feeder-icon.png",
+    icon_size = 64,
+    subgroup = "storage",
+    order = "n[squirrel]-c[feeder-upgrade]",
+    place_result = "steel-squirrel-feeder-empty",
     stack_size = 50
   },
   {
@@ -46,7 +52,7 @@ data:extend({
       }
     },
     subgroup = "production-machine",
-    order = "n[squirrel]-c[survey]",
+    order = "n[squirrel]-d[survey]",
     place_result = "forest-survey-station",
     stack_size = 20
   }

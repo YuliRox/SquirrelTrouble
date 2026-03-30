@@ -293,7 +293,7 @@ function regions.recompute_region(surface, region_x, region_y, tick)
 
   local feeders = surface.find_entities_filtered({
     area = area,
-    name = constants.names.feeder
+    name = constants.feeder_entity_names
   })
 
   local feeder_count = #feeders

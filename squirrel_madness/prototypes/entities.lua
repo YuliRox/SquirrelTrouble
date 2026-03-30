@@ -1,7 +1,7 @@
-local function clone_container(name)
-  local source = data.raw.container["wooden-chest"]
+local function clone_container(source_name, name)
+  local source = data.raw.container[source_name]
   if not source then
-    error("Expected base wooden-chest prototype to exist")
+    error("Expected base container prototype " .. source_name .. " to exist")
   end
 
   local prototype = table.deepcopy(source)
@@ -9,6 +9,30 @@ local function clone_container(name)
   prototype.minable = prototype.minable or {}
   prototype.minable.result = name
   return prototype
+end
+
+local function feeder_picture(filename, shadow_filename, width, height, shadow_width, shadow_height, shadow_shift_x, shadow_shift_y)
+  return {
+    layers = {
+      {
+        filename = filename,
+        priority = "extra-high",
+        width = width,
+        height = height,
+        shift = util.by_pixel(0.5, -2),
+        scale = 0.5
+      },
+      {
+        filename = shadow_filename,
+        priority = "extra-high",
+        width = shadow_width,
+        height = shadow_height,
+        shift = util.by_pixel(shadow_shift_x, shadow_shift_y),
+        draw_as_shadow = true,
+        scale = 0.5
+      }
+    }
+  }
 end
 
 local function create_survey_station()
@@ -88,37 +112,83 @@ local function clone_unit(source_name, new_name)
   return prototype
 end
 
-local feeder = clone_container("squirrel-feeder")
-feeder.icon = "__base__/graphics/icons/wooden-chest.png"
+local feeder = clone_container("wooden-chest", "squirrel-feeder")
+feeder.icon = "__squirrel_madness__/graphics/icons/wooden-feeder-icon.png"
 feeder.icon_size = 64
 feeder.inventory_size = 1
 feeder.fast_replaceable_group = nil
 feeder.localised_description = {"entity-description.squirrel-feeder"}
-feeder.picture = {
-  layers = {
-    {
-      filename = "__squirrel_madness__/graphics/entities/structures/wooden-feeder.png",
-      priority = "extra-high",
-      width = 62,
-      height = 72,
-      shift = util.by_pixel(0.5, -2),
-      scale = 0.5
-    },
-    {
-      filename = "__squirrel_madness__/graphics/entities/structures/wooden-feeder-shadow.png",
-      priority = "extra-high",
-      width = 104,
-      height = 40,
-      shift = util.by_pixel(10, 6.5),
-      draw_as_shadow = true,
-      scale = 0.5
-    }
-  }
-}
+feeder.picture = feeder_picture(
+  "__squirrel_madness__/graphics/entities/structures/wooden-feeder.png",
+  "__squirrel_madness__/graphics/entities/structures/wooden-feeder-shadow.png",
+  62,
+  72,
+  104,
+  40,
+  10,
+  6.5
+)
+
+local empty_feeder = clone_container("wooden-chest", "squirrel-feeder-empty")
+empty_feeder.hidden = true
+empty_feeder.icon = "__squirrel_madness__/graphics/icons/wooden-feeder-icon.png"
+empty_feeder.icon_size = 64
+empty_feeder.inventory_size = 1
+empty_feeder.fast_replaceable_group = nil
+empty_feeder.localised_name = {"entity-name.squirrel-feeder"}
+empty_feeder.localised_description = {"entity-description.squirrel-feeder"}
+empty_feeder.minable.result = "squirrel-feeder"
+empty_feeder.picture = feeder_picture(
+  "__squirrel_madness__/graphics/entities/structures/empty-wooden-feeder.png",
+  "__squirrel_madness__/graphics/entities/structures/wooden-feeder-shadow.png",
+  62,
+  72,
+  104,
+  40,
+  10,
+  6.5
+)
+
+local steel_feeder = clone_container("steel-chest", "steel-squirrel-feeder")
+steel_feeder.icon = "__squirrel_madness__/graphics/icons/steel-feeder-icon.png"
+steel_feeder.icon_size = 64
+steel_feeder.inventory_size = 2
+steel_feeder.fast_replaceable_group = nil
+steel_feeder.localised_description = {"entity-description.steel-squirrel-feeder"}
+steel_feeder.picture = feeder_picture(
+  "__squirrel_madness__/graphics/entities/structures/steel-feeder.png",
+  "__squirrel_madness__/graphics/entities/structures/steel-feeder-shadow.png",
+  64,
+  80,
+  110,
+  46,
+  12,
+  7
+)
+
+local empty_steel_feeder = clone_container("steel-chest", "steel-squirrel-feeder-empty")
+empty_steel_feeder.hidden = true
+empty_steel_feeder.icon = "__squirrel_madness__/graphics/icons/steel-feeder-icon.png"
+empty_steel_feeder.icon_size = 64
+empty_steel_feeder.inventory_size = 2
+empty_steel_feeder.fast_replaceable_group = nil
+empty_steel_feeder.localised_name = {"entity-name.steel-squirrel-feeder"}
+empty_steel_feeder.localised_description = {"entity-description.steel-squirrel-feeder"}
+empty_steel_feeder.minable.result = "steel-squirrel-feeder"
+empty_steel_feeder.picture = feeder_picture(
+  "__squirrel_madness__/graphics/entities/structures/empty-steel-feeder.png",
+  "__squirrel_madness__/graphics/entities/structures/steel-feeder-shadow.png",
+  64,
+  80,
+  110,
+  46,
+  12,
+  7
+)
 
 local survey = create_survey_station()
 
-local stash = clone_container("forest-stash")
+local stash = clone_container("wooden-chest", "forest-stash")
 stash.icon = "__base__/graphics/icons/wooden-chest.png"
 stash.icon_size = 64
 stash.inventory_size = 8
@@ -198,6 +268,9 @@ data:extend({
   harvested_nut_tree,
   nut_sapling,
   feeder,
+  empty_feeder,
+  steel_feeder,
+  empty_steel_feeder,
   survey,
   stash
 })

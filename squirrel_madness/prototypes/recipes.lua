@@ -26,6 +26,19 @@ data:extend({
   },
   {
     type = "recipe",
+    name = "steel-squirrel-feeder",
+    enabled = false,
+    energy_required = 2,
+    ingredients = {
+      {type = "item", name = "steel-chest", amount = 1},
+      {type = "item", name = "iron-stick", amount = 6}
+    },
+    results = {
+      {type = "item", name = "steel-squirrel-feeder", amount = 1}
+    }
+  },
+  {
+    type = "recipe",
     name = "forest-survey-station",
     enabled = false,
     energy_required = 2,

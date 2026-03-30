@@ -114,7 +114,7 @@ Decision for now:
 | `nut` icon | item `nut` | Yes | `64x64` `.png` | Replaces current wood placeholder. |
 | `nut-sapling` icon | item `nut-sapling` | Yes | `64x64` `.png` | Should read as a plantable sapling item, not a full tree. |
 | `wooden-squirrel-feeder` icon | item + entity icon | Yes | `64x64` `.png` | Early feeder tier. Should read like a simple open wooden chest or trough with visible nuts. |
-| `iron-squirrel-feeder` icon | item + entity icon | Soon | `64x64` `.png` | Later feeder tier. Should read like a sturdier iron-bin upgrade, not a different machine family. |
+| `steel-squirrel-feeder` icon | item + entity icon | Yes | `64x64` `.png` | Higher-capacity feeder tier. Should read like a sturdier steel bin upgrade, not a different machine family. |
 | `forest-survey-station` icon | item + entity icon | Yes | `64x64` `.png` | Should read clearly in inventory and crafting menus. |
 | `forest-stash` icon | entity icon | Yes | `64x64` `.png` | Runtime-only entity, but still needs a custom identity. |
 | `squirrel` icon | entity icon | Yes | `64x64` `.png` | Used in entity prototype metadata. |
@@ -124,7 +124,7 @@ Decision for now:
 | `nut-tree` world sprite set | mature nut tree entity | Yes | `.png`, size defined by prototype | Prefer several visual variations for natural worldgen. If fully bespoke, tree prototype sprite fields must be updated. |
 | `nut-tree-harvested` world sprite set | picked nut tree entity | Yes | `.png`, size defined by prototype | Must visibly read as harvested but still living. |
 | `wooden-squirrel-feeder` world sprite | early feeder structure | Yes | `.png`, size defined by `picture :: Sprite` | Chest-like 1x1 structure. The cheapest path is a wooden-chest-derived base with visible nuts. |
-| `iron-squirrel-feeder` world sprite | upgraded feeder structure | Soon | `.png`, size defined by `picture :: Sprite` | Later 1x1 upgrade tier. Can reuse iron-chest visual language with an open nut bin or tray. |
+| `steel-squirrel-feeder` world sprite | upgraded feeder structure | Yes | `.png`, size defined by `picture :: Sprite` | Later 1x1 upgrade tier. Can reuse steel-chest visual language with an open nut bin or tray. |
 | `forest-survey-station` world sprite | survey station structure | Yes | `.png`, size defined by `picture :: Sprite` | Also currently cloned from a chest-like placeholder. |
 | `forest-stash` world sprite | stash structure | Yes | `.png`, size defined by `picture :: Sprite` | Needs to be readable as player-visible squirrel loot storage. |
 | `squirrel` run animation set | visible squirrel unit | Yes | `.png` sprite sheet(s), size defined by `run_animation :: RotatedAnimation` | This is the main custom character asset for Milestone 4 playtesting. If the sheet layout differs from vanilla biters, prototype edits are required. |
@@ -192,7 +192,7 @@ These are not blockers for the current build, but should be planned early so lat
 - Optional shadow sprites and HR variants can be added later if needed.
 - Feeder direction for v1:
   - `wooden-squirrel-feeder` should read like a cheap open wooden chest, crate, or trough containing nuts
-  - `iron-squirrel-feeder` should read like the same idea scaled into a sturdier iron container with larger capacity
+  - `steel-squirrel-feeder` should read like the same idea scaled into a sturdier steel container with larger capacity
   - avoid sack-only feeder imagery; sacks can still inform icons for feed supply items later if needed
 - Asset acquisition preference:
   - check `Krastorio2Assets` first for lawful stand-ins or adaptation candidates before commissioning or generating bespoke structure art
