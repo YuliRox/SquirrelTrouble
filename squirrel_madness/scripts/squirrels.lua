@@ -526,22 +526,26 @@ local function choose_chest_item(entity, preferred_item_name, report)
   return best
 end
 
-local function find_targets(record, report, tick)
+local function target_area(origin, radius)
+  return {
+    left_top = {
+      x = origin.x - radius,
+      y = origin.y - radius
+    },
+    right_bottom = {
+      x = origin.x + radius,
+      y = origin.y + radius
+    }
+  }
+end
+
+local function find_belt_target(record, tick)
   local surface = game.surfaces[record.surface_index]
   if not surface then
     return nil
   end
 
-  local area = {
-    left_top = {
-      x = record.home_position.x - constants.squirrel_target_radius,
-      y = record.home_position.y - constants.squirrel_target_radius
-    },
-    right_bottom = {
-      x = record.home_position.x + constants.squirrel_target_radius,
-      y = record.home_position.y + constants.squirrel_target_radius
-    }
-  }
+  local area = target_area(record.home_position, constants.squirrel_belt_target_radius)
   local preferred_item_name = record.last_loot_name
   local best
 
@@ -559,6 +563,19 @@ local function find_targets(record, report, tick)
       end
     end
   end
+
+  return best
+end
+
+local function find_targets(record, report, tick)
+  local surface = game.surfaces[record.surface_index]
+  if not surface then
+    return nil
+  end
+
+  local best = find_belt_target(record, tick)
+  local area = target_area(record.home_position, constants.squirrel_chest_target_radius)
+  local preferred_item_name = record.last_loot_name
 
   if report.habitat_pressure >= constants.squirrel_chest_pressure_threshold then
     for _, entity in ipairs(surface.find_entities_filtered({
@@ -1173,7 +1190,14 @@ local function process_idle_decision(record, entity, tick)
   end
 
   if state == "calm" then
-    start_roam(record, entity, tick)
+    local belt_target = find_belt_target(record, tick)
+
+    if belt_target then
+      start_target_run(record, entity, belt_target, "inspect", tick)
+    else
+      start_roam(record, entity, tick)
+    end
+
     return
   end
 
@@ -1405,6 +1429,19 @@ local function get_squirrel_record(squirrel_id)
   return get_squirrel_store()[squirrel_id]
 end
 
+local function serialize_debug_target(target)
+  if not target then
+    return nil
+  end
+
+  return {
+    target_type = target.target_type,
+    item_name = target.item_name,
+    count = target.count,
+    position = clone_position(target.position)
+  }
+end
+
 function squirrels.debug_kill_squirrel(squirrel_id)
   local record = get_squirrel_record(squirrel_id)
   local entity = record and resolve_entity_reference(record.entity) or nil
@@ -1538,6 +1575,30 @@ function squirrels.debug_advance_runtime(duration, start_tick)
   end
 
   return squirrels.debug_report(nil, final_tick)
+end
+
+function squirrels.debug_target_for_squirrel(squirrel_id, tick)
+  local record = get_squirrel_record(squirrel_id)
+  if not record then
+    return nil
+  end
+
+  local current_tick = tick or game.tick
+  local state, report = squirrel_state_for_region(record.surface_index, record.region_x, record.region_y, current_tick)
+  local belt_target = find_belt_target(record, current_tick)
+  local chosen_target
+
+  if state == "calm" then
+    chosen_target = belt_target
+  elseif report then
+    chosen_target = find_targets(record, report, current_tick)
+  end
+
+  return {
+    state = state,
+    belt_target = serialize_debug_target(belt_target),
+    chosen_target = serialize_debug_target(chosen_target)
+  }
 end
 
 function squirrels.debug_report(surface_index, tick)

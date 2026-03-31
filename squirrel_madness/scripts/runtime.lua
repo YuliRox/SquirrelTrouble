@@ -497,6 +497,10 @@ local function install_remote_interface()
       storage_lib.ensure()
       return squirrels.debug_report(surface_index, game.tick)
     end,
+    debug_get_squirrel_target = function(squirrel_id)
+      storage_lib.ensure()
+      return squirrels.debug_target_for_squirrel(squirrel_id, game.tick)
+    end,
     debug_force_region_squirrels = function(surface_index, x, y)
       storage_lib.ensure()
       local surface = game.surfaces[surface_index]

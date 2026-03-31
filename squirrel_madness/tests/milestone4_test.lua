@@ -272,6 +272,29 @@ describe("milestone 4 squirrel nuisance runtime", function()
     assert.is_true(wood > brick)
   end)
 
+  it("treats a live belt at a realistic factory-edge distance as a valid calm-state target", function()
+    spawn_forest(18, BELT_ORIGIN)
+    local squirrel_id = remote.call(constants.mod_name, "debug_spawn_squirrel", surface().index, BELT_ORIGIN.x, BELT_ORIGIN.y)
+    local belt = track_entity(surface().create_entity({
+      name = "transport-belt",
+      position = {x = BELT_ORIGIN.x + 52, y = BELT_ORIGIN.y},
+      direction = defines.direction.east,
+      force = game.forces.player
+    }))
+
+    assert.is_number(squirrel_id)
+    assert.is_not_nil(belt)
+    assert.is_true(belt.get_transport_line(1).insert_at(0.25, {name = "iron-plate", count = 1}))
+
+    local target = remote.call(constants.mod_name, "debug_get_squirrel_target", squirrel_id)
+
+    assert.equal("calm", target.state)
+    assert.is_table(target.belt_target)
+    assert.equal("belt", target.belt_target.target_type)
+    assert.is_table(target.chosen_target)
+    assert.equal("belt", target.chosen_target.target_type)
+  end)
+
   it("blocks a belt briefly and steals exactly one item before retreating", function()
     spawn_forest(18, BELT_ORIGIN)
     local squirrel_id = remote.call(constants.mod_name, "debug_spawn_squirrel", surface().index, BELT_ORIGIN.x, BELT_ORIGIN.y)
