@@ -485,6 +485,20 @@ describe("milestone 4 squirrel nuisance runtime", function()
     assert.is_table(report.squirrels[1].position)
   end)
 
+  it("can clear all squirrels on a surface in one debug call", function()
+    spawn_forest(24, FOREST_ORIGIN)
+    player().teleport(FOREST_ORIGIN, surface())
+    remote.call(constants.mod_name, "debug_force_region_squirrels", surface().index, FOREST_ORIGIN.x, FOREST_ORIGIN.y)
+
+    local before = remote.call(constants.mod_name, "debug_get_squirrel_report", surface().index)
+    local destroyed = remote.call(constants.mod_name, "debug_clear_surface_squirrels", surface().index)
+    local after = remote.call(constants.mod_name, "debug_get_squirrel_report", surface().index)
+
+    assert.is_true(#before.squirrels >= 2)
+    assert.equal(#before.squirrels, destroyed)
+    assert.equal(0, #after.squirrels)
+  end)
+
   it("culls squirrels outside the active player region set", function()
     spawn_forest(24, FOREST_ORIGIN)
     player().teleport(FOREST_ORIGIN, surface())

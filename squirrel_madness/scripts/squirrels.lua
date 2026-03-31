@@ -1585,6 +1585,26 @@ function squirrels.debug_kill_squirrel(squirrel_id)
   return entity.die(game.forces.player)
 end
 
+function squirrels.debug_clear_surface(surface_index)
+  local destroyed = 0
+
+  for squirrel_id, record in pairs(get_squirrel_store()) do
+    if not surface_index or record.surface_index == surface_index then
+      local entity = resolve_entity_reference(record.entity)
+
+      if entity and entity.valid then
+        destroy_render(record)
+        entity.destroy()
+        destroyed = destroyed + 1
+      end
+
+      remove_record(squirrel_id)
+    end
+  end
+
+  return destroyed
+end
+
 function squirrels.debug_force_belt_theft(surface_index, squirrel_id, position, tick)
   local surface = game.surfaces[surface_index]
   local record = get_squirrel_record(squirrel_id)
