@@ -140,14 +140,15 @@ Hard stop before Milestone 5: mandatory in-game playtest.
 Playtest focus:
 
 - confirm squirrels visibly spawn, move, and read correctly on screen
-- confirm belt blocking, single-item theft, and forest retreat behavior feel readable and fair
+- confirm belt blocking, stack-building belt raids, and forest retreat behavior feel readable and fair
 - confirm stash creation and loot recovery are understandable in normal play
 
 Deliverables:
 
 - put squirrels on screen in calm, curious, mischievous, agitated, and grieving states
-- add belt blocking, single-item belt theft, forest retreat paths, and stash creation
-- add chest scavenging only under higher pressure
+- increase visible squirrel counts so factory-edge nuisance feels materially present
+- add belt blocking, repeated belt theft that builds toward full carried stacks, forest retreat paths, and stash creation
+- add full-stack chest scavenging only under higher pressure
 - tune visible behavior, readability, and fairness through in-game playtests
 - create and use the milestone manual playtest to validate on-screen squirrel behavior
 

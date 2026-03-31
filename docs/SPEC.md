@@ -333,7 +333,7 @@ Triggered by moderate unrest or food scarcity.
 Behavior:
 
 - sits on belts and blocks throughput briefly
-- steals single items from belts
+- steals repeated batches from belts until carrying a full stack or being interrupted
 - may scavenge chests only under high habitat pressure
 - carries loot to forest stashes or feeders
 
@@ -380,12 +380,13 @@ Squirrel disruption should be meaningful, readable, and rate-limited.
 
 ### Belt Theft
 
-- A squirrel may remove one item from a belt.
-- It then carries the item visibly toward a stash or feeder.
+- A squirrel may stay on belts and keep stealing from nearby moving items until it has built up a meaningful carried stack.
+- Belt raids should feel like a visible nuisance burst, not a one-item joke.
+- It then carries the accumulated stack visibly toward a stash or feeder.
 
 ### Chest Scavenging
 
-- Under elevated habitat pressure, a squirrel may take a small stack from a chest.
+- Under elevated habitat pressure, a squirrel may take a full stack from a chest, limited by the available item count.
 - Chest stealing should begin only after forests are severely degraded or local unrest is high.
 - Under extreme habitat collapse, a squirrel may move items between nearby chests to create disorder.
 - Chest reordering is the final escalation tier and should be rare, local, and clearly linked to ecological collapse.
@@ -433,13 +434,13 @@ Squirrel actions should escalate with habitat pressure so the player can read th
 ### Medium Pressure
 
 - regular belt blocking
-- single-item belt theft
+- repeated belt theft that builds toward full carried stacks
 - more squirrels leave forest and patrol factory edge
 
 ### High Pressure
 
 - repeated belt theft
-- chest stealing begins
+- full-stack chest stealing begins
 - more items are carried to visible forest stashes
 
 ### Extreme Pressure

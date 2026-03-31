@@ -366,7 +366,7 @@ local function squirrel_population_target(report)
     return 0
   end
 
-  local target = 1
+  local target = 2
   if
     report.tree_count >= constants.squirrel_stable_tree_count
     or report.forest_health >= 25
@@ -380,6 +380,10 @@ local function squirrel_population_target(report)
     or report.forest_health >= 40
     or report.squirrel_trust >= 50
   then
+    target = target + 1
+  end
+
+  if report.habitat_pressure >= 40 or report.squirrel_unrest >= 35 then
     target = target + 1
   end
 
@@ -506,10 +510,6 @@ local function choose_chest_item(entity, preferred_item_name, report)
   end
 
   local best
-  local desired_count = math.min(
-    constants.max_chest_scavenge_count,
-    math.max(1, 1 + math.floor((report.habitat_pressure - constants.squirrel_chest_pressure_threshold) / 12))
-  )
 
   for _, item in ipairs(inventory.get_contents()) do
     local score = item_desirability(item.name)
@@ -518,7 +518,9 @@ local function choose_chest_item(entity, preferred_item_name, report)
     end
 
     if not best or score > best.score then
-      best = serialize_target(entity, "chest", item.name, math.min(item.count or 1, desired_count))
+      local prototype = prototypes.item[item.name]
+      local stack_size = (prototype and prototype.stack_size) or 1
+      best = serialize_target(entity, "chest", item.name, math.min(item.count or 1, stack_size))
       best.score = score
     end
   end
@@ -833,6 +835,23 @@ local function clear_carrying(record, entity)
   sync_render(record, entity)
 end
 
+local function carrying_stack_size(item_name)
+  local prototype = prototypes.item[item_name]
+  return (prototype and prototype.stack_size) or 1
+end
+
+local function carrying_count(record, item_name)
+  if record.carrying and record.carrying.name == item_name then
+    return record.carrying.count or 0
+  end
+
+  return 0
+end
+
+local function carrying_remaining_capacity(record, item_name)
+  return math.max(0, carrying_stack_size(item_name) - carrying_count(record, item_name))
+end
+
 local function deposit_or_spill(record, entity)
   if not record.carrying then
     return true
@@ -859,7 +878,13 @@ local function deposit_or_spill(record, entity)
 end
 
 local function set_carrying(record, entity, item_name, count)
-  record.carrying = {name = item_name, count = count}
+  local total = count
+
+  if record.carrying and record.carrying.name == item_name then
+    total = record.carrying.count + count
+  end
+
+  record.carrying = {name = item_name, count = total}
   record.last_loot_name = item_name
   sync_render(record, entity)
 end
@@ -884,6 +909,7 @@ local function start_retreat(record, entity, tick)
   record.target = stash and serialize_target(stash, "stash") or nil
   record.destination = stash and clone_position(stash.position) or clone_position(record.home_position)
   record.arrival_distance = 0.8
+  record.blocking_until_tick = nil
   record.action_due_tick = tick + constants.squirrel_move_timeout
   record.next_decision_tick = tick + constants.squirrel_decision_interval
   move_entity(entity, record.destination)
@@ -903,6 +929,7 @@ local function start_roam(record, entity, tick)
   record.target = nil
   record.destination = clone_position(destination)
   record.arrival_distance = 0.8
+  record.blocking_until_tick = nil
   record.action_due_tick = tick + constants.squirrel_move_timeout
   record.next_decision_tick = tick + constants.squirrel_decision_interval
   move_entity(entity, destination)
@@ -914,6 +941,7 @@ local function start_target_run(record, entity, target, intent, tick)
   record.target = target
   record.destination = clone_position(target.position)
   record.arrival_distance = 0.45
+  record.blocking_until_tick = nil
   record.action_due_tick = tick + constants.squirrel_move_timeout
   record.next_decision_tick = tick + constants.squirrel_decision_interval
   move_entity(entity, target.position)
@@ -925,19 +953,20 @@ local function start_belt_block(record, entity, belt_entity, tick)
   record.target = serialize_target(belt_entity, "belt", record.target and record.target.item_name or nil, 1)
   record.destination = nil
   record.arrival_distance = nil
-  record.action_due_tick = tick + constants.squirrel_belt_block_duration
+  record.blocking_until_tick = tick + constants.squirrel_belt_block_duration
+  record.action_due_tick = tick
   record.next_decision_tick = tick + constants.squirrel_decision_interval
   stop_entity(entity)
 end
 
-local function remove_belt_item(belt_entity, item_name)
+local function remove_belt_item(belt_entity, item_name, count)
   for line_index = 1, constants.squirrel_transport_line_scan_limit do
     local ok, line = pcall(function()
       return belt_entity.get_transport_line(line_index)
     end)
 
     if ok and line and line.valid then
-      local removed = line.remove_item({name = item_name, count = 1})
+      local removed = line.remove_item({name = item_name, count = count or 1})
       if removed > 0 then
         return removed
       end
@@ -947,26 +976,92 @@ local function remove_belt_item(belt_entity, item_name)
   return 0
 end
 
+local function belt_hop_destination(record, belt_entity)
+  local item_name = record.target and record.target.item_name or nil
+  local carried = carrying_count(record, item_name)
+  local hop_index = ((record.squirrel_id or 1) + carried) % 5
+  local offsets = {
+    {x = 0, y = 0},
+    {x = 0.3, y = 0.2},
+    {x = -0.3, y = 0.2},
+    {x = 0.25, y = -0.3},
+    {x = -0.25, y = -0.3}
+  }
+  local offset = offsets[hop_index + 1]
+
+  return {
+    x = belt_entity.position.x + offset.x,
+    y = belt_entity.position.y + offset.y
+  }
+end
+
 local function perform_belt_theft(record, entity, tick)
   local belt_entity = resolve_target(record)
   local item_name = record.target and record.target.item_name
   if not (belt_entity and belt_entity.valid and item_name) then
-    send_home(record, entity, tick)
+    if record.carrying then
+      start_retreat(record, entity, tick)
+    else
+      send_home(record, entity, tick)
+    end
     return false
   end
 
-  local removed = remove_belt_item(belt_entity, item_name)
+  local remaining_capacity = carrying_remaining_capacity(record, item_name)
+  if remaining_capacity <= 0 then
+    note_target_cooldown(belt_entity, tick)
+    start_retreat(record, entity, tick)
+    return true
+  end
+
+  local removed = remove_belt_item(
+    belt_entity,
+    item_name,
+    math.min(constants.squirrel_belt_grab_amount, remaining_capacity)
+  )
   if removed <= 0 then
-    send_home(record, entity, tick)
+    local replacement = find_belt_target(record, tick)
+    if replacement and replacement.item_name == item_name then
+      record.target = replacement
+      record.mode = "approach"
+      record.intent = "steal"
+      record.destination = clone_position(replacement.position)
+      record.arrival_distance = 0.45
+      record.action_due_tick = tick + constants.squirrel_move_timeout
+      move_entity(entity, replacement.position)
+      return false
+    end
+
+    if record.carrying then
+      note_target_cooldown(belt_entity, tick)
+      start_retreat(record, entity, tick)
+    else
+      send_home(record, entity, tick)
+    end
     return false
   end
 
-  set_carrying(record, entity, item_name, 1)
-  record.last_action_tick = tick
-  note_target_cooldown(belt_entity, tick)
-  local activity = region_from_record(record)
-  activity.last_theft_tick = tick
-  start_retreat(record, entity, tick)
+  local started_empty_handed = not record.carrying
+  set_carrying(record, entity, item_name, removed)
+
+  if started_empty_handed then
+    record.last_action_tick = tick
+    local activity = region_from_record(record)
+    activity.last_theft_tick = tick
+  end
+
+  if carrying_remaining_capacity(record, item_name) <= 0 or tick >= (record.blocking_until_tick or tick) then
+    note_target_cooldown(belt_entity, tick)
+    start_retreat(record, entity, tick)
+    return true
+  end
+
+  record.mode = "approach"
+  record.intent = "steal"
+  record.destination = belt_hop_destination(record, belt_entity)
+  record.arrival_distance = 0.2
+  record.action_due_tick = tick + constants.squirrel_move_timeout
+  move_entity(entity, record.destination)
   return true
 end
 
@@ -1124,7 +1219,8 @@ local function create_record(entity, home_position, region_x, region_y, tick)
     stash_id = nil,
     render_id = nil,
     roam_step = 0,
-    arrival_distance = 0.8
+    arrival_distance = 0.8,
+    blocking_until_tick = nil
   }
 
   get_squirrel_store()[squirrel_id] = record
@@ -1484,11 +1580,27 @@ function squirrels.debug_force_belt_theft(surface_index, squirrel_id, position, 
     return nil
   end
 
-  local removed = perform_belt_theft(record, entity, tick or game.tick)
-  if not removed then
+  local current_tick = tick or game.tick
+  start_belt_block(record, entity, belt, current_tick)
+
+  local iterations = 0
+  while iterations < 128 and (record.mode == "blocking" or (record.mode == "approach" and record.intent == "steal")) do
+    current_tick = current_tick + constants.squirrel_belt_grab_interval
+
+    if record.mode == "blocking" then
+      perform_belt_theft(record, entity, current_tick)
+    else
+      process_arrival(record, entity, current_tick)
+    end
+
+    iterations = iterations + 1
+  end
+
+  if not record.carrying and record.mode ~= "retreat" then
     return nil
   end
 
+  local carried_count = record.carrying and record.carrying.count or 0
   local stash = ensure_stash(record)
   local stash_id = record.stash_id
   if stash then
@@ -1496,11 +1608,11 @@ function squirrels.debug_force_belt_theft(surface_index, squirrel_id, position, 
   end
 
   deposit_or_spill(record, entity)
-  send_home(record, entity, tick or game.tick)
+  send_home(record, entity, current_tick)
 
   return {
     item_name = record.last_loot_name,
-    count = 1,
+    count = carried_count,
     stash_id = stash_id
   }
 end

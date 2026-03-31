@@ -39,6 +39,29 @@ local function spawn_forest(count, origin)
   return trees
 end
 
+local function create_belt_line(origin, length, item_name, item_count)
+  local belts = {}
+
+  for index = 0, length - 1 do
+    local belt = track_entity(surface().create_entity({
+      name = "transport-belt",
+      position = {x = origin.x + index, y = origin.y},
+      direction = defines.direction.east,
+      force = game.forces.player
+    }))
+
+    belts[#belts + 1] = belt
+  end
+
+  for index = 1, item_count do
+    local belt = belts[((index - 1) % #belts) + 1]
+    local line_index = (math.floor((index - 1) / #belts) % 2) + 1
+    belt.get_transport_line(line_index).insert_at_back({name = item_name, count = 1})
+  end
+
+  return belts
+end
+
 local function fill_region_with_forest(region_x, region_y, spacing)
   local area = regions.region_area(region_x, region_y)
   local trees = {}
@@ -295,42 +318,32 @@ describe("milestone 4 squirrel nuisance runtime", function()
     assert.equal("belt", target.chosen_target.target_type)
   end)
 
-  it("blocks a belt briefly and steals exactly one item before retreating", function()
+  it("stays on belts long enough to steal a meaningful stack before retreating", function()
     spawn_forest(18, BELT_ORIGIN)
     local squirrel_id = remote.call(constants.mod_name, "debug_spawn_squirrel", surface().index, BELT_ORIGIN.x, BELT_ORIGIN.y)
-    local belt = track_entity(surface().create_entity({
-      name = "transport-belt",
-      position = {x = BELT_ORIGIN.x + 8, y = BELT_ORIGIN.y},
-      direction = defines.direction.east,
-      force = game.forces.player
-    }))
+    local belts = create_belt_line({x = BELT_ORIGIN.x + 8, y = BELT_ORIGIN.y}, 8, "iron-plate", 16)
+    local belt = belts[1]
 
     assert.is_not_nil(belt)
-    assert.is_true(belt.get_transport_line(1).insert_at(0.25, {name = "iron-plate", count = 1}))
 
     local result = remote.call(constants.mod_name, "debug_force_belt_theft", surface().index, squirrel_id, belt.position.x, belt.position.y)
     local report = remote.call(constants.mod_name, "debug_get_squirrel_report", surface().index)
 
     assert.is_table(result)
     assert.equal("iron-plate", result.item_name)
-    assert.equal(1, result.count)
-    assert.equal(0, belt.get_transport_line(1).get_item_count("iron-plate"))
+    assert.is_true(result.count >= constants.squirrel_belt_grab_amount)
+    assert.is_true(result.count <= 16)
     assert.equal(1, #report.stashes)
-    assert.equal(1, report.stashes[1].item_count)
+    assert.equal(result.count, report.stashes[1].item_count)
   end)
 
   it("creates a visible forest stash and deposits stolen loot into it", function()
     spawn_forest(18, BELT_ORIGIN)
     local squirrel_id = remote.call(constants.mod_name, "debug_spawn_squirrel", surface().index, BELT_ORIGIN.x, BELT_ORIGIN.y)
-    local belt = track_entity(surface().create_entity({
-      name = "transport-belt",
-      position = {x = BELT_ORIGIN.x + 10, y = BELT_ORIGIN.y},
-      direction = defines.direction.east,
-      force = game.forces.player
-    }))
+    local belts = create_belt_line({x = BELT_ORIGIN.x + 10, y = BELT_ORIGIN.y}, 8, "copper-plate", 16)
+    local belt = belts[1]
 
     assert.is_not_nil(belt)
-    assert.is_true(belt.get_transport_line(1).insert_at(0.25, {name = "copper-plate", count = 1}))
     assert.is_table(remote.call(constants.mod_name, "debug_force_belt_theft", surface().index, squirrel_id, belt.position.x, belt.position.y))
 
     local before_cleanup = remote.call(constants.mod_name, "debug_get_squirrel_report", surface().index)
@@ -341,7 +354,7 @@ describe("milestone 4 squirrel nuisance runtime", function()
     })[1]
 
     assert.is_not_nil(stash)
-    assert.equal(1, before_cleanup.stashes[1].item_count)
+    assert.is_true(before_cleanup.stashes[1].item_count >= constants.squirrel_belt_grab_amount)
 
     local inventory = stash.get_inventory(defines.inventory.chest)
     inventory.clear()
@@ -354,21 +367,8 @@ describe("milestone 4 squirrel nuisance runtime", function()
     spawn_forest(18, BELT_ORIGIN)
     local first_squirrel = remote.call(constants.mod_name, "debug_spawn_squirrel", surface().index, BELT_ORIGIN.x, BELT_ORIGIN.y)
     local second_squirrel = remote.call(constants.mod_name, "debug_spawn_squirrel", surface().index, BELT_ORIGIN.x + 2, BELT_ORIGIN.y + 2)
-    local first_belt = track_entity(surface().create_entity({
-      name = "transport-belt",
-      position = {x = BELT_ORIGIN.x + 12, y = BELT_ORIGIN.y},
-      direction = defines.direction.east,
-      force = game.forces.player
-    }))
-    local second_belt = track_entity(surface().create_entity({
-      name = "transport-belt",
-      position = {x = BELT_ORIGIN.x + 14, y = BELT_ORIGIN.y},
-      direction = defines.direction.east,
-      force = game.forces.player
-    }))
-
-    assert.is_true(first_belt.get_transport_line(1).insert_at(0.25, {name = "iron-plate", count = 1}))
-    assert.is_true(second_belt.get_transport_line(1).insert_at(0.25, {name = "copper-plate", count = 1}))
+    local first_belt = create_belt_line({x = BELT_ORIGIN.x + 12, y = BELT_ORIGIN.y}, 6, "iron-plate", 60)[1]
+    local second_belt = create_belt_line({x = BELT_ORIGIN.x + 20, y = BELT_ORIGIN.y}, 6, "copper-plate", 60)[1]
 
     assert.is_table(remote.call(constants.mod_name, "debug_force_belt_theft", surface().index, first_squirrel, first_belt.position.x, first_belt.position.y))
     assert.is_nil(remote.call(constants.mod_name, "debug_force_belt_theft", surface().index, first_squirrel, second_belt.position.x, second_belt.position.y))
@@ -386,7 +386,7 @@ describe("milestone 4 squirrel nuisance runtime", function()
     }))
     local inventory = chest.get_inventory(defines.inventory.chest)
 
-    inventory.insert({name = "iron-gear-wheel", count = 8})
+    inventory.insert({name = "iron-gear-wheel", count = 80})
 
     assert.is_nil(remote.call(constants.mod_name, "debug_force_chest_scavenge", surface().index, squirrel_id, chest.position.x, chest.position.y))
 
@@ -400,8 +400,8 @@ describe("milestone 4 squirrel nuisance runtime", function()
 
     assert.is_table(result)
     assert.equal("iron-gear-wheel", result.item_name)
-    assert.is_true(result.count >= 1)
-    assert.is_true(inventory.get_item_count("iron-gear-wheel") < 8)
+    assert.equal(80, result.count)
+    assert.equal(0, inventory.get_item_count("iron-gear-wheel"))
     assert.equal(1, #report.stashes)
   end)
 
