@@ -71,6 +71,10 @@ local function region_key(region_x, region_y)
   return region_x .. "," .. region_y
 end
 
+local function active_region_key(surface_index, region_x, region_y)
+  return surface_index .. ":" .. region_x .. ":" .. region_y
+end
+
 local function ensure_squirrel_force()
   local force = game.forces[constants.squirrel_force_name]
   if not force then
@@ -600,6 +604,7 @@ local function find_targets(record, report, tick)
 end
 
 local stop_entity
+local process_idle_decision
 
 local function move_entity(entity, destination)
   local ok = pcall(function()
@@ -1207,11 +1212,11 @@ local function create_record(entity, home_position, region_x, region_y, tick)
     region_x = region_x,
     region_y = region_y,
     state = "calm",
-    mode = "roam",
+    mode = "idle",
     intent = nil,
     target = nil,
     carrying = nil,
-    destination = clone_position(home_position),
+    destination = nil,
     next_decision_tick = tick,
     action_due_tick = tick,
     last_action_tick = 0,
@@ -1219,13 +1224,13 @@ local function create_record(entity, home_position, region_x, region_y, tick)
     stash_id = nil,
     render_id = nil,
     roam_step = 0,
-    arrival_distance = 0.8,
+    arrival_distance = nil,
     blocking_until_tick = nil
   }
 
   get_squirrel_store()[squirrel_id] = record
   get_region_activity(entity.surface.index, region_x, region_y).last_spawn_tick = tick
-  start_roam(record, entity, tick)
+  stop_entity(entity)
   return record
 end
 
@@ -1269,14 +1274,17 @@ function squirrels.ensure_population_in_region(surface, region_x, region_y, tick
       break
     end
 
-    create_record(entity, position, region_x, region_y, tick)
+    local record = create_record(entity, position, region_x, region_y, tick)
+    if record then
+      process_idle_decision(record, entity, tick)
+    end
     created = created + 1
   end
 
   return created
 end
 
-local function process_idle_decision(record, entity, tick)
+process_idle_decision = function(record, entity, tick)
   local state, report = squirrel_state_for_region(record.surface_index, record.region_x, record.region_y, tick)
   record.state = state
 
@@ -1289,7 +1297,7 @@ local function process_idle_decision(record, entity, tick)
     local belt_target = find_belt_target(record, tick)
 
     if belt_target then
-      start_target_run(record, entity, belt_target, "inspect", tick)
+      start_target_run(record, entity, belt_target, "steal", tick)
     else
       start_roam(record, entity, tick)
     end
@@ -1380,6 +1388,24 @@ local function cleanup_invalid_squirrels()
   end
 end
 
+local function cull_inactive_squirrels(active_lookup)
+  for squirrel_id, record in pairs(get_squirrel_store()) do
+    local key = active_region_key(record.surface_index, record.region_x, record.region_y)
+    if not active_lookup[key] then
+      local entity = resolve_entity_reference(record.entity)
+      if entity and entity.valid then
+        if record.carrying then
+          deposit_or_spill(record, entity)
+        end
+
+        entity.destroy()
+      end
+
+      remove_record(squirrel_id)
+    end
+  end
+end
+
 function squirrels.cleanup_empty_stashes(surface_index)
   local destroyed = 0
 
@@ -1418,7 +1444,16 @@ function squirrels.on_tick(tick)
   cleanup_invalid_squirrels()
 
   if tick % constants.squirrel_update_interval == 0 then
-    for _, coord in ipairs(active_region_coords()) do
+    local active_coords = active_region_coords()
+    local active_lookup = {}
+
+    for _, coord in ipairs(active_coords) do
+      active_lookup[active_region_key(coord.surface_index, coord.region_x, coord.region_y)] = true
+    end
+
+    cull_inactive_squirrels(active_lookup)
+
+    for _, coord in ipairs(active_coords) do
       local surface = game.surfaces[coord.surface_index]
       if surface then
         squirrels.ensure_population_in_region(surface, coord.region_x, coord.region_y, tick)
