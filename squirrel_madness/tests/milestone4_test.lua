@@ -140,6 +140,7 @@ local function reset_runtime_storage()
   storage.squirrel_stashes = {}
   storage.next_squirrel_stash_id = 1
   storage.squirrel_region_activity = {}
+  storage.squirrel_region_targets = {}
   storage.squirrel_target_cooldowns = {}
 end
 
@@ -313,12 +314,12 @@ describe("milestone 4 squirrel nuisance runtime", function()
     assert.is_true(wood > brick)
   end)
 
-  it("treats a live belt at a realistic factory-edge distance as a valid calm-state target", function()
+  it("keeps calm squirrels uninterested in nearby belts until pressure rises", function()
     spawn_forest(18, BELT_ORIGIN)
-    local squirrel_id = remote.call(constants.mod_name, "debug_spawn_squirrel", surface().index, BELT_ORIGIN.x, BELT_ORIGIN.y)
+    local squirrel_id = remote.call(constants.mod_name, "debug_spawn_squirrel", surface().index, BELT_ORIGIN.x + 6, BELT_ORIGIN.y)
     local belt = track_entity(surface().create_entity({
       name = "transport-belt",
-      position = {x = BELT_ORIGIN.x + 52, y = BELT_ORIGIN.y},
+      position = {x = BELT_ORIGIN.x + 8, y = BELT_ORIGIN.y},
       direction = defines.direction.east,
       force = game.forces.player
     }))
@@ -330,8 +331,62 @@ describe("milestone 4 squirrel nuisance runtime", function()
     local target = remote.call(constants.mod_name, "debug_get_squirrel_target", squirrel_id)
 
     assert.equal("calm", target.state)
-    assert.is_table(target.belt_target)
-    assert.equal("belt", target.belt_target.target_type)
+    assert.is_nil(target.local_target)
+    assert.is_nil(target.excursion_target)
+    assert.is_nil(target.chosen_target)
+  end)
+
+  it("lets curious squirrels inspect nearby belts once they have ranged to the forest edge", function()
+    local trees = spawn_forest(18, BELT_ORIGIN)
+    local squirrel_id = remote.call(constants.mod_name, "debug_spawn_squirrel", surface().index, BELT_ORIGIN.x + 6, BELT_ORIGIN.y)
+    local belt = track_entity(surface().create_entity({
+      name = "transport-belt",
+      position = {x = BELT_ORIGIN.x + 8, y = BELT_ORIGIN.y},
+      direction = defines.direction.east,
+      force = game.forces.player
+    }))
+
+    assert.is_number(squirrel_id)
+    assert.is_not_nil(belt)
+    assert.is_true(belt.get_transport_line(1).insert_at(0.25, {name = "iron-plate", count = 1}))
+
+    regions.note_tree_loss(surface().index, trees[1].position, 1, game.tick)
+    trees[1].destroy()
+
+    local target = remote.call(constants.mod_name, "debug_get_squirrel_target", squirrel_id)
+
+    assert.equal("curious", target.state)
+    assert.is_table(target.local_target)
+    assert.equal("belt", target.local_target.target_type)
+    assert.equal("inspect", target.local_intent)
+    assert.is_table(target.chosen_target)
+    assert.equal("belt", target.chosen_target.target_type)
+  end)
+
+  it("uses excursion targets when interesting belts are outside the squirrel's immediate local radius", function()
+    local trees = spawn_forest(18, BELT_ORIGIN)
+    local squirrel_id = remote.call(constants.mod_name, "debug_spawn_squirrel", surface().index, BELT_ORIGIN.x, BELT_ORIGIN.y)
+    local belt = track_entity(surface().create_entity({
+      name = "transport-belt",
+      position = {x = BELT_ORIGIN.x + 18, y = BELT_ORIGIN.y},
+      direction = defines.direction.east,
+      force = game.forces.player
+    }))
+
+    assert.is_number(squirrel_id)
+    assert.is_not_nil(belt)
+    assert.is_true(belt.get_transport_line(1).insert_at(0.25, {name = "iron-plate", count = 1}))
+
+    regions.note_tree_loss(surface().index, trees[1].position, 1, game.tick)
+    trees[1].destroy()
+
+    local target = remote.call(constants.mod_name, "debug_get_squirrel_target", squirrel_id)
+
+    assert.equal("curious", target.state)
+    assert.is_nil(target.local_target)
+    assert.is_table(target.excursion_target)
+    assert.equal("belt", target.excursion_target.target_type)
+    assert.equal("inspect", target.excursion_intent)
     assert.is_table(target.chosen_target)
     assert.equal("belt", target.chosen_target.target_type)
   end)
@@ -355,33 +410,32 @@ describe("milestone 4 squirrel nuisance runtime", function()
     assert.equal(result.count, report.stashes[1].item_count)
   end)
 
-  it("lets calm squirrels naturally raid nearby belts in an active forest-edge region", function()
-    spawn_forest(24, BELT_ORIGIN)
+  it("lets pressured squirrels range outward and raid nearby belts in an active forest-edge region", function()
+    local coord = regions.position_to_region_coord(BELT_ORIGIN)
+    local trees = fill_region_with_forest(coord.x, coord.y, 8)
     local belts = create_belt_line({x = BELT_ORIGIN.x + 10, y = BELT_ORIGIN.y}, 8, "iron-plate", 60)
-    player().teleport(BELT_ORIGIN, surface())
+    player().teleport({x = BELT_ORIGIN.x - 18, y = BELT_ORIGIN.y}, surface())
 
-    remote.call(constants.mod_name, "debug_force_region_squirrels", surface().index, BELT_ORIGIN.x, BELT_ORIGIN.y)
+    for index = 1, 4 do
+      regions.note_tree_loss(surface().index, trees[index].position, 1, game.tick)
+      trees[index].destroy()
+    end
+
+    assert.is_true(
+      remote.call(constants.mod_name, "debug_force_region_squirrels", surface().index, BELT_ORIGIN.x, BELT_ORIGIN.y) >= 2
+    )
 
     local report = remote.call(
       constants.mod_name,
       "debug_advance_squirrel_runtime",
-      constants.squirrel_move_timeout + constants.squirrel_decision_interval + constants.squirrel_belt_block_duration
+      (constants.squirrel_move_timeout * 2)
+        + constants.squirrel_decision_interval
+        + constants.squirrel_belt_block_duration
+        + constants.squirrel_idle_pause_max
     )
 
     assert.is_true(#report.squirrels >= 2)
-    assert.is_true(total_belt_item_count(belts, "iron-plate") < 60)
-
-    local has_live_loot = #report.stashes >= 1
-    if not has_live_loot then
-      for _, squirrel in ipairs(report.squirrels) do
-        if squirrel.carrying == "iron-plate" then
-          has_live_loot = true
-          break
-        end
-      end
-    end
-
-    assert.is_true(has_live_loot)
+    assert.is_true(total_belt_item_count(belts, "iron-plate") <= (60 - constants.squirrel_belt_grab_amount))
   end)
 
   it("creates a visible forest stash and deposits stolen loot into it", function()

@@ -38,7 +38,7 @@ The intended arc is:
 
 ### 1. Visible Wildlife
 
-Squirrels are cute, animated neutral units that roam forests and the factory edge. They should feel alive even when not causing trouble.
+Squirrels are cute, animated neutral units that roam forests first and only push toward the factory edge when pressure rises. They should feel alive even when not causing trouble.
 
 ### 2. Disruptive Nuisance, Not Direct Destruction
 
@@ -322,8 +322,8 @@ Triggered by nearby pollution, visible logistics, or damaged forest edge.
 
 Behavior:
 
-- approaches belts and chests near the forest edge
-- investigates activity
+- expands its wander radius toward the forest edge
+- investigates belts and chests near the forest edge
 - may linger without stealing yet
 
 ### Mischievous
@@ -332,10 +332,11 @@ Triggered by moderate unrest or food scarcity.
 
 Behavior:
 
+- wanders beyond the canopy and spends more time outside safe forest cover
 - sits on belts and blocks throughput briefly
 - steals repeated batches from belts until carrying a full stack or being interrupted
 - may scavenge chests only under high habitat pressure
-- carries loot to forest stashes or feeders
+- retreats with loot to forest stashes or feeders after a successful haul
 
 ### Agitated
 
@@ -343,6 +344,7 @@ Triggered by being stepped on, rough handling, or high unrest.
 
 Behavior:
 
+- ranges farther from the forest before retreating
 - throws nuts at the engineer
 - deals minor damage
 - may alert nearby squirrels
@@ -377,12 +379,13 @@ Squirrel disruption should be meaningful, readable, and rate-limited.
 - A squirrel may occupy a single belt tile for a short duration.
 - That tile is treated as blocked while the squirrel sits there.
 - Belt blocking should be most common near the forest edge or poorly managed corridors.
+- Squirrels should reach belts by visibly wandering outward from habitat, not by seeming to spawn directly onto a distant logistics target.
 
 ### Belt Theft
 
 - A squirrel may stay on belts and keep stealing from nearby moving items until it has built up a meaningful carried stack.
 - Belt raids should feel like a visible nuisance burst, not a one-item joke.
-- It then carries the accumulated stack visibly toward a stash or feeder.
+- It then carries the accumulated stack visibly back toward a stash or feeder in the forest.
 
 ### Chest Scavenging
 
@@ -446,12 +449,16 @@ Squirrel actions should escalate with habitat pressure so the player can read th
 ### Extreme Pressure
 
 - chest reordering unlocks as a rare late-stage nuisance
+- localized power-cable chewing on forest-edge poles is a late-v1 candidate if theft alone does not create enough meaningful disruption
 - squirrels strongly prefer high-value targets
 - grief and retaliation effects last longer after squirrel death
 
 Design rule:
 
 - the player should be able to feel the worsening state of the forest just by observing squirrel behavior
+- pressure should widen outward squirrel wandering and deepen initial incursions before theft
+- successful theft should still resolve as retreat back toward forest habitat rather than further exploration into the base
+- if power-cable chewing is added later, it must stay local, visibly telegraphed, and easy to diagnose and repair
 
 ## Violence and Retaliation
 

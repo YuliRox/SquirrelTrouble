@@ -17,6 +17,7 @@ function storage_lib.ensure()
   storage.squirrel_stashes = storage.squirrel_stashes or {}
   storage.next_squirrel_stash_id = storage.next_squirrel_stash_id or 1
   storage.squirrel_region_activity = storage.squirrel_region_activity or {}
+  storage.squirrel_region_targets = storage.squirrel_region_targets or {}
   storage.squirrel_target_cooldowns = storage.squirrel_target_cooldowns or {}
 end
 

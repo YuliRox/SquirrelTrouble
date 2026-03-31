@@ -122,6 +122,12 @@ local function get_surface_region_activity(surface_index)
   return storage.squirrel_region_activity[surface_index]
 end
 
+local function get_surface_region_targets(surface_index)
+  storage.squirrel_region_targets = storage.squirrel_region_targets or {}
+  storage.squirrel_region_targets[surface_index] = storage.squirrel_region_targets[surface_index] or {}
+  return storage.squirrel_region_targets[surface_index]
+end
+
 local function get_target_cooldowns()
   storage.squirrel_target_cooldowns = storage.squirrel_target_cooldowns or {}
   return storage.squirrel_target_cooldowns
@@ -170,8 +176,7 @@ local function serialize_target(entity, target_type, item_name, count)
   }
 end
 
-local function resolve_target(record)
-  local target = record.target
+local function resolve_target_reference(surface_index, target)
   if not target then
     return nil
   end
@@ -186,7 +191,7 @@ local function resolve_target(record)
     return entity
   end
 
-  local surface = game.surfaces[record.surface_index]
+  local surface = game.surfaces[surface_index]
   if not surface then
     return nil
   end
@@ -198,6 +203,10 @@ local function resolve_target(record)
   })
 
   return matches[1]
+end
+
+local function resolve_target(record)
+  return resolve_target_reference(record.surface_index, record.target)
 end
 
 local function destroy_render(record)
@@ -545,57 +554,292 @@ local function target_area(origin, radius)
   }
 end
 
-local function find_belt_target(record, tick)
-  local surface = game.surfaces[record.surface_index]
-  if not surface then
+local function expand_area(area, padding)
+  return {
+    left_top = {
+      x = area.left_top.x - padding,
+      y = area.left_top.y - padding
+    },
+    right_bottom = {
+      x = area.right_bottom.x + padding,
+      y = area.right_bottom.y + padding
+    }
+  }
+end
+
+local function state_wander_distance(state, report)
+  local base = constants.squirrel_home_wander_distance
+
+  if state == "curious" then
+    base = constants.squirrel_curious_wander_distance
+  elseif state == "mischievous" then
+    base = constants.squirrel_mischievous_wander_distance
+  elseif state == "agitated" then
+    base = constants.squirrel_agitated_wander_distance
+  elseif state == "grieving" then
+    base = constants.squirrel_grieving_wander_distance
+  end
+
+  if report then
+    base = base + math.min(report.habitat_pressure / 30, 6)
+  end
+
+  return base
+end
+
+local function state_local_target_radius(state)
+  if state == "curious" then
+    return constants.squirrel_curious_local_target_radius
+  end
+
+  if state == "mischievous" then
+    return constants.squirrel_mischievous_local_target_radius
+  end
+
+  if state == "agitated" then
+    return constants.squirrel_agitated_local_target_radius
+  end
+
+  if state == "grieving" then
+    return constants.squirrel_grieving_local_target_radius
+  end
+
+  return nil
+end
+
+local function state_can_steal(state)
+  return state == "mischievous" or state == "agitated" or state == "grieving"
+end
+
+local function local_target_intent(state, report, target_type, theft_available)
+  if state == "calm" then
     return nil
   end
 
-  local area = target_area(record.home_position, constants.squirrel_belt_target_radius)
-  local preferred_item_name = record.last_loot_name
-  local best
+  if state == "curious" then
+    if target_type == "belt" then
+      return "inspect"
+    end
+
+    return nil
+  end
+
+  if theft_available then
+    if target_type == "belt" then
+      return "steal"
+    end
+
+    if target_type == "chest" and report and report.habitat_pressure >= constants.squirrel_chest_pressure_threshold then
+      return "steal"
+    end
+  end
+
+  if target_type == "belt" then
+    return "inspect"
+  end
+
+  return nil
+end
+
+local function refresh_region_target_snapshot(surface, region_x, region_y, tick)
+  local snapshot = {
+    tick = tick,
+    opportunities = {}
+  }
+  local search_area = expand_area(
+    regions.region_area(region_x, region_y),
+    constants.squirrel_region_target_search_margin
+  )
 
   for _, entity in ipairs(surface.find_entities_filtered({
-    area = area,
+    area = search_area,
     type = {"transport-belt", "underground-belt", "splitter"}
   })) do
     if entity.valid and not target_is_on_cooldown(entity, tick) then
-      local candidate = choose_belt_item(entity, preferred_item_name)
+      local candidate = choose_belt_item(entity)
       if candidate then
-        candidate.score = candidate.score - (distance_squared(record.home_position, entity.position) * 0.015)
+        candidate.base_score = candidate.score or 0
+        candidate.score = nil
+        snapshot.opportunities[#snapshot.opportunities + 1] = candidate
+      end
+    end
+  end
+
+  for _, entity in ipairs(surface.find_entities_filtered({
+    area = search_area,
+    type = {"container", "logistic-container"}
+  })) do
+    if entity.valid and not constants.feeder_variant_by_name[entity.name] and not target_is_on_cooldown(entity, tick) then
+      local candidate = choose_chest_item(entity)
+      if candidate then
+        candidate.base_score = candidate.score or 0
+        candidate.score = nil
+        snapshot.opportunities[#snapshot.opportunities + 1] = candidate
+      end
+    end
+  end
+
+  table.sort(snapshot.opportunities, function(left, right)
+    return (left.base_score or 0) > (right.base_score or 0)
+  end)
+
+  get_surface_region_targets(surface.index)[region_key(region_x, region_y)] = snapshot
+  return snapshot
+end
+
+local function region_target_snapshot(surface_index, region_x, region_y)
+  local snapshot = get_surface_region_targets(surface_index)[region_key(region_x, region_y)]
+  if snapshot then
+    return snapshot
+  end
+
+  return {
+    tick = 0,
+    opportunities = {}
+  }
+end
+
+local function ensure_region_target_snapshot(surface, region_x, region_y, tick)
+  local snapshot = region_target_snapshot(surface.index, region_x, region_y)
+  if snapshot.tick > 0 and (tick - snapshot.tick) < constants.squirrel_target_snapshot_interval then
+    return snapshot
+  end
+
+  return refresh_region_target_snapshot(surface, region_x, region_y, tick)
+end
+
+local function build_squirrel_target(record, opportunity, origin_position, tick, max_distance_from_origin, max_distance_from_home)
+  local entity = resolve_target_reference(record.surface_index, opportunity)
+  if not (entity and entity.valid) then
+    return nil
+  end
+
+  if target_is_on_cooldown(entity, tick) then
+    return nil
+  end
+
+  local current_distance_squared = distance_squared(origin_position, entity.position)
+  if max_distance_from_origin and current_distance_squared > (max_distance_from_origin * max_distance_from_origin) then
+    return nil
+  end
+
+  local target_radius = opportunity.target_type == "belt"
+      and constants.squirrel_belt_target_radius
+    or constants.squirrel_chest_target_radius
+  if max_distance_from_home then
+    target_radius = math.min(target_radius, max_distance_from_home)
+  end
+
+  if distance_squared(record.home_position, entity.position) > (target_radius * target_radius) then
+    return nil
+  end
+
+  local candidate = serialize_target(entity, opportunity.target_type, opportunity.item_name, opportunity.count)
+  candidate.score = opportunity.base_score or 0
+
+  if record.last_loot_name and record.last_loot_name == candidate.item_name then
+    candidate.score = candidate.score + constants.squirrel_repeat_item_bonus
+  end
+
+  candidate.score = candidate.score - (current_distance_squared * 0.015)
+  if candidate.target_type == "belt" then
+    candidate.score = candidate.score + 6
+  end
+
+  return candidate
+end
+
+local function find_local_target(record, state, report, tick, origin_position)
+  local radius = state_local_target_radius(state)
+  if not radius then
+    return nil, nil
+  end
+
+  local surface = game.surfaces[record.surface_index]
+  if not surface then
+    return nil, nil
+  end
+
+  local snapshot = ensure_region_target_snapshot(surface, record.region_x, record.region_y, tick)
+  local theft_available = state_can_steal(state) and theft_is_available(record, tick)
+  local home_limit = state_wander_distance(state, report) + radius
+  local best
+  local best_intent
+
+  for _, opportunity in ipairs(snapshot.opportunities) do
+    local intent = local_target_intent(state, report, opportunity.target_type, theft_available)
+    if intent then
+      local candidate = build_squirrel_target(record, opportunity, origin_position, tick, radius, home_limit)
+      if candidate then
+        if intent == "inspect" then
+          candidate.score = candidate.score + 4
+        end
+
         if not best or candidate.score > best.score then
           best = candidate
+          best_intent = intent
         end
       end
     end
   end
 
-  return best
+  return best, best_intent
 end
 
-local function find_targets(record, report, tick)
+local function find_excursion_target(record, state, report, tick, origin_position)
+  if state == "calm" then
+    return nil, nil
+  end
+
+  local surface = game.surfaces[record.surface_index]
+  if not surface then
+    return nil, nil
+  end
+
+  local snapshot = ensure_region_target_snapshot(surface, record.region_x, record.region_y, tick)
+  local theft_available = state_can_steal(state) and theft_is_available(record, tick)
+  local home_limit = state_wander_distance(state, report) + state_local_target_radius(state)
+  local best
+  local best_intent
+
+  for _, opportunity in ipairs(snapshot.opportunities) do
+    local intent = local_target_intent(state, report, opportunity.target_type, theft_available)
+    if intent then
+      local candidate = build_squirrel_target(record, opportunity, origin_position, tick, nil, home_limit)
+      if candidate then
+        if not best or candidate.score > best.score then
+          best = candidate
+          best_intent = intent
+        end
+      end
+    end
+  end
+
+  return best, best_intent
+end
+
+local function find_nearby_belt_target(record, state, report, tick, origin_position, item_name)
   local surface = game.surfaces[record.surface_index]
   if not surface then
     return nil
   end
 
-  local best = find_belt_target(record, tick)
-  local area = target_area(record.home_position, constants.squirrel_chest_target_radius)
-  local preferred_item_name = record.last_loot_name
+  local snapshot = ensure_region_target_snapshot(surface, record.region_x, record.region_y, tick)
+  local home_limit = state_wander_distance(state, report) + constants.squirrel_belt_handoff_radius
+  local best
 
-  if report.habitat_pressure >= constants.squirrel_chest_pressure_threshold then
-    for _, entity in ipairs(surface.find_entities_filtered({
-      area = area,
-      type = {"container", "logistic-container"}
-    })) do
-      if entity.valid and not constants.feeder_variant_by_name[entity.name] and not target_is_on_cooldown(entity, tick) then
-        local candidate = choose_chest_item(entity, preferred_item_name, report)
-        if candidate then
-          candidate.score = candidate.score - (distance_squared(record.home_position, entity.position) * 0.02)
-          if not best or candidate.score > best.score then
-            best = candidate
-          end
-        end
+  for _, opportunity in ipairs(snapshot.opportunities) do
+    if opportunity.target_type == "belt" and opportunity.item_name == item_name then
+      local candidate = build_squirrel_target(
+        record,
+        opportunity,
+        origin_position,
+        tick,
+        constants.squirrel_belt_handoff_radius,
+        home_limit
+      )
+      if candidate and (not best or candidate.score > best.score) then
+        best = candidate
       end
     end
   end
@@ -605,6 +849,7 @@ end
 
 local stop_entity
 local process_idle_decision
+local theft_is_available
 
 local function move_entity(entity, destination)
   local ok = pcall(function()
@@ -633,30 +878,64 @@ function stop_entity(entity)
   end)
 end
 
-local function bounded_roam_destination(record, entity)
-  local origin = (entity and entity.valid and entity.position) or record.home_position
-  local angle_seed = ((record.squirrel_id or 1) * 67) + (record.roam_step * 97)
-  local angle = ((angle_seed % 360) / 180) * math.pi
+local function roam_step_distance(record)
   local step_span = math.max(
     0,
     constants.squirrel_roam_step_max_distance - constants.squirrel_roam_step_min_distance
   )
   local distance_seed = (((record.squirrel_id or 1) * 31) + (record.roam_step * 17)) % 100
-  local step_distance = constants.squirrel_roam_step_min_distance + ((distance_seed / 100) * step_span)
+  return constants.squirrel_roam_step_min_distance + ((distance_seed / 100) * step_span)
+end
+
+local function excursion_step_distance(record, state)
+  local step_span = math.max(
+    0,
+    constants.squirrel_excursion_step_max_distance - constants.squirrel_excursion_step_min_distance
+  )
+  local distance_seed = (((record.squirrel_id or 1) * 43) + (record.roam_step * 29)) % 100
+  local step_distance = constants.squirrel_excursion_step_min_distance + ((distance_seed / 100) * step_span)
+
+  if state == "agitated" then
+    step_distance = step_distance + 0.75
+  elseif state == "grieving" then
+    step_distance = step_distance + 1.25
+  elseif state == "mischievous" then
+    step_distance = step_distance + 0.4
+  end
+
+  return step_distance
+end
+
+local function bounded_roam_destination(record, entity, max_home_distance, preferred_target_position, state)
+  local origin = (entity and entity.valid and entity.position) or record.home_position
+  local angle_seed = ((record.squirrel_id or 1) * 67) + (record.roam_step * 97)
+  local angle = ((angle_seed % 360) / 180) * math.pi
+  local step_distance = roam_step_distance(record)
+
+  if preferred_target_position then
+    angle = math.atan(
+      preferred_target_position.y - origin.y,
+      preferred_target_position.x - origin.x
+    )
+    local jitter_seed = (((record.squirrel_id or 1) * 17) + (record.roam_step * 11)) % 7
+    angle = angle + ((jitter_seed - 3) * 0.12)
+    step_distance = excursion_step_distance(record, state)
+  end
+
   local candidate = position_with_offset(origin, angle, step_distance)
+  local allowed_distance = max_home_distance or constants.squirrel_home_wander_distance
   local home_distance = math.sqrt(distance_squared(candidate, record.home_position))
 
-  if home_distance > constants.squirrel_home_wander_distance then
-    local return_angle = math.atan(
-      record.home_position.y - origin.y,
-      record.home_position.x - origin.x
+  if home_distance > allowed_distance then
+    local clamp_angle = math.atan(
+      candidate.y - record.home_position.y,
+      candidate.x - record.home_position.x
     )
-    local bounded_distance = math.min(
-      step_distance,
-      math.max(constants.squirrel_home_wander_min_distance, home_distance - constants.squirrel_home_wander_min_distance)
+    candidate = position_with_offset(
+      record.home_position,
+      clamp_angle,
+      math.max(constants.squirrel_home_wander_min_distance, allowed_distance)
     )
-
-    candidate = position_with_offset(origin, return_angle, bounded_distance)
   end
 
   return candidate
@@ -898,7 +1177,7 @@ local function region_from_record(record)
   return get_region_activity(record.surface_index, record.region_x, record.region_y)
 end
 
-local function theft_is_available(record, tick)
+theft_is_available = function(record, tick)
   if tick < (record.last_action_tick + constants.squirrel_action_cooldown) then
     return false
   end
@@ -920,9 +1199,15 @@ local function start_retreat(record, entity, tick)
   move_entity(entity, record.destination)
 end
 
-local function start_roam(record, entity, tick)
+local function start_roam(record, entity, tick, state, report, preferred_target)
   record.roam_step = (record.roam_step or 0) + 1
-  local destination = bounded_roam_destination(record, entity)
+  local destination = bounded_roam_destination(
+    record,
+    entity,
+    state_wander_distance(state or record.state or "calm", report),
+    preferred_target and preferred_target.position or nil,
+    state or record.state
+  )
 
   local surface = game.surfaces[record.surface_index]
   if surface then
@@ -1025,8 +1310,9 @@ local function perform_belt_theft(record, entity, tick)
     math.min(constants.squirrel_belt_grab_amount, remaining_capacity)
   )
   if removed <= 0 then
-    local replacement = find_belt_target(record, tick)
-    if replacement and replacement.item_name == item_name then
+    local report = region_report(record.surface_index, record.region_x, record.region_y, tick)
+    local replacement = find_nearby_belt_target(record, record.state, report, tick, entity.position, item_name)
+    if replacement then
       record.target = replacement
       record.mode = "approach"
       record.intent = "steal"
@@ -1251,6 +1537,7 @@ end
 
 function squirrels.ensure_population_in_region(surface, region_x, region_y, tick)
   local squirrel_force = ensure_squirrel_force()
+  ensure_region_target_snapshot(surface, region_x, region_y, tick)
   local report = region_report(surface.index, region_x, region_y, tick)
   local target = squirrel_population_target(report)
   local existing = count_region_squirrels(surface.index, region_x, region_y)
@@ -1287,6 +1574,7 @@ end
 process_idle_decision = function(record, entity, tick)
   local state, report = squirrel_state_for_region(record.surface_index, record.region_x, record.region_y, tick)
   record.state = state
+  local origin_position = (entity and entity.valid and entity.position) or record.home_position
 
   if record.carrying then
     start_retreat(record, entity, tick)
@@ -1294,33 +1582,23 @@ process_idle_decision = function(record, entity, tick)
   end
 
   if state == "calm" then
-    local belt_target = find_belt_target(record, tick)
-
-    if belt_target then
-      start_target_run(record, entity, belt_target, "steal", tick)
-    else
-      start_roam(record, entity, tick)
-    end
-
+    start_roam(record, entity, tick, state, report)
     return
   end
 
-  if (state == "mischievous" or state == "agitated" or state == "grieving") and not theft_is_available(record, tick) then
-    start_roam(record, entity, tick)
+  local local_target, local_intent = find_local_target(record, state, report, tick, origin_position)
+  if local_target and local_intent then
+    start_target_run(record, entity, local_target, local_intent, tick)
     return
   end
 
-  local target = find_targets(record, report, tick)
-  if not target then
-    start_roam(record, entity, tick)
+  local excursion_target = find_excursion_target(record, state, report, tick, origin_position)
+  if excursion_target then
+    start_roam(record, entity, tick, state, report, excursion_target)
     return
   end
 
-  if state == "curious" then
-    start_target_run(record, entity, target, "inspect", tick)
-  else
-    start_target_run(record, entity, target, "steal", tick)
-  end
+  start_roam(record, entity, tick, state, report)
 end
 
 local function process_arrival(record, entity, tick)
@@ -1354,7 +1632,11 @@ local function process_arrival(record, entity, tick)
       if record.intent == "steal" then
         perform_chest_scavenge(record, entity, tick)
       else
-        send_home(record, entity, tick)
+        record.mode = "inspect"
+        record.destination = nil
+        record.arrival_distance = nil
+        record.action_due_tick = tick + constants.squirrel_curious_pause_duration
+        stop_entity(entity)
       end
       return
     end
@@ -1364,7 +1646,7 @@ local function process_arrival(record, entity, tick)
   end
 
   if record.mode == "inspect" then
-    send_home(record, entity, tick)
+    enter_idle(record, entity, tick)
     return
   end
 
@@ -1456,6 +1738,7 @@ function squirrels.on_tick(tick)
     for _, coord in ipairs(active_coords) do
       local surface = game.surfaces[coord.surface_index]
       if surface then
+        ensure_region_target_snapshot(surface, coord.region_x, coord.region_y, tick)
         squirrels.ensure_population_in_region(surface, coord.region_x, coord.region_y, tick)
       end
     end
@@ -1636,6 +1919,7 @@ function squirrels.debug_force_belt_theft(surface_index, squirrel_id, position, 
   end
 
   local current_tick = tick or game.tick
+  entity.teleport(belt.position)
   start_belt_block(record, entity, belt, current_tick)
 
   local iterations = 0
@@ -1751,19 +2035,23 @@ function squirrels.debug_target_for_squirrel(squirrel_id, tick)
   end
 
   local current_tick = tick or game.tick
-  local state, report = squirrel_state_for_region(record.surface_index, record.region_x, record.region_y, current_tick)
-  local belt_target = find_belt_target(record, current_tick)
-  local chosen_target
-
-  if state == "calm" then
-    chosen_target = belt_target
-  elseif report then
-    chosen_target = find_targets(record, report, current_tick)
+  local entity = resolve_entity_reference(record.entity)
+  if not (entity and entity.valid) then
+    return nil
   end
+
+  local state, report = squirrel_state_for_region(record.surface_index, record.region_x, record.region_y, current_tick)
+  ensure_region_target_snapshot(game.surfaces[record.surface_index], record.region_x, record.region_y, current_tick)
+  local local_target, local_intent = find_local_target(record, state, report, current_tick, entity.position)
+  local excursion_target, excursion_intent = find_excursion_target(record, state, report, current_tick, entity.position)
+  local chosen_target = local_target or excursion_target
 
   return {
     state = state,
-    belt_target = serialize_debug_target(belt_target),
+    local_target = serialize_debug_target(local_target),
+    local_intent = local_intent,
+    excursion_target = serialize_debug_target(excursion_target),
+    excursion_intent = excursion_intent,
     chosen_target = serialize_debug_target(chosen_target)
   }
 end

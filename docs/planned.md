@@ -123,6 +123,7 @@ Deliverables:
 - add squirrel unit prototype and local spawn manager
 - cap visible squirrels per active area
 - implement the squirrel runtime state machine and region-to-local activation rules
+- implement pressure-driven wandering radii so squirrel range expands outward from forest habitat before theft occurs
 - compute target desirability from item value classes instead of hand-tagging every item
 - add stash bookkeeping, action cooldowns, and retreat-target selection
 - keep the implementation deterministic enough for strong automated coverage before in-game tuning
@@ -147,6 +148,8 @@ Deliverables:
 
 - put squirrels on screen in calm, curious, mischievous, agitated, and grieving states
 - increase visible squirrel counts so factory-edge nuisance feels materially present
+- replace direct home-anchor target snapping with readable outward wandering from the forest edge
+- make higher pressure widen squirrel wandering and allow deeper initial incursions before a theft attempt
 - add belt blocking, repeated belt theft that builds toward full carried stacks, forest retreat paths, and stash creation
 - add full-stack chest scavenging only under higher pressure
 - tune visible behavior, readability, and fairness through in-game playtests
@@ -155,6 +158,7 @@ Deliverables:
 Exit criteria:
 
 - players can infer forest condition from squirrel behavior alone
+- squirrels look like they are ranging outward from habitat rather than teleporting intent to arbitrary logistics targets
 - nuisance is disruptive but rate-limited
 - stolen goods remain recoverable through stash retrieval or ground drops
 
@@ -248,6 +252,7 @@ Exit criteria:
 Potential later upgrades:
 
 - optional survey-station range upgrades through custom tuning or module-driven mechanics, with explicit extra power cost, only after v1 baseline survey UX is stable
+- localized power-cable chewing on forest-edge poles as a late-v1 candidate, only if belt theft still lacks enough gameplay impact after Milestone 4/6 playtests
 Hold until v1 is readable and stable:
 
 - natural nut tree propagation by healthy colonies

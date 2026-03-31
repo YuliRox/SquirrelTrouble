@@ -5,6 +5,26 @@ Recommended checkpoint save: `m4-forest-edge-loop` after you have a short belt l
 Scope: first visible squirrel loop. This is a hard-stop milestone before Milestone 5. The playtest should confirm that squirrels are visible, readable, and disruptive in a way that still feels fair.
 Automated coverage already exists for: region math, feeder bookkeeping, nut-tree recovery, and other deterministic foundation behavior.
 
+## Current Status
+
+Latest playtest outcome: partial pass, not yet accepted.
+
+Validated so far:
+- squirrels are visible on screen and can be distinguished from trees
+- squirrels read as wildlife rather than hostile enemy units
+- squirrels stay local to the forest edge instead of wandering across the whole base
+
+Current failures:
+- belt nuisance is not readable enough yet
+- squirrels do not commit toward belts consistently enough in live play
+- squirrel movement still feels too opaque once nuisance should begin
+- save-local lag was observed during this playtest cycle, so the next Milestone 4 retest should start from a fresh scenario
+
+Next implementation target:
+- squirrels should range outward from forest habitat as pressure rises
+- theft should happen opportunistically during those outward excursions
+- after a successful haul, squirrels should still retreat back toward the forest
+
 ## First Sighting
 
 Preconditions:
@@ -22,11 +42,11 @@ Setup shortcuts:
 ```
 
 Checklist:
-- [ ] Walk to a forest edge where belts or chests are close enough to be a tempting target.
-- [ ] Wait without attacking anything.
-- [ ] Confirm squirrels are visible and easy to distinguish from trees.
-- [ ] Confirm squirrel movement reads like wildlife, not a hostile enemy unit.
-- [ ] Confirm the squirrels stay local to the forest edge instead of wandering randomly through the whole base.
+- [X] Walk to a forest edge where belts or chests are close enough to be a tempting target.
+- [X] Wait without attacking anything.
+- [X] Confirm squirrels are visible and easy to distinguish from trees.
+- [X] Confirm squirrel movement reads like wildlife, not a hostile enemy unit.
+- [X] Confirm the squirrels stay local to the forest edge instead of wandering randomly through the whole base.
 
 Pass condition:
 - A tester can immediately tell that squirrels exist, belong to the forest, and are reacting to nearby industry.
@@ -38,10 +58,11 @@ Preconditions:
 - Put a small amount of item traffic on that belt.
 
 Checklist:
-- [ ] Place items on the belt and watch the line for a short while.
+- [X] Place items on the belt and watch the line for a short while.
 - [ ] Confirm at least one squirrel visibly sits on or interrupts the belt.
 - [ ] Confirm the belt blockage is short-lived and readable.
 - [ ] Confirm the line does not look permanently deadlocked.
+- [ ] Confirm squirrels seem to wander outward from the forest before engaging the belt instead of snapping to an arbitrary target.
 - [ ] Confirm the squirrel behavior feels annoying rather than opaque or arbitrary.
 
 Pass condition:
@@ -55,7 +76,7 @@ Preconditions:
 
 Checklist:
 - [ ] Watch for a squirrel to leave the belt line or approach a chest.
-- [ ] Confirm the squirrel carries away only a small amount of loot at once.
+- [ ] Confirm the squirrel carries away a meaningful but bounded amount of loot at once.
 - [ ] Confirm the carried item is visible in the squirrel’s behavior or pathing.
 - [ ] Follow the squirrel toward the forest.
 - [ ] Confirm it retreats back toward the forest rather than hanging around the factory edge forever.
