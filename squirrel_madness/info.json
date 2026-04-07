@@ -8,5 +8,5 @@
   "dependencies": [
     "base >= 2.0.0"
   ],
-  "description": "Scenario-first scaffold for squirrel-driven industrial ecology on Nauvis."
+  "description": "Scenario-first scaffold for squirrel-driven industrial ecology on Nauvis. Includes the forest survey station sprite by Hurricane046 under CC BY."
 }

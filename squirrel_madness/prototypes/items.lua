@@ -1,5 +1,3 @@
-local survey_station_icon_tint = {r = 0.32, g = 0.52, b = 0.34, a = 1}
-
 data:extend({
   {
     type = "item",
@@ -44,13 +42,8 @@ data:extend({
   {
     type = "item",
     name = "forest-survey-station",
-    icons = {
-      {
-        icon = "__base__/graphics/icons/radar.png",
-        icon_size = 64,
-        tint = survey_station_icon_tint
-      }
-    },
+    icon = "__squirrel_madness__/graphics/icons/forest-survey-station.png",
+    icon_size = 64,
     subgroup = "production-machine",
     order = "n[squirrel]-d[survey]",
     place_result = "forest-survey-station",

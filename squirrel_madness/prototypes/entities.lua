@@ -41,17 +41,12 @@ local function create_survey_station()
     error("Expected base radar prototype to exist")
   end
 
-  local survey_station_tint = {r = 0.32, g = 0.52, b = 0.34, a = 0.55}
   local prototype = table.deepcopy(source)
 
   prototype.name = "forest-survey-station"
-  prototype.icons = {
-    {
-      icon = "__base__/graphics/icons/radar.png",
-      icon_size = 64,
-      tint = {r = 0.32, g = 0.52, b = 0.34, a = 1}
-    }
-  }
+  prototype.icon = "__squirrel_madness__/graphics/icons/forest-survey-station.png"
+  prototype.icon_size = 64
+  prototype.icons = nil
   prototype.minable = {mining_time = 0.2, result = "forest-survey-station"}
   prototype.fast_replaceable_group = nil
   prototype.localised_name = {"entity-name.forest-survey-station"}
@@ -65,19 +60,51 @@ local function create_survey_station()
   prototype.working_sound = nil
   prototype.open_sound = nil
   prototype.close_sound = nil
-
-  if prototype.integration_patch then
-    prototype.integration_patch.tint = survey_station_tint
-    prototype.integration_patch.tint_as_overlay = true
-  end
-
-  if prototype.pictures and prototype.pictures.layers then
-    local main_layer = prototype.pictures.layers[1]
-    if main_layer then
-      main_layer.tint = survey_station_tint
-      main_layer.tint_as_overlay = true
-    end
-  end
+  prototype.integration_patch = nil
+  prototype.rotation_speed = 0
+  prototype.pictures = {
+    layers = {
+      {
+        filename = "__squirrel_madness__/graphics/entities/structures/forest-survey-station/radio-station-hr-animation-1.png",
+        priority = "low",
+        width = 160,
+        height = 290,
+        direction_count = 1,
+        frame_count = 20,
+        line_length = 8,
+        apply_projection = false,
+        shift = util.by_pixel(0, -36),
+        scale = 0.5,
+        animation_speed = 0.2
+      },
+      {
+        filename = "__squirrel_madness__/graphics/entities/structures/forest-survey-station/radio-station-hr-emission-1.png",
+        priority = "low",
+        width = 160,
+        height = 290,
+        direction_count = 1,
+        frame_count = 20,
+        line_length = 8,
+        apply_projection = false,
+        shift = util.by_pixel(0, -36),
+        scale = 0.5,
+        animation_speed = 0.2,
+        draw_as_glow = true,
+        blend_mode = "additive"
+      },
+      {
+        filename = "__squirrel_madness__/graphics/entities/structures/forest-survey-station/radio-station-hr-shadow.png",
+        priority = "low",
+        width = 400,
+        height = 350,
+        direction_count = 1,
+        apply_projection = false,
+        shift = util.by_pixel(24, 16),
+        draw_as_shadow = true,
+        scale = 0.5
+      }
+    }
+  }
 
   return prototype
 end
