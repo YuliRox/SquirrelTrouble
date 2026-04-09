@@ -162,4 +162,16 @@ describe("milestone 0 scaffold", function()
       entity.destroy()
     end
   end)
+
+  it("defangs the inherited biter attack on squirrels", function()
+    local squirrel = prototypes.entity[constants.names.squirrel]
+
+    assert.is_not_nil(squirrel)
+    assert.is_not_nil(squirrel.attack_parameters)
+    assert.is_true(squirrel.attack_parameters.range > 0)
+    assert.is_true(squirrel.attack_parameters.range < 0.02)
+    assert.is_nil(squirrel.attack_parameters.sound)
+    assert.is_not_nil(squirrel.collision_mask)
+    assert.is_not_nil(squirrel.collision_mask.layers)
+  end)
 end)

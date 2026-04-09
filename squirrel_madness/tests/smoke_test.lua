@@ -15,6 +15,9 @@ end
 local function reset_region_storage()
   storage.regions = {}
   storage.last_refresh_tick = 0
+  storage.region_refresh_queue = {}
+  storage.region_refresh_enqueued = {}
+  storage.player_region_centers = {}
   storage.seeded_chunks = {}
   storage.saplings = {}
   storage.next_sapling_id = 1
@@ -166,5 +169,64 @@ describe("region ecology metrics", function()
     assert.equal(0, retained.instant_pollution)
     assert.is_true(retained.rolling_pollution > 0)
     assert.is_true(retained.forest_health < baseline.forest_health)
+  end)
+
+  it("reuses clean region reports without recomputing every read", function()
+    local first = regions.get_region_report_at_position(surface(), forest_origin, 100)
+    local second = regions.get_region_report_at_position(surface(), forest_origin, 101)
+
+    assert.equal(100, first.last_updated_tick)
+    assert.equal(100, second.last_updated_tick)
+  end)
+
+  it("recomputes a region again after it is marked dirty", function()
+    local first = regions.get_region_report_at_position(surface(), forest_origin, 100)
+
+    regions.mark_dirty(surface().index, forest_origin)
+
+    local second = regions.get_region_report_at_position(surface(), forest_origin, 101)
+
+    assert.equal(100, first.last_updated_tick)
+    assert.equal(101, second.last_updated_tick)
+  end)
+
+  it("batches active region refreshes instead of recomputing the full player area at once", function()
+    player().teleport(forest_origin, surface())
+
+    local before = regions.get_cached_region_report_at_position(surface(), forest_origin)
+    local enqueued = remote.call(constants.mod_name, "debug_enqueue_active_regions", true)
+    local processed = remote.call(constants.mod_name, "debug_process_region_refresh_queue", 1)
+    local after = regions.get_cached_region_report_at_position(surface(), forest_origin)
+
+    assert.equal(0, before.tree_count)
+    assert.is_true(enqueued > 1)
+    assert.equal(1, processed.processed)
+    assert.is_true(processed.queued > 0)
+    assert.is_true(after.tree_count > 0)
+  end)
+
+  it("refreshes dirty active regions from the queue without forcing all active regions immediately", function()
+    player().teleport(forest_origin, surface())
+    remote.call(constants.mod_name, "debug_enqueue_active_regions", true)
+    remote.call(constants.mod_name, "debug_process_region_refresh_queue", 25)
+
+    local baseline = regions.get_cached_region_report_at_position(surface(), forest_origin)
+    local tree = trees[1]
+
+    assert.is_true(baseline.tree_count > 0)
+    assert.is_not_nil(tree)
+
+    tree.destroy()
+    regions.mark_dirty(surface().index, forest_origin)
+
+    local stale = regions.get_cached_region_report_at_position(surface(), forest_origin)
+    local enqueued = remote.call(constants.mod_name, "debug_enqueue_active_regions", true)
+    local processed = remote.call(constants.mod_name, "debug_process_region_refresh_queue", 1)
+    local refreshed = regions.get_cached_region_report_at_position(surface(), forest_origin)
+
+    assert.equal(baseline.tree_count, stale.tree_count)
+    assert.is_true(enqueued >= 1)
+    assert.equal(1, processed.processed)
+    assert.equal(baseline.tree_count - 1, refreshed.tree_count)
   end)
 end)

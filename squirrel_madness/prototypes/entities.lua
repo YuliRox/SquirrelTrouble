@@ -99,7 +99,7 @@ local function create_survey_station()
         height = 350,
         direction_count = 1,
         apply_projection = false,
-        shift = util.by_pixel(24, 16),
+        shift = util.by_pixel(30, -8),
         draw_as_shadow = true,
         scale = 0.5
       }
@@ -228,12 +228,22 @@ stash.localised_description = {"entity-description.forest-stash"}
 local squirrel = clone_unit("small-biter", "squirrel")
 squirrel.icon = "__squirrel_madness__/graphics/icons/squirrel.png"
 squirrel.icon_size = 48
+squirrel.flags = {"placeable-player", "placeable-off-grid", "not-repairable", "breaths-air"}
+squirrel.subgroup = "capsule"
+squirrel.factoriopedia_simulation = nil
 squirrel.max_health = 30
 squirrel.healing_per_tick = 0
 squirrel.vision_distance = 15
 squirrel.movement_speed = 0.11
 squirrel.distance_per_frame = 0.11
+squirrel.collision_mask = {layers = {}}
 squirrel.distraction_cooldown = 30
+squirrel.damaged_trigger_effect = nil
+squirrel.absorptions_to_join_attack = nil
+squirrel.working_sound = nil
+squirrel.walking_sound = nil
+squirrel.running_sound_animation_positions = nil
+squirrel.water_reflection = nil
 squirrel.ai_settings = squirrel.ai_settings or {}
 squirrel.ai_settings.destroy_when_commands_fail = false
 squirrel.ai_settings.path_resolution_modifier = -4
@@ -257,6 +267,22 @@ squirrel.run_animation = {
   animation_speed = 0.42,
   scale = 1.75
 }
+squirrel.attack_parameters = squirrel.attack_parameters or {}
+squirrel.attack_parameters.sound = nil
+squirrel.attack_parameters.range = 0.01
+squirrel.attack_parameters.animation = table.deepcopy(squirrel.run_animation)
+squirrel.corpse = nil
+squirrel.dying_explosion = nil
+squirrel.dying_sound = nil
+
+local squirrel_attack_effects = squirrel.attack_parameters.ammo_type
+  and squirrel.attack_parameters.ammo_type.action
+  and squirrel.attack_parameters.ammo_type.action.action_delivery
+  and squirrel.attack_parameters.ammo_type.action.action_delivery.target_effects
+
+if squirrel_attack_effects and squirrel_attack_effects.damage then
+  squirrel_attack_effects.damage.amount = 0
+end
 
 local nut_tree = clone_tree("tree-04", "nut-tree")
 nut_tree.icon = "__base__/graphics/icons/tree-04.png"

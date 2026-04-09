@@ -23,6 +23,9 @@ end
 local function reset_runtime_storage()
   storage.regions = {}
   storage.last_refresh_tick = 0
+  storage.region_refresh_queue = {}
+  storage.region_refresh_enqueued = {}
+  storage.player_region_centers = {}
   storage.seeded_chunks = {}
   storage.saplings = {}
   storage.next_sapling_id = 1
@@ -31,6 +34,18 @@ local function reset_runtime_storage()
   storage.pending_entity_replacements = {}
   storage.force_tutorials = {}
   storage.feeders = {}
+  storage.squirrels = {}
+  storage.next_squirrel_id = 1
+  storage.squirrel_stashes = {}
+  storage.next_squirrel_stash_id = 1
+  storage.squirrel_region_activity = {}
+  storage.squirrel_region_targets = {}
+  storage.squirrel_target_cooldowns = {}
+  storage.squirrel_region_index = {}
+  storage.squirrel_entity_index = {}
+  storage.squirrel_stashes_by_region = {}
+  storage.squirrel_stash_target_counts = {}
+  storage.squirrel_last_cleanup_tick = 0
 end
 
 local function count_storage_entries(entries)

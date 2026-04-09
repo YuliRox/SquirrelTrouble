@@ -1,5 +1,6 @@
 local constants = require("scripts.constants")
 local regions = require("scripts.regions")
+local squirrels = require("scripts.squirrels")
 
 local BARREN_ORIGIN = {x = 1232, y = 80}
 local FOREST_ORIGIN = {x = 1296, y = 144}
@@ -95,6 +96,29 @@ local function fill_region_with_forest(region_x, region_y, spacing)
   return trees
 end
 
+local function fill_chunk_with_forest(chunk_x, chunk_y, spacing)
+  local area = {
+    left_top = {x = chunk_x * constants.chunk_size, y = chunk_y * constants.chunk_size},
+    right_bottom = {
+      x = (chunk_x * constants.chunk_size) + constants.chunk_size,
+      y = (chunk_y * constants.chunk_size) + constants.chunk_size
+    }
+  }
+  local trees = {}
+  local step = spacing or 5
+
+  for x = area.left_top.x + 4, area.right_bottom.x - 4, step do
+    for y = area.left_top.y + 4, area.right_bottom.y - 4, step do
+      trees[#trees + 1] = track_entity(surface().create_entity({
+        name = TREE_NAME,
+        position = {x = x, y = y}
+      }))
+    end
+  end
+
+  return trees
+end
+
 local function square_area(origin, radius)
   return {
     left_top = {x = origin.x - radius, y = origin.y - radius},
@@ -127,6 +151,9 @@ end
 local function reset_runtime_storage()
   storage.regions = {}
   storage.last_refresh_tick = 0
+  storage.region_refresh_queue = {}
+  storage.region_refresh_enqueued = {}
+  storage.player_region_centers = {}
   storage.seeded_chunks = {}
   storage.saplings = {}
   storage.next_sapling_id = 1
@@ -142,6 +169,11 @@ local function reset_runtime_storage()
   storage.squirrel_region_activity = {}
   storage.squirrel_region_targets = {}
   storage.squirrel_target_cooldowns = {}
+  storage.squirrel_region_index = {}
+  storage.squirrel_entity_index = {}
+  storage.squirrel_stashes_by_region = {}
+  storage.squirrel_stash_target_counts = {}
+  storage.squirrel_last_cleanup_tick = 0
 end
 
 local function cleanup_area()
@@ -187,6 +219,19 @@ after_each(function()
 end)
 
 describe("milestone 4 squirrel nuisance runtime", function()
+  it("seeds initial squirrel presence during chunk generation for forested chunks", function()
+    local chunk_x = math.floor(FOREST_ORIGIN.x / constants.chunk_size)
+    local chunk_y = math.floor(FOREST_ORIGIN.y / constants.chunk_size)
+
+    fill_chunk_with_forest(chunk_x, chunk_y, 5)
+
+    local created = remote.call(constants.mod_name, "debug_seed_squirrel_chunk", surface().index, chunk_x, chunk_y)
+    local report = remote.call(constants.mod_name, "debug_get_squirrel_report", surface().index)
+
+    assert.equal(1, created)
+    assert.equal(1, #report.squirrels)
+  end)
+
   it("spawns visible squirrels only in eligible forest-edge regions", function()
     local barren = remote.call(constants.mod_name, "debug_force_region_squirrels", surface().index, BARREN_ORIGIN.x, BARREN_ORIGIN.y)
 
@@ -197,6 +242,34 @@ describe("milestone 4 squirrel nuisance runtime", function()
     assert.equal(0, barren)
     assert.is_true(created >= 2)
     assert.equal(created, #report.squirrels)
+  end)
+
+  it("scales regional squirrel population with forest density", function()
+    spawn_forest(12, BARREN_ORIGIN)
+
+    local dense_coord = regions.position_to_region_coord(FOREST_ORIGIN)
+    fill_region_with_forest(dense_coord.x, dense_coord.y, 5)
+
+    local sparse_created = remote.call(constants.mod_name, "debug_force_region_squirrels", surface().index, BARREN_ORIGIN.x, BARREN_ORIGIN.y)
+    local dense_created = remote.call(constants.mod_name, "debug_force_region_squirrels", surface().index, FOREST_ORIGIN.x, FOREST_ORIGIN.y)
+
+    assert.is_true(sparse_created >= 2)
+    assert.is_true(dense_created > sparse_created)
+  end)
+
+  it("refills active squirrel populations gradually instead of spawning a full region burst", function()
+    spawn_forest(18, FOREST_ORIGIN)
+    player().teleport(FOREST_ORIGIN, surface())
+    regions.force_recompute_at_position(surface(), FOREST_ORIGIN, game.tick)
+
+    squirrels.on_tick(constants.squirrel_update_interval)
+    local first = remote.call(constants.mod_name, "debug_get_squirrel_report", surface().index)
+
+    squirrels.on_tick(constants.squirrel_update_interval * 2)
+    local second = remote.call(constants.mod_name, "debug_get_squirrel_report", surface().index)
+
+    assert.equal(1, #first.squirrels)
+    assert.is_true(#second.squirrels >= 2)
   end)
 
   it("prefers spawning squirrels outside the player's immediate view when the forest has space", function()
@@ -303,6 +376,55 @@ describe("milestone 4 squirrel nuisance runtime", function()
     assert.equal("grieving", remote.call(constants.mod_name, "debug_squirrel_state_at_position", surface().index, FOREST_ORIGIN.x, FOREST_ORIGIN.y))
   end)
 
+  it("lets belts become steal targets before chest scavenging unlocks", function()
+    local coord = regions.position_to_region_coord(CHEST_ORIGIN)
+    local trees = fill_region_with_forest(coord.x, coord.y, 8)
+    local squirrel_id = remote.call(constants.mod_name, "debug_spawn_squirrel", surface().index, CHEST_ORIGIN.x, CHEST_ORIGIN.y)
+    local belt = track_entity(surface().create_entity({
+      name = "transport-belt",
+      position = {x = CHEST_ORIGIN.x + 6, y = CHEST_ORIGIN.y},
+      direction = defines.direction.east,
+      force = game.forces.player
+    }))
+    local chest = track_entity(surface().create_entity({
+      name = "wooden-chest",
+      position = {x = CHEST_ORIGIN.x + 8, y = CHEST_ORIGIN.y},
+      force = game.forces.player
+    }))
+    local inventory = chest.get_inventory(defines.inventory.chest)
+    local report
+
+    assert.is_not_nil(belt)
+    assert.is_true(belt.get_transport_line(1).insert_at(0.25, {name = "iron-plate", count = 1}))
+    inventory.insert({name = "iron-gear-wheel", count = 80})
+
+    for index = 1, #trees do
+      regions.note_tree_loss(surface().index, trees[index].position, 1, game.tick)
+      trees[index].destroy()
+      report = regions.get_region_report_at_position(surface(), CHEST_ORIGIN, game.tick)
+
+      if
+        report.habitat_pressure >= constants.squirrel_mischief_pressure
+        and report.habitat_pressure < constants.squirrel_chest_pressure_threshold
+      then
+        break
+      end
+    end
+
+    assert.is_not_nil(report)
+    assert.is_true(report.habitat_pressure >= constants.squirrel_mischief_pressure)
+    assert.is_true(report.habitat_pressure < constants.squirrel_chest_pressure_threshold)
+    assert.equal("mischievous", remote.call(constants.mod_name, "debug_squirrel_state_at_position", surface().index, CHEST_ORIGIN.x, CHEST_ORIGIN.y))
+
+    local target = remote.call(constants.mod_name, "debug_get_squirrel_target", squirrel_id)
+
+    assert.is_table(target.local_target)
+    assert.equal("belt", target.local_target.target_type)
+    assert.equal("steal", target.local_intent)
+    assert.equal("belt", target.chosen_target.target_type)
+    assert.is_nil(remote.call(constants.mod_name, "debug_force_chest_scavenge", surface().index, squirrel_id, chest.position.x, chest.position.y))
+  end)
+
   it("chooses higher-desirability targets when squirrels evaluate belts and chests", function()
     local science = remote.call(constants.mod_name, "debug_squirrel_item_desirability", "automation-science-pack")
     local iron = remote.call(constants.mod_name, "debug_squirrel_item_desirability", "iron-plate")
@@ -389,6 +511,34 @@ describe("milestone 4 squirrel nuisance runtime", function()
     assert.equal("inspect", target.excursion_intent)
     assert.is_table(target.chosen_target)
     assert.equal("belt", target.chosen_target.target_type)
+  end)
+
+  it("turns outward belt excursions into real belt raids once squirrels reach the line", function()
+    local trees = spawn_forest(18, BELT_ORIGIN)
+    local squirrel_id = remote.call(constants.mod_name, "debug_spawn_squirrel", surface().index, BELT_ORIGIN.x, BELT_ORIGIN.y)
+    local belts = create_belt_line({x = BELT_ORIGIN.x + 18, y = BELT_ORIGIN.y}, 8, "iron-plate", 60)
+
+    player().teleport({x = BELT_ORIGIN.x - 12, y = BELT_ORIGIN.y}, surface())
+
+    for index = 1, 8 do
+      regions.note_tree_loss(surface().index, trees[index].position, 1, game.tick)
+      trees[index].destroy()
+    end
+
+    local target = remote.call(constants.mod_name, "debug_get_squirrel_target", squirrel_id)
+
+    assert.is_table(target.excursion_target)
+    assert.equal("belt", target.excursion_target.target_type)
+
+    remote.call(
+      constants.mod_name,
+      "debug_advance_squirrel_runtime",
+      (constants.squirrel_move_timeout * 2)
+        + constants.squirrel_idle_pause_max
+        + constants.squirrel_belt_block_duration
+    )
+
+    assert.is_true(total_belt_item_count(belts, "iron-plate") <= (60 - constants.squirrel_belt_grab_amount))
   end)
 
   it("stays on belts long enough to steal a meaningful stack before retreating", function()
@@ -553,6 +703,25 @@ describe("milestone 4 squirrel nuisance runtime", function()
     assert.equal(0, #after.squirrels)
   end)
 
+  it("replenishes regional squirrel population after a squirrel is removed", function()
+    spawn_forest(24, FOREST_ORIGIN)
+    player().teleport(FOREST_ORIGIN, surface())
+    remote.call(constants.mod_name, "debug_force_region_squirrels", surface().index, FOREST_ORIGIN.x, FOREST_ORIGIN.y)
+
+    local before = remote.call(constants.mod_name, "debug_get_squirrel_report", surface().index)
+
+    assert.is_true(#before.squirrels >= 2)
+    assert.is_true(remote.call(constants.mod_name, "debug_kill_squirrel", before.squirrels[1].squirrel_id))
+
+    local after_loss = remote.call(constants.mod_name, "debug_get_squirrel_report", surface().index)
+    local replenished = remote.call(constants.mod_name, "debug_force_region_squirrels", surface().index, FOREST_ORIGIN.x, FOREST_ORIGIN.y)
+    local final = remote.call(constants.mod_name, "debug_get_squirrel_report", surface().index)
+
+    assert.equal(#before.squirrels - 1, #after_loss.squirrels)
+    assert.equal(1, replenished)
+    assert.equal(#before.squirrels, #final.squirrels)
+  end)
+
   it("culls squirrels outside the active player region set", function()
     spawn_forest(24, FOREST_ORIGIN)
     player().teleport(FOREST_ORIGIN, surface())
@@ -570,6 +739,36 @@ describe("milestone 4 squirrel nuisance runtime", function()
 
     assert.is_true(#before.squirrels >= 2)
     assert.equal(0, #after.squirrels)
+  end)
+
+  it("throttles the invalid-squirrel safety sweep instead of scanning every tick", function()
+    spawn_forest(18, FOREST_ORIGIN)
+    player().teleport(FOREST_ORIGIN, surface())
+
+    local squirrel_id = remote.call(constants.mod_name, "debug_spawn_squirrel", surface().index, FOREST_ORIGIN.x, FOREST_ORIGIN.y)
+    local report = remote.call(constants.mod_name, "debug_get_squirrel_report", surface().index)
+    local entity = surface().find_entities_filtered({
+      position = report.squirrels[1].position,
+      name = constants.names.squirrel,
+      limit = 1
+    })[1]
+
+    assert.is_number(squirrel_id)
+    assert.is_not_nil(entity)
+
+    local baseline_tick = game.tick
+    entity.destroy()
+    storage.squirrel_last_cleanup_tick = baseline_tick
+
+    assert.is_not_nil(storage.squirrels[squirrel_id])
+    remote.call(constants.mod_name, "debug_advance_squirrel_runtime", constants.squirrel_update_interval)
+    assert.equal(baseline_tick, storage.squirrel_last_cleanup_tick)
+    assert.is_not_nil(storage.squirrels[squirrel_id])
+
+    remote.call(constants.mod_name, "debug_advance_squirrel_runtime", constants.squirrel_cleanup_interval)
+
+    assert.is_true(storage.squirrel_last_cleanup_tick > baseline_tick)
+    assert.is_nil(storage.squirrels[squirrel_id])
   end)
 
   it("keeps the relocation hotkey scaffold available for later squirrel control", function()

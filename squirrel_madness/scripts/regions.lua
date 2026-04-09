@@ -401,6 +401,42 @@ function regions.recompute_region(surface, region_x, region_y, tick)
   return region
 end
 
+local function region_needs_recompute(region, tick)
+  local current_tick = tick or game.tick
+
+  if region.dirty then
+    return true
+  end
+
+  if not region.last_updated_tick or region.last_updated_tick <= 0 then
+    return true
+  end
+
+  return (current_tick - region.last_updated_tick) >= constants.region_update_interval
+end
+
+local function ensure_region_recomputed(surface, region_x, region_y, tick)
+  local region = get_or_create(surface.index, region_x, region_y)
+  if region_needs_recompute(region, tick) then
+    return regions.recompute_region(surface, region_x, region_y, tick)
+  end
+
+  return region
+end
+
+function regions.needs_recompute(surface, region_x, region_y, tick)
+  return region_needs_recompute(get_or_create(surface.index, region_x, region_y), tick)
+end
+
+function regions.get_cached_region_report_by_coord(surface, region_x, region_y)
+  return regions.serialize(get_or_create(surface.index, region_x, region_y))
+end
+
+function regions.get_cached_region_report_at_position(surface, position)
+  local coord = regions.position_to_region_coord(position)
+  return regions.get_cached_region_report_by_coord(surface, coord.x, coord.y)
+end
+
 function regions.get_region_at_position(surface, position)
   local coord = regions.position_to_region_coord(position)
   return get_or_create(surface.index, coord.x, coord.y)
@@ -412,11 +448,12 @@ function regions.force_recompute_at_position(surface, position, tick)
 end
 
 function regions.get_region_report_at_position(surface, position, tick)
-  return regions.serialize(regions.force_recompute_at_position(surface, position, tick))
+  local coord = regions.position_to_region_coord(position)
+  return regions.serialize(ensure_region_recomputed(surface, coord.x, coord.y, tick))
 end
 
 function regions.get_region_report_by_coord(surface, region_x, region_y, tick)
-  return regions.serialize(regions.recompute_region(surface, region_x, region_y, tick))
+  return regions.serialize(ensure_region_recomputed(surface, region_x, region_y, tick))
 end
 
 function regions.serialize(region)

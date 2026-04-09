@@ -1,7 +1,7 @@
 local storage_lib = {}
 
 function storage_lib.ensure()
-  storage.version = storage.version or 6
+  storage.version = storage.version or 7
   storage.regions = storage.regions or {}
   storage.last_refresh_tick = storage.last_refresh_tick or 0
   storage.seeded_chunks = storage.seeded_chunks or {}
@@ -19,6 +19,14 @@ function storage_lib.ensure()
   storage.squirrel_region_activity = storage.squirrel_region_activity or {}
   storage.squirrel_region_targets = storage.squirrel_region_targets or {}
   storage.squirrel_target_cooldowns = storage.squirrel_target_cooldowns or {}
+  storage.squirrel_region_index = storage.squirrel_region_index or {}
+  storage.squirrel_entity_index = storage.squirrel_entity_index or {}
+  storage.squirrel_stashes_by_region = storage.squirrel_stashes_by_region or {}
+  storage.squirrel_stash_target_counts = storage.squirrel_stash_target_counts or {}
+  storage.squirrel_last_cleanup_tick = storage.squirrel_last_cleanup_tick or 0
+  storage.region_refresh_queue = storage.region_refresh_queue or {}
+  storage.region_refresh_enqueued = storage.region_refresh_enqueued or {}
+  storage.player_region_centers = storage.player_region_centers or {}
 end
 
 return storage_lib
