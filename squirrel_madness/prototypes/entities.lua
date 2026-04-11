@@ -35,6 +35,17 @@ local function feeder_picture(filename, shadow_filename, width, height, shadow_w
   }
 end
 
+local function stash_picture(filename)
+  return {
+    filename = filename,
+    priority = "extra-high",
+    width = 1024,
+    height = 1024,
+    shift = util.by_pixel(0, 6),
+    scale = 0.0625
+  }
+end
+
 local function create_survey_station()
   local source = data.raw.radar and data.raw.radar["radar"]
   if not source then
@@ -224,6 +235,7 @@ stash.inventory_size = 8
 stash.minable = nil
 stash.destructible = false
 stash.localised_description = {"entity-description.forest-stash"}
+stash.picture = stash_picture("__squirrel_madness__/graphics/entities/structures/stash.png")
 
 local squirrel = clone_unit("small-biter", "squirrel")
 squirrel.icon = "__squirrel_madness__/graphics/icons/squirrel.png"
