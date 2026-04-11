@@ -1,6 +1,8 @@
 local constants = require("scripts.constants")
+local regions = require("scripts.regions")
 
 local TEST_POSITION = {x = 192, y = 192}
+local TREE_NAME = "tree-01"
 
 local function surface()
   return game.surfaces["nauvis"] or game.surfaces[1]
@@ -29,6 +31,21 @@ local function clear_inventory(player)
   end
 end
 
+local function spawn_trees(count, origin)
+  local trees = {}
+
+  for index = 1, count do
+    local x = origin.x + ((index - 1) % 3) * 6
+    local y = origin.y + math.floor((index - 1) / 3) * 6
+    trees[#trees + 1] = surface().create_entity({
+      name = TREE_NAME,
+      position = {x = x, y = y}
+    })
+  end
+
+  return trees
+end
+
 before_each(function()
   reset_progression()
   clear_inventory(game.players[1])
@@ -41,11 +58,20 @@ end)
 
 describe("milestone 1 survey flow", function()
   local station
+  local trees = {}
 
   after_each(function()
     if station and station.valid then
       station.destroy()
     end
+
+    for _, tree in ipairs(trees) do
+      if tree and tree.valid then
+        tree.destroy()
+      end
+    end
+
+    trees = {}
   end)
 
   it("uses broad survey mode before any station is available", function()
@@ -115,5 +141,86 @@ describe("milestone 1 survey flow", function()
     assert.equal("selected", result.source)
     assert.same(station.position, result.anchor_position)
     assert.is_true(result.station_powered)
+  end)
+
+  it("aggregates adjacent forest regions into a single exact survey cluster", function()
+    local anchor_region = regions.position_to_region_coord(TEST_POSITION)
+    local anchor_origin = {
+      x = (anchor_region.x * constants.region_tile_span) + 4,
+      y = (anchor_region.y * constants.region_tile_span) + 4
+    }
+    local east_origin = {
+      x = ((anchor_region.x + 1) * constants.region_tile_span) + 4,
+      y = (anchor_region.y * constants.region_tile_span) + 4
+    }
+
+    player_force().technologies[constants.technologies.forest_surveying].researched = true
+    player_force().reset_technology_effects()
+
+    station = surface().create_entity({
+      name = constants.names.survey_station,
+      position = TEST_POSITION,
+      force = player_force()
+    })
+
+    assert.is_not_nil(station)
+    station.energy = 60000
+
+    trees = spawn_trees(constants.survey_cluster_min_tree_count, anchor_origin)
+    local east_trees = spawn_trees(constants.survey_cluster_min_tree_count, east_origin)
+    for _, tree in ipairs(east_trees) do
+      trees[#trees + 1] = tree
+    end
+
+    local cluster = remote.call(constants.mod_name, "debug_get_survey_cluster", surface().index, TEST_POSITION.x, TEST_POSITION.y)
+
+    assert.is_table(cluster)
+    assert.equal("cluster", cluster.scope)
+    assert.equal(2, cluster.region_count)
+    assert.equal(constants.survey_cluster_min_tree_count * 2, cluster.tree_count)
+    assert.same({
+      {region_x = anchor_region.x, region_y = anchor_region.y},
+      {region_x = anchor_region.x + 1, region_y = anchor_region.y}
+    }, cluster.member_regions)
+  end)
+
+  it("shows and clears a station footprint overlay for the selecting player", function()
+    local anchor_region = regions.position_to_region_coord(TEST_POSITION)
+    local anchor_origin = {
+      x = (anchor_region.x * constants.region_tile_span) + 4,
+      y = (anchor_region.y * constants.region_tile_span) + 4
+    }
+
+    player_force().technologies[constants.technologies.forest_surveying].researched = true
+    player_force().reset_technology_effects()
+
+    station = surface().create_entity({
+      name = constants.names.survey_station,
+      position = TEST_POSITION,
+      force = player_force()
+    })
+
+    assert.is_not_nil(station)
+    station.energy = 60000
+    trees = spawn_trees(constants.survey_cluster_min_tree_count, anchor_origin)
+
+    local shown = remote.call(
+      constants.mod_name,
+      "debug_show_survey_overlay",
+      game.players[1].index,
+      surface().index,
+      TEST_POSITION.x,
+      TEST_POSITION.y
+    )
+    local overlay = remote.call(constants.mod_name, "debug_get_survey_overlay_state", game.players[1].index)
+
+    assert.is_table(shown)
+    assert.is_table(overlay)
+    assert.equal(shown.region_count, overlay.region_count)
+    assert.equal(overlay.region_count, overlay.render_count)
+    assert.equal(1, overlay.region_count)
+
+    assert.is_true(remote.call(constants.mod_name, "debug_clear_survey_overlay", game.players[1].index))
+    assert.is_nil(remote.call(constants.mod_name, "debug_get_survey_overlay_state", game.players[1].index))
   end)
 end)

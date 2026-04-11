@@ -60,7 +60,7 @@ Checklist:
 - [X] Open the feeder and confirm the UI feels like a one-slot wildlife container, not a broken chest clone.
 - [X] Place a `Forest Survey Station` nearby.
 - [X] Confirm the survey station uses green-tinted radar-style intermediate art, occupies a larger radar-like footprint, and can be selected reliably.
-- [X] Click the survey station and confirm it does not open a chest inventory. Expected result: it behaves like a selectable survey structure, and exact region readouts still come from pressing `ALT+S` while it is selected or while you stand nearby.
+- [X] Click the survey station and confirm it does not open a chest inventory. Expected result: it behaves like a selectable survey structure, and selecting it now outlines the forest footprint it will survey.
 - [X] Place the `Solar Panel` and a `Small Electric Pole` so the survey station is powered.
 - [X] Press `ALT+S` while the survey station is selected or while standing nearby.
 - [X] Confirm `ALT+S` prints an exact multi-line regional report in the lower-left message log, including region coordinates plus health, unrest, trust, habitat pressure, and the main scoring inputs.

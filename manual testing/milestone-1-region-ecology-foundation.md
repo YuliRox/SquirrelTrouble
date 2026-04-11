@@ -2,8 +2,8 @@
 
 Default start: new scenario on Nauvis  
 Recommended checkpoint save: `m1-forest-baseline` after finding a dense forest patch and unlocking `Forest Surveying`  
-Scope: survey readability, broad-vs-exact inspection flow, and visible ecology response to tree loss and pollution.  
-Automated coverage already exists for: region mapping, exact metric computation, recent tree-loss tracking, rolling pollution retention, and feeder contribution math.
+Scope: survey readability, broad-vs-exact inspection flow, station cluster overlays, and visible ecology response to tree loss and pollution.  
+Automated coverage already exists for: region mapping, exact metric computation, survey-cluster aggregation, station overlay plumbing, recent tree-loss tracking, rolling pollution retention, and feeder contribution math.
 
 ## Survey Gating Before Research
 
@@ -62,14 +62,16 @@ Checklist:
 - [X] Place the survey station inside the same forest patch you used for the broad survey.
 - [X] Place the `Solar Panel` and a `Small Electric Pole` so the survey station is powered.
 - [X] If it is night, wait for daylight before continuing.
+- [X] Click the powered survey station.
+- [X] Confirm the game outlines the connected forest footprint that the station is surveying, instead of leaving the exact scan area invisible.
 - [X] Stand beside the powered survey station and press `ALT+S`.
-- [X] Confirm the report switches to exact numeric values.
+- [X] Confirm the report switches to exact numeric values for the outlined forest cluster, not just your current standing tile.
 - [X] Walk a short distance away but keep the station selected.
 - [X] Press `ALT+S` again.
-- [X] Confirm the exact report still feels anchored to the station area rather than your current tile.
+- [X] Confirm the exact report still feels anchored to the same outlined forest cluster rather than your current tile.
 
 Pass condition:
-- The powered station-based inspection flow is spatially coherent and clearly more precise than broad survey mode.
+- The powered station-based inspection flow is spatially coherent, visibly shows what it is surveying, and is clearly more precise than broad survey mode.
 
 ## Deforestation Feedback
 

@@ -27,6 +27,7 @@ function storage_lib.ensure()
   storage.region_refresh_queue = storage.region_refresh_queue or {}
   storage.region_refresh_enqueued = storage.region_refresh_enqueued or {}
   storage.player_region_centers = storage.player_region_centers or {}
+  storage.survey_station_overlays = storage.survey_station_overlays or {}
 end
 
 return storage_lib

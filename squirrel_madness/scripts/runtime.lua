@@ -32,6 +32,11 @@ local function get_player_region_centers()
   return storage.player_region_centers
 end
 
+local function get_survey_station_overlays()
+  storage.survey_station_overlays = storage.survey_station_overlays or {}
+  return storage.survey_station_overlays
+end
+
 local function active_region_offsets()
   if ACTIVE_REGION_OFFSETS then
     return ACTIVE_REGION_OFFSETS
@@ -256,6 +261,41 @@ local function print_region_report(player, region)
   })
 end
 
+local function print_cluster_report(player, cluster)
+  player.print({
+    "message.squirrel-madness-cluster-report",
+    cluster.region_count,
+    cluster.forest_health,
+    {"message.squirrel-madness-band-" .. cluster.forest_health_band},
+    cluster.squirrel_unrest,
+    {"message.squirrel-madness-band-" .. cluster.squirrel_unrest_band},
+    cluster.squirrel_trust,
+    {"message.squirrel-madness-band-" .. cluster.squirrel_trust_band},
+    cluster.habitat_pressure,
+    {"message.squirrel-madness-band-" .. cluster.habitat_pressure_band}
+  })
+  player.print({
+    "message.squirrel-madness-region-factors",
+    cluster.tree_count,
+    cluster.sapling_count,
+    cluster.nut_tree_count,
+    cluster.stocked_feeders,
+    cluster.feeder_count,
+    cluster.recent_tree_loss,
+    cluster.rolling_pollution
+  })
+  player.print({
+    "message.squirrel-madness-region-forces",
+    cluster.canopy_score,
+    cluster.nut_tree_bonus,
+    cluster.stocked_feeder_bonus,
+    cluster.reforestation_bonus,
+    cluster.empty_feeder_penalty,
+    cluster.recent_tree_loss_penalty,
+    cluster.rolling_pollution_penalty
+  })
+end
+
 local function force_has_technology(force, technology_name)
   if not (force and force.valid and force.technologies) then
     return false
@@ -304,6 +344,91 @@ local function find_nearest_survey_station(surface, position, radius)
   return nearest
 end
 
+local function clear_survey_overlay(player_index)
+  local overlays = get_survey_station_overlays()
+  local overlay = overlays[player_index]
+
+  if not overlay then
+    return false
+  end
+
+  for _, render_id in ipairs(overlay.render_ids or {}) do
+    local render_object = rendering.get_object_by_id(render_id)
+    if render_object and render_object.valid then
+      render_object.destroy()
+    end
+  end
+
+  overlays[player_index] = nil
+  return true
+end
+
+local function current_selected_survey_station(player)
+  local selected = player and player.valid and player.selected or nil
+
+  if selected and selected.valid and selected.name == constants.names.survey_station then
+    return selected
+  end
+
+  return nil
+end
+
+local function render_survey_overlay(player, station, tick)
+  clear_survey_overlay(player.index)
+
+  if not (player and player.valid and station and station.valid) then
+    return nil
+  end
+
+  local cluster = regions.get_forest_cluster_report_at_position(station.surface, station.position, tick)
+  local render_ids = {}
+
+  for _, member in ipairs(cluster.member_regions or {}) do
+    local area = regions.region_area(member.region_x, member.region_y)
+    local render_object = rendering.draw_rectangle({
+      color = {r = 0.18, g = 0.42, b = 0.22, a = 0.9},
+      width = 2,
+      filled = false,
+      left_top = area.left_top,
+      right_bottom = area.right_bottom,
+      surface = station.surface,
+      players = {player.index},
+      draw_on_ground = true
+    })
+
+    render_ids[#render_ids + 1] = render_object.id
+  end
+
+  get_survey_station_overlays()[player.index] = {
+    station_unit_number = station.unit_number,
+    surface_index = station.surface.index,
+    render_ids = render_ids,
+    region_count = cluster.region_count,
+    member_regions = cluster.member_regions,
+    last_refresh_tick = tick or game.tick
+  }
+
+  return cluster
+end
+
+local function update_survey_overlay_for_player(player, selected_entity, tick)
+  if not (player and player.valid) then
+    return nil
+  end
+
+  local station = selected_entity
+  if not station or not station.valid then
+    station = current_selected_survey_station(player)
+  end
+
+  if station then
+    return render_survey_overlay(player, station, tick)
+  end
+
+  clear_survey_overlay(player.index)
+  return nil
+end
+
 local function resolve_survey_request(force, surface, position, selected_entity)
   if not force_has_technology(force, constants.technologies.forest_surveying) then
     return {
@@ -343,13 +468,12 @@ local function print_survey_result(player, result)
     return
   end
 
-  local region = regions.get_region_report_at_position(player.surface, result.anchor_position, game.tick)
-
   if result.mode == "exact" then
-    print_region_report(player, region)
+    print_cluster_report(player, regions.get_forest_cluster_report_at_position(player.surface, result.anchor_position, game.tick))
     return
   end
 
+  local region = regions.get_region_report_at_position(player.surface, result.anchor_position, game.tick)
   print_broad_region_report(player, region)
 
   if result.mode == "power-required" then
@@ -357,6 +481,15 @@ local function print_survey_result(player, result)
   else
     player.print({"message.squirrel-madness-survey-exact-hint"})
   end
+end
+
+local function on_selected_entity_changed(event)
+  local player = game.get_player(event.player_index)
+  if not player then
+    return
+  end
+
+  update_survey_overlay_for_player(player, current_selected_survey_station(player), event.tick)
 end
 
 local function survey_region_for_player(player)
@@ -370,6 +503,7 @@ end
 
 local function on_init()
   storage_lib.ensure()
+  storage.survey_station_overlays = {}
   feeders.rebuild_tracking()
   local nauvis = game.surfaces[constants.primary_surface_name]
   if nauvis then
@@ -382,6 +516,7 @@ end
 
 local function on_configuration_changed()
   storage_lib.ensure()
+  storage.survey_station_overlays = {}
   feeders.rebuild_tracking()
   feeders.sync_registered()
   refresh_active_regions(true)
@@ -405,6 +540,28 @@ local function on_tick(event)
 
   if event.tick % constants.feeder_visual_update_interval == 0 then
     feeders.sync_registered()
+  end
+
+  if event.tick % constants.survey_overlay_refresh_interval == 0 then
+    local overlays_to_clear = {}
+
+    for player_index, overlay in pairs(get_survey_station_overlays()) do
+      local player = game.get_player(player_index)
+      local selected_station = player and current_selected_survey_station(player) or nil
+
+      if not selected_station
+        or selected_station.unit_number ~= overlay.station_unit_number
+        or selected_station.surface.index ~= overlay.surface_index
+      then
+        overlays_to_clear[#overlays_to_clear + 1] = player_index
+      else
+        render_survey_overlay(player, selected_station, event.tick)
+      end
+    end
+
+    for _, player_index in ipairs(overlays_to_clear) do
+      clear_survey_overlay(player_index)
+    end
   end
 
   squirrels.on_tick(event.tick)
@@ -469,6 +626,18 @@ local function on_entity_removed(event)
   end
 
   if entity.name == constants.names.survey_station then
+    local overlays_to_clear = {}
+
+    for player_index, overlay in pairs(get_survey_station_overlays()) do
+      if overlay.station_unit_number == entity.unit_number and overlay.surface_index == entity.surface.index then
+        overlays_to_clear[#overlays_to_clear + 1] = player_index
+      end
+    end
+
+    for _, player_index in ipairs(overlays_to_clear) do
+      clear_survey_overlay(player_index)
+    end
+
     regions.mark_dirty(entity.surface.index, entity.position)
     enqueue_region_refresh_at_position(entity.surface, entity.position, game.tick)
   end
@@ -590,6 +759,57 @@ local function install_remote_interface()
         energy = station.energy,
         powered = is_powered_survey_station(station)
       }
+    end,
+    debug_get_survey_cluster = function(surface_index, x, y)
+      storage_lib.ensure()
+      local surface = game.surfaces[surface_index]
+      if not surface then
+        return nil
+      end
+
+      return regions.get_forest_cluster_report_at_position(surface, {x = x, y = y}, game.tick)
+    end,
+    debug_show_survey_overlay = function(player_index, surface_index, x, y)
+      storage_lib.ensure()
+      local player = game.get_player(player_index)
+      local surface = game.surfaces[surface_index]
+      if not (player and surface) then
+        return nil
+      end
+
+      local station = surface.find_entity(constants.names.survey_station, {x = x, y = y})
+      if not station then
+        return nil
+      end
+
+      local cluster = update_survey_overlay_for_player(player, station, game.tick)
+      if not cluster then
+        return nil
+      end
+
+      return {
+        region_count = cluster.region_count,
+        member_regions = cluster.member_regions
+      }
+    end,
+    debug_get_survey_overlay_state = function(player_index)
+      storage_lib.ensure()
+      local overlay = get_survey_station_overlays()[player_index]
+      if not overlay then
+        return nil
+      end
+
+      return {
+        station_unit_number = overlay.station_unit_number,
+        surface_index = overlay.surface_index,
+        render_count = #overlay.render_ids,
+        region_count = overlay.region_count,
+        member_regions = overlay.member_regions
+      }
+    end,
+    debug_clear_survey_overlay = function(player_index)
+      storage_lib.ensure()
+      return clear_survey_overlay(player_index)
     end,
     debug_sync_feeders = function(surface_index)
       storage_lib.ensure()
@@ -747,6 +967,7 @@ function runtime.register()
     defines.events.script_raised_revive
   }, on_entity_created)
   script.on_event(defines.events.on_chunk_generated, on_chunk_generated)
+  script.on_event(defines.events.on_selected_entity_changed, on_selected_entity_changed)
   script.on_event(defines.events.on_research_finished, on_research_finished)
   script.on_event(constants.names.survey_input, on_custom_input)
   script.on_event(constants.names.relocation_input, on_custom_input)
