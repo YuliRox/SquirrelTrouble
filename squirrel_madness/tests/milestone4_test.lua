@@ -79,6 +79,16 @@ local function total_belt_item_count(belts, item_name)
   return total
 end
 
+local function find_squirrel(report, squirrel_id)
+  for _, squirrel in ipairs(report.squirrels or {}) do
+    if squirrel.squirrel_id == squirrel_id then
+      return squirrel
+    end
+  end
+
+  return nil
+end
+
 local function fill_region_with_forest(region_x, region_y, spacing)
   local area = regions.region_area(region_x, region_y)
   local trees = {}
@@ -436,7 +446,7 @@ describe("milestone 4 squirrel nuisance runtime", function()
     assert.is_true(wood > brick)
   end)
 
-  it("keeps calm squirrels uninterested in nearby belts until pressure rises", function()
+  it("lets calm squirrels inspect nearby belts in healthy forest-edge areas", function()
     spawn_forest(18, BELT_ORIGIN)
     local squirrel_id = remote.call(constants.mod_name, "debug_spawn_squirrel", surface().index, BELT_ORIGIN.x + 6, BELT_ORIGIN.y)
     local belt = track_entity(surface().create_entity({
@@ -449,6 +459,43 @@ describe("milestone 4 squirrel nuisance runtime", function()
     assert.is_number(squirrel_id)
     assert.is_not_nil(belt)
     assert.is_true(belt.get_transport_line(1).insert_at(0.25, {name = "iron-plate", count = 1}))
+
+    local target = remote.call(constants.mod_name, "debug_get_squirrel_target", squirrel_id)
+
+    assert.equal("calm", target.state)
+    assert.is_table(target.local_target)
+    assert.equal("belt", target.local_target.target_type)
+    assert.equal("inspect", target.local_intent)
+    assert.is_table(target.chosen_target)
+    assert.equal("belt", target.chosen_target.target_type)
+  end)
+
+  it("lets stocked feeders suppress nearby calm belt sitting", function()
+    spawn_forest(18, BELT_ORIGIN)
+    local squirrel_id = remote.call(constants.mod_name, "debug_spawn_squirrel", surface().index, BELT_ORIGIN.x + 6, BELT_ORIGIN.y)
+    local belt = track_entity(surface().create_entity({
+      name = "transport-belt",
+      position = {x = BELT_ORIGIN.x + 8, y = BELT_ORIGIN.y},
+      direction = defines.direction.east,
+      force = game.forces.player
+    }))
+    local feeder = track_entity(surface().create_entity({
+      name = constants.names.feeder,
+      position = {x = BELT_ORIGIN.x + 9, y = BELT_ORIGIN.y + 2},
+      force = game.forces.player
+    }))
+
+    assert.is_number(squirrel_id)
+    assert.is_not_nil(belt)
+    assert.is_not_nil(feeder)
+    assert.is_true(belt.get_transport_line(1).insert_at(0.25, {name = "iron-plate", count = 1}))
+
+    local inventory = feeder.get_inventory(defines.inventory.chest)
+    assert.is_not_nil(inventory)
+    assert.equal(constants.stocked_feeder_threshold, inventory.insert({
+      name = constants.names.nut,
+      count = constants.stocked_feeder_threshold
+    }))
 
     local target = remote.call(constants.mod_name, "debug_get_squirrel_target", squirrel_id)
 

@@ -60,6 +60,8 @@ Preconditions:
 Checklist:
 - [X] Place items on the belt and watch the line for a short while.
 - [ ] Confirm at least one squirrel visibly sits on or interrupts the belt.
+- [ ] Confirm this can happen even before the forest is badly damaged.
+- [ ] Place a stocked feeder near the same belt and confirm the nearby passive belt-sitting stops.
 - [ ] Confirm the belt blockage is short-lived and readable.
 - [ ] Confirm the line does not look permanently deadlocked.
 - [ ] Confirm squirrels seem to wander outward from the forest before engaging the belt instead of snapping to an arbitrary target.
@@ -72,7 +74,7 @@ Pass condition:
 
 Preconditions:
 - Keep a belt or chest close to the forest edge.
-- Have at least one stocked feeder nearby if the implementation supports feeder diversion in this slice.
+- Keep stocked feeders away from the target belt or chest so theft pressure is not being actively pacified.
 
 Checklist:
 - [ ] Watch for a squirrel to leave the belt line or approach a chest.

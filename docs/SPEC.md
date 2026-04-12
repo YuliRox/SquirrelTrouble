@@ -44,6 +44,8 @@ Squirrels are cute, animated neutral units that roam forests first and only push
 
 Squirrels do not chew buildings, breach walls, or behave like biters. Their pressure comes from blocking belts, stealing items, hiding loot, and shuffling chest contents.
 
+Squirrels must not damage or consume trees. Habitat loss is caused by the player, pollution, fire, and industrial expansion, not by squirrels destroying the forest that sustains them.
+
 ### 3. Ecology Over Violence
 
 The scenario should teach that preserving forests, feeding squirrels, and relocating them is better than shooting them.
@@ -164,6 +166,8 @@ Visible neutral wildlife unit.
 Rules:
 
 - spawns in forested regions
+- initial population should be seeded during chunk generation so healthy forests can already look inhabited when first discovered
+- runtime population upkeep should refill gradually instead of creating a full squirrel burst on first sight
 - ignored by turrets and military AI
 - not counted as an enemy
 - can be stepped on by the player
@@ -314,7 +318,8 @@ Behavior:
 - wanders inside canopy
 - idles, gathers, socializes
 - visits feeders and stashes
-- ignores factory logistics
+- may briefly sit on belts near the forest edge even in otherwise healthy habitat
+- leaves nearby belts alone when a stocked feeder is pacifying the same area
 
 ### Curious
 
@@ -378,7 +383,9 @@ Squirrel disruption should be meaningful, readable, and rate-limited.
 
 - A squirrel may occupy a single belt tile for a short duration.
 - That tile is treated as blocked while the squirrel sits there.
-- Belt blocking should be most common near the forest edge or poorly managed corridors.
+- Light belt sitting may happen even in healthy forest-edge areas.
+- Stocked feeders should locally suppress that passive belt sitting in their vicinity.
+- Heavier belt blocking should be most common near the forest edge or poorly managed corridors.
 - Squirrels should reach belts by visibly wandering outward from habitat, not by seeming to spawn directly onto a distant logistics target.
 
 ### Belt Theft
@@ -606,7 +613,8 @@ Unlocks:
 
 - `Forest Survey Station`
 - visibility of forest health, unrest, trust, and habitat pressure
-- broad state bands in normal inspection, with exact numbers available through surveyed forest regions
+- broad state bands in normal inspection, with exact numbers available through surveyed forest clusters
+- a selection overlay that outlines the forest cluster currently being read by a survey station
 
 Purpose:
 

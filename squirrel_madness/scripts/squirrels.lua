@@ -728,6 +728,10 @@ local function state_wander_distance(state, report)
 end
 
 local function state_local_target_radius(state)
+  if state == "calm" then
+    return constants.squirrel_calm_local_target_radius
+  end
+
   if state == "curious" then
     return constants.squirrel_curious_local_target_radius
   end
@@ -753,6 +757,10 @@ end
 
 local function local_target_intent(state, report, target_type, theft_available)
   if state == "calm" then
+    if target_type == "belt" then
+      return "inspect"
+    end
+
     return nil
   end
 
@@ -822,6 +830,25 @@ local function build_squirrel_target(record, opportunity, origin_position, tick,
   return candidate
 end
 
+local function stocked_feeder_near_position(surface_index, position, radius)
+  local surface = game.surfaces[surface_index]
+  if not (surface and radius and radius > 0) then
+    return false
+  end
+
+  for _, feeder in ipairs(surface.find_entities_filtered({
+    area = target_area(position, radius),
+    name = constants.feeder_entity_names
+  })) do
+    local inventory = feeder.get_inventory(defines.inventory.chest)
+    if inventory and inventory.valid and inventory.get_item_count(constants.names.nut) >= constants.stocked_feeder_threshold then
+      return true
+    end
+  end
+
+  return false
+end
+
 local function consider_scanned_target(
   record,
   entity,
@@ -840,6 +867,10 @@ local function consider_scanned_target(
   best_intent
 )
   if not (entity and entity.valid) then
+    return best, best_intent
+  end
+
+  if target_type == "belt" and stocked_feeder_near_position(record.surface_index, entity.position, constants.squirrel_feeder_peace_radius) then
     return best, best_intent
   end
 
@@ -979,10 +1010,6 @@ local function find_local_target(record, state, report, tick, origin_position)
 end
 
 local function find_excursion_target(record, state, report, tick, origin_position)
-  if state == "calm" then
-    return nil, nil
-  end
-
   local home_limit = state_wander_distance(state, report) + state_local_target_radius(state)
 
   return scan_targets_near_position(
@@ -1010,7 +1037,10 @@ local function find_nearby_belt_target(record, state, report, tick, origin_posit
     area = target_area(origin_position, constants.squirrel_belt_handoff_radius),
     type = {"transport-belt", "underground-belt", "splitter"}
   })) do
-    if entity.valid and not target_is_on_cooldown(entity, tick) then
+    if entity.valid
+      and not target_is_on_cooldown(entity, tick)
+      and not stocked_feeder_near_position(record.surface_index, entity.position, constants.squirrel_feeder_peace_radius)
+    then
       local opportunity = choose_belt_item(entity, item_name)
       if opportunity and opportunity.item_name == item_name then
         local candidate = build_squirrel_target(
@@ -1032,6 +1062,10 @@ local function find_nearby_belt_target(record, state, report, tick, origin_posit
 end
 
 local function refresh_target_from_entity(target_entity, target_type, preferred_item_name, report)
+  if target_type == "belt" and stocked_feeder_near_position(target_entity.surface.index, target_entity.position, constants.squirrel_feeder_peace_radius) then
+    return nil
+  end
+
   local opportunity = target_type == "belt"
       and choose_belt_item(target_entity, preferred_item_name)
     or choose_chest_item(target_entity, preferred_item_name, report)
@@ -1498,7 +1532,7 @@ start_target_run = function(record, entity, target, intent, tick)
   record.target = target
   set_excursion_focus(record, nil, nil)
   record.destination = clone_position(target.position)
-  record.arrival_distance = 0.45
+  record.arrival_distance = target.target_type == "belt" and 0.18 or 0.45
   record.blocking_until_tick = nil
   record.action_due_tick = tick + constants.squirrel_move_timeout
   record.next_decision_tick = tick + constants.squirrel_decision_interval
@@ -1506,16 +1540,30 @@ start_target_run = function(record, entity, target, intent, tick)
 end
 
 local function start_belt_block(record, entity, belt_entity, tick)
+  local intent = record.intent or "steal"
   record.mode = "blocking"
-  record.intent = "steal"
+  record.intent = intent
   record.target = serialize_target(belt_entity, "belt", record.target and record.target.item_name or nil, 1)
   set_excursion_focus(record, nil, nil)
   record.destination = nil
   record.arrival_distance = nil
-  record.blocking_until_tick = tick + constants.squirrel_belt_block_duration
-  record.action_due_tick = tick
+  record.blocking_until_tick = tick + (
+    intent == "inspect"
+      and constants.squirrel_belt_inspect_duration
+      or constants.squirrel_belt_block_duration
+  )
+  record.action_due_tick = intent == "inspect" and record.blocking_until_tick or tick
   record.next_decision_tick = tick + constants.squirrel_decision_interval
   stop_entity(entity)
+end
+
+local function finish_belt_inspection(record, entity, tick)
+  local belt_entity = resolve_target(record)
+  if belt_entity and belt_entity.valid then
+    note_target_cooldown(belt_entity, tick)
+  end
+
+  send_home(record, entity, tick)
 end
 
 local function remove_belt_item(belt_entity, item_name, count)
@@ -1533,25 +1581,6 @@ local function remove_belt_item(belt_entity, item_name, count)
   end
 
   return 0
-end
-
-local function belt_hop_destination(record, belt_entity)
-  local item_name = record.target and record.target.item_name or nil
-  local carried = carrying_count(record, item_name)
-  local hop_index = ((record.squirrel_id or 1) + carried) % 5
-  local offsets = {
-    {x = 0, y = 0},
-    {x = 0.3, y = 0.2},
-    {x = -0.3, y = 0.2},
-    {x = 0.25, y = -0.3},
-    {x = -0.25, y = -0.3}
-  }
-  local offset = offsets[hop_index + 1]
-
-  return {
-    x = belt_entity.position.x + offset.x,
-    y = belt_entity.position.y + offset.y
-  }
 end
 
 local function perform_belt_theft(record, entity, tick)
@@ -1583,12 +1612,12 @@ local function perform_belt_theft(record, entity, tick)
     local replacement = find_nearby_belt_target(record, record.state, report, tick, entity.position, item_name)
     if replacement then
       record.target = replacement
-      record.mode = "approach"
+      record.mode = "blocking"
       record.intent = "steal"
-      record.destination = clone_position(replacement.position)
-      record.arrival_distance = 0.45
-      record.action_due_tick = tick + constants.squirrel_move_timeout
-      move_entity(entity, replacement.position)
+      record.destination = nil
+      record.arrival_distance = nil
+      record.action_due_tick = tick + constants.squirrel_belt_grab_interval
+      stop_entity(entity)
       return false
     end
 
@@ -1616,12 +1645,12 @@ local function perform_belt_theft(record, entity, tick)
     return true
   end
 
-  record.mode = "approach"
+  record.mode = "blocking"
   record.intent = "steal"
-  record.destination = belt_hop_destination(record, belt_entity)
-  record.arrival_distance = 0.2
-  record.action_due_tick = tick + constants.squirrel_move_timeout
-  move_entity(entity, record.destination)
+  record.destination = nil
+  record.arrival_distance = nil
+  record.action_due_tick = tick + constants.squirrel_belt_grab_interval
+  stop_entity(entity)
   return true
 end
 
@@ -1927,11 +1956,6 @@ process_idle_decision = function(record, entity, tick)
     return
   end
 
-  if state == "calm" then
-    start_roam(record, entity, tick, state, report)
-    return
-  end
-
   local local_target, local_intent = find_local_target(record, state, report, tick, origin_position)
   if local_target and local_intent then
     start_target_run(record, entity, local_target, local_intent, tick)
@@ -1965,15 +1989,7 @@ local function process_arrival(record, entity, tick)
     end
 
     if record.target.target_type == "belt" then
-      if record.intent == "inspect" then
-        record.mode = "inspect"
-        record.destination = nil
-        record.arrival_distance = nil
-        record.action_due_tick = tick + constants.squirrel_curious_pause_duration
-        stop_entity(entity)
-      else
-        start_belt_block(record, entity, target_entity, tick)
-      end
+      start_belt_block(record, entity, target_entity, tick)
       return
     end
 
@@ -2000,7 +2016,11 @@ local function process_arrival(record, entity, tick)
   end
 
   if record.mode == "blocking" then
-    perform_belt_theft(record, entity, tick)
+    if record.intent == "inspect" then
+      finish_belt_inspection(record, entity, tick)
+    else
+      perform_belt_theft(record, entity, tick)
+    end
     return
   end
 

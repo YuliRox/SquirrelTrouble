@@ -86,13 +86,14 @@ Deliverables:
 - track recent tree loss by region from mining, death, and fire/combat removal
 - sample regional pollution and tree density every `10` seconds
 - compute `forest_health`, `squirrel_unrest`, `squirrel_trust`, and `habitat_pressure`
-- expose exact regional values through the survey station and a debug remote interface
+- expose exact forest-cluster values through the survey station and a debug remote interface
+- show the surveyed forest-cluster footprint when the station is selected
 
 Exit criteria:
 
 - tree cutting causes immediate local unrest and pressure spikes
 - untouched forest regions remain stably healthy
-- survey readouts explain the relationship between trees, feeders, pollution, and pressure
+- survey readouts explain the relationship between trees, feeders, pollution, and pressure, and the player can see which forest footprint is being measured
 
 ### 2. Nut Economy And Habitat Recovery
 
@@ -121,7 +122,9 @@ Exit criteria:
 Deliverables:
 
 - add squirrel unit prototype and local spawn manager
+- seed initial squirrel presence during chunk generation so forests already feel inhabited before the player arrives
 - cap visible squirrels per active area
+- make runtime population upkeep refill gradually instead of filling a whole region in one update
 - implement the squirrel runtime state machine and region-to-local activation rules
 - implement pressure-driven wandering radii so squirrel range expands outward from forest habitat before theft occurs
 - compute target desirability from item value classes instead of hand-tagging every item
@@ -132,6 +135,7 @@ Exit criteria:
 
 - squirrel presence and action selection can be driven from normal region metrics
 - active areas obey spawn caps, cooldowns, and stash bookkeeping under automated tests
+- initial forest contact does not rely on a large first-sighting squirrel spawn burst
 - the runtime foundation is stable enough to support visible nuisance behavior without broad rewrites
 
 ### 4. Visible Squirrels And Nuisance Loop
@@ -141,7 +145,7 @@ Hard stop before Milestone 5: mandatory in-game playtest.
 Playtest focus:
 
 - confirm squirrels visibly spawn, move, and read correctly on screen
-- confirm belt blocking, stack-building belt raids, and forest retreat behavior feel readable and fair
+- confirm passive forest-edge belt sitting, stocked-feeder diversion, stack-building belt raids, and forest retreat behavior feel readable and fair
 - confirm stash creation and loot recovery are understandable in normal play
 
 Deliverables:
@@ -150,6 +154,7 @@ Deliverables:
 - increase visible squirrel counts so factory-edge nuisance feels materially present
 - replace direct home-anchor target snapping with readable outward wandering from the forest edge
 - make higher pressure widen squirrel wandering and allow deeper initial incursions before a theft attempt
+- allow calm squirrels to sit on nearby belts as a low-grade nuisance unless stocked feeders pacify the area
 - add belt blocking, repeated belt theft that builds toward full carried stacks, forest retreat paths, and stash creation
 - add full-stack chest scavenging only under higher pressure
 - tune visible behavior, readability, and fairness through in-game playtests
