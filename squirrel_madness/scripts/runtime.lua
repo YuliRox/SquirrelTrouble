@@ -534,6 +534,17 @@ local function serialize_position(position)
   }
 end
 
+local function deserialize_position(position)
+  if not position then
+    return nil
+  end
+
+  return {
+    x = position.x,
+    y = position.y
+  }
+end
+
 local function current_selected_squirrel(player)
   local selected = player and player.valid and player.selected or nil
 
@@ -568,7 +579,8 @@ local function get_retaliation_state(surface_index, player_index)
     player_index = player_index,
     recent_incidents = {},
     total_severity = 0,
-    pending_wave = nil
+    pending_wave = nil,
+    last_wave = nil
   }
   return retaliation[key]
 end
@@ -595,6 +607,10 @@ local function prune_retaliation_state(state, tick)
 
   if state.pending_wave and state.pending_wave.tick < cutoff_tick then
     state.pending_wave = nil
+  end
+
+  if state.last_wave and state.last_wave.tick < cutoff_tick then
+    state.last_wave = nil
   end
 end
 
@@ -632,6 +648,167 @@ local function find_revenge_spawner(surface, position)
   end
 
   return nearest
+end
+
+local function retaliation_wave_unit_name(enemy_force, surface, retaliation_level)
+  local evolution = 0
+  local level = retaliation_level or 0
+
+  if enemy_force and enemy_force.valid and surface and surface.valid then
+    evolution = enemy_force.get_evolution_factor(surface)
+  end
+
+  if evolution >= 0.7 or level >= 7 then
+    return "big-biter"
+  end
+
+  if evolution >= 0.3 or level >= 4 then
+    return "medium-biter"
+  end
+
+  return "small-biter"
+end
+
+local function retaliation_wave_member_count(wave)
+  local severity = wave.severity or 0
+  local retaliation_level = wave.retaliation_level or severity
+  local count = severity + math.floor(retaliation_level / 2)
+
+  return math.max(1, math.min(constants.retaliation_wave_max_members, count))
+end
+
+local function resolve_retaliation_spawner(surface, wave)
+  if wave.source_unit_number then
+    local entity = game.get_entity_by_unit_number(wave.source_unit_number)
+    if entity and entity.valid and entity.surface == surface then
+      return entity
+    end
+  end
+
+  local source_position = deserialize_position(wave.source_position) or deserialize_position(wave.target_position)
+  if not source_position then
+    return nil
+  end
+
+  return find_revenge_spawner(surface, source_position)
+end
+
+local function create_retaliation_command(target_position)
+  return {
+    type = defines.command.attack_area,
+    destination = target_position,
+    radius = constants.retaliation_wave_attack_radius,
+    distraction = defines.distraction.by_enemy
+  }
+end
+
+local function launch_retaliation_wave(state, tick)
+  local wave = state.pending_wave
+  if not wave then
+    return nil
+  end
+
+  local surface = game.surfaces[state.surface_index]
+  local target_position = deserialize_position(wave.target_position)
+  local spawner = surface and resolve_retaliation_spawner(surface, wave) or nil
+
+  local launched_wave = {
+    incident_id = wave.incident_id,
+    trigger = wave.trigger,
+    tick = wave.tick,
+    launched_tick = tick,
+    severity = wave.severity,
+    retaliation_level = wave.retaliation_level,
+    target_position = serialize_position(target_position),
+    source_unit_number = spawner and spawner.unit_number or wave.source_unit_number,
+    source_position = serialize_position(spawner and spawner.position or deserialize_position(wave.source_position)),
+    unit_name = nil,
+    unit_count = 0,
+    unit_positions = {},
+    status = "no-source"
+  }
+
+  if not (surface and target_position and spawner and spawner.valid) then
+    state.pending_wave = nil
+    state.last_wave = launched_wave
+    return launched_wave
+  end
+
+  local enemy_force = game.forces.enemy
+  local unit_name = retaliation_wave_unit_name(enemy_force, surface, wave.retaliation_level)
+  local member_count = retaliation_wave_member_count(wave)
+  launched_wave.unit_name = unit_name
+  launched_wave.status = "no-units"
+
+  for index = 1, member_count do
+    local angle = ((index - 1) / member_count) * math.pi * 2
+    local anchor = {
+      x = spawner.position.x + (math.cos(angle) * constants.retaliation_wave_spawn_radius),
+      y = spawner.position.y + (math.sin(angle) * constants.retaliation_wave_spawn_radius)
+    }
+    local spawn_position = surface.find_non_colliding_position(
+      unit_name,
+      anchor,
+      constants.retaliation_wave_spawn_search_radius,
+      0.5,
+      true
+    ) or surface.find_non_colliding_position(
+      unit_name,
+      spawner.position,
+      constants.retaliation_wave_spawn_search_radius,
+      0.5,
+      true
+    )
+
+    if spawn_position then
+      local unit = surface.create_entity({
+        name = unit_name,
+        position = spawn_position,
+        force = enemy_force,
+        source = spawner,
+        target = target_position,
+        create_build_effect_smoke = false,
+        raise_built = false
+      })
+
+      if unit and unit.valid and unit.commandable then
+        unit.commandable.set_command(create_retaliation_command(target_position))
+        launched_wave.unit_count = launched_wave.unit_count + 1
+        launched_wave.unit_positions[#launched_wave.unit_positions + 1] = serialize_position(unit.position)
+      elseif unit and unit.valid then
+        unit.destroy()
+      end
+    end
+  end
+
+  if launched_wave.unit_count > 0 then
+    launched_wave.status = "launched"
+  end
+
+  state.pending_wave = nil
+  state.last_wave = launched_wave
+  return launched_wave
+end
+
+local function process_retaliation_waves(tick)
+  local launched = 0
+  local retaliation = get_squirrel_retaliation()
+
+  for _, state in pairs(retaliation) do
+    prune_retaliation_state(state, tick)
+
+    local wave = state.pending_wave
+    if wave and tick >= (wave.tick + constants.retaliation_wave_delay) then
+      local launched_wave = launch_retaliation_wave(state, tick)
+      if launched_wave and launched_wave.status == "launched" then
+        launched = launched + 1
+      end
+    end
+  end
+
+  return {
+    launched = launched
+  }
 end
 
 local function notify_retaliation(surface, position, force, player_index, incident)
@@ -908,6 +1085,8 @@ local function on_tick(event)
       clear_survey_overlay(player_index)
     end
   end
+
+  process_retaliation_waves(event.tick)
 
   squirrels.on_tick(event.tick)
 end
@@ -1399,6 +1578,10 @@ local function install_remote_interface()
       local state = get_retaliation_state(surface_index, player_index)
       prune_retaliation_state(state, game.tick)
       return state
+    end,
+    debug_process_retaliation_waves = function(tick)
+      storage_lib.ensure()
+      return process_retaliation_waves(tick or game.tick)
     end
   })
 end

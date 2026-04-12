@@ -109,6 +109,35 @@ local function find_squirrel_entity(squirrel_id)
   return entity, squirrel
 end
 
+local function launched_wave_units(state)
+  local units = {}
+  local wave = state and state.last_wave or nil
+  if not (wave and wave.source_position and wave.target_position) then
+    return units
+  end
+
+  local search_radius = constants.retaliation_wave_spawn_search_radius + constants.retaliation_wave_spawn_radius + 4
+  for _, entity in ipairs(surface().find_entities_filtered({
+    area = square_area(wave.source_position, search_radius),
+    force = game.forces.enemy,
+    type = "unit"
+  })) do
+    if entity.valid and entity.commandable and entity.commandable.has_command then
+      local command = entity.commandable.command
+      if command
+        and command.type == defines.command.attack_area
+        and command.destination
+        and command.destination.x == wave.target_position.x
+        and command.destination.y == wave.target_position.y
+      then
+        units[#units + 1] = entity
+      end
+    end
+  end
+
+  return units
+end
+
 local function reset_runtime_storage()
   storage.regions = {}
   storage.last_refresh_tick = 0
@@ -173,7 +202,16 @@ after_each(function()
 
   for _, entity in ipairs(surface().find_entities_filtered({
     area = cleanup_area(),
-    name = {constants.names.squirrel, "biter-spawner"}
+    force = game.forces.enemy
+  })) do
+    if entity.valid then
+      entity.destroy()
+    end
+  end
+
+  for _, entity in ipairs(surface().find_entities_filtered({
+    area = cleanup_area(),
+    name = constants.names.squirrel
   })) do
     if entity.valid then
       entity.destroy()
@@ -270,5 +308,56 @@ describe("milestone 5 retaliation and relocation foundation", function()
     assert.is_true(after.squirrel_death_penalty > before.squirrel_death_penalty)
     assert.is_true(after.squirrel_unrest > before.squirrel_unrest)
     assert.is_true(after.squirrel_trust < before.squirrel_trust)
+  end)
+
+  it("launches a bounded revenge wave at the incident hotspot", function()
+    spawn_forest(18, ORIGIN)
+    local squirrel_id = remote.call(constants.mod_name, "debug_spawn_squirrel", surface().index, ORIGIN.x + 6, ORIGIN.y)
+    local squirrel_entity, squirrel = find_squirrel_entity(squirrel_id)
+
+    track_entity(surface().create_entity({
+      name = "biter-spawner",
+      position = {x = squirrel.position.x + 18, y = squirrel.position.y},
+      force = game.forces.enemy
+    }))
+
+    assert.is_not_nil(squirrel_entity)
+    assert.is_true(squirrel_entity.damage(1, player().force, nil, player().character, player().character) > 0)
+
+    local before_delay = remote.call(constants.mod_name, "debug_process_retaliation_waves", game.tick + constants.retaliation_wave_delay - 1)
+    local before_state = remote.call(constants.mod_name, "debug_get_retaliation_state", surface().index, player().index)
+
+    assert.equal(0, before_delay.launched)
+    assert.is_not_nil(before_state.pending_wave)
+
+    local launched = remote.call(constants.mod_name, "debug_process_retaliation_waves", game.tick + constants.retaliation_wave_delay)
+    local after_state = remote.call(constants.mod_name, "debug_get_retaliation_state", surface().index, player().index)
+    local units = launched_wave_units(after_state)
+
+    assert.equal(1, launched.launched)
+    assert.is_nil(after_state.pending_wave)
+    assert.is_table(after_state.last_wave)
+    assert.equal("rough-handling", after_state.last_wave.trigger)
+    assert.equal("launched", after_state.last_wave.status)
+    assert.is_true(after_state.last_wave.unit_count >= 1)
+    assert.is_true(after_state.last_wave.unit_count <= constants.retaliation_wave_max_members)
+    assert.equal(after_state.last_wave.unit_count, #units)
+
+    for _, unit in ipairs(units) do
+      local command = unit.commandable.command
+
+      assert.equal(game.forces.enemy, unit.force)
+      assert.is_true(unit.commandable.has_command)
+      assert.equal(defines.command.attack_area, command.type)
+      assert.equal(squirrel.position.x, command.destination.x)
+      assert.equal(squirrel.position.y, command.destination.y)
+      assert.equal(constants.retaliation_wave_attack_radius, command.radius)
+    end
+
+    local second_launch = remote.call(constants.mod_name, "debug_process_retaliation_waves", game.tick + constants.retaliation_wave_delay + 30)
+    local final_state = remote.call(constants.mod_name, "debug_get_retaliation_state", surface().index, player().index)
+
+    assert.equal(0, second_launch.launched)
+    assert.equal(after_state.last_wave.unit_count, final_state.last_wave.unit_count)
   end)
 end)

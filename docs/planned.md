@@ -173,7 +173,7 @@ Deliverables:
 
 - implement relocation targeting, healthy-destination selection, and trust effects
 - add squirrel stepping and death attribution as explicit runtime events
-- implement grief-state bookkeeping, retaliation escalation, and revenge-wave selection
+- implement grief-state bookkeeping, retaliation escalation, and localized revenge-wave launch
 - add map-marker and message hooks for accidental kills and localized retaliation
 - keep retaliation and relocation rules deterministic enough for strong automated coverage
 

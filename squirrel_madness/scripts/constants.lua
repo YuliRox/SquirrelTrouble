@@ -114,6 +114,11 @@ constants.retaliation_window = 60 * 60 * 10
 constants.retaliation_step_severity = 1
 constants.retaliation_death_severity = 3
 constants.retaliation_spawner_search_radius = 192
+constants.retaliation_wave_delay = 60 * 3
+constants.retaliation_wave_attack_radius = 12
+constants.retaliation_wave_spawn_radius = 8
+constants.retaliation_wave_spawn_search_radius = 24
+constants.retaliation_wave_max_members = 6
 constants.squirrel_force_name = "squirrel-madness-fauna"
 
 constants.technologies = {

@@ -474,7 +474,7 @@ If the player kills a squirrel:
 - display the message: `Mother Nauvis mourns its squirrels.`
 - apply an immediate unrest spike to nearby forest regions
 - apply a temporary trust penalty
-- spawn a localized biter revenge wave
+- spawn a localized biter revenge wave from a nearby nest if one exists
 
 Design intent:
 

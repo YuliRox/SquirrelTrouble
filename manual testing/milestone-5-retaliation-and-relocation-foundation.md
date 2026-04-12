@@ -2,8 +2,8 @@
 
 Default start: use a fresh scenario or a clean checkpoint with a forest edge, `Wildlife Relocation` researched, and at least one nearby biter nest on the map.  
 Recommended checkpoint save: `m5-retaliation-foundation` after placing a short belt line near a forest edge and scouting one nearby biter nest.  
-Scope: selected-squirrel relocation, healthy-destination behavior, squirrel harm attribution, retaliation warnings, and localized revenge-source markers.  
-Automated coverage already exists for: relocation destination selection, relocation trust/unrest effects, nonlethal squirrel-harm attribution, squirrel-death attribution, and revenge-wave source selection.
+Scope: selected-squirrel relocation, healthy-destination behavior, squirrel harm attribution, retaliation warnings, localized revenge-source markers, and bounded revenge-wave launch.  
+Automated coverage already exists for: relocation destination selection, relocation trust/unrest effects, nonlethal squirrel-harm attribution, squirrel-death attribution, revenge-wave source selection, and bounded revenge-wave launch.
 
 ## Nonlethal Relocation
 
@@ -33,10 +33,11 @@ Checklist:
 - [ ] Damage a squirrel without killing it.
 - [ ] Confirm the game prints a readable warning instead of failing silently.
 - [ ] Confirm a localized retaliation marker or alert appears near the suspected revenge source if one exists nearby.
+- [ ] Wait briefly and confirm a small biter wave actually emerges from that nearby nest instead of the warning ending as a dead-end.
 - [ ] Confirm nearby squirrel behavior feels more hostile or tense afterward.
 
 Pass condition:
-- Accidental rough handling creates a readable warning and a localized retaliation source instead of feeling random.
+- Accidental rough handling creates a readable warning, points at the nearby retaliation source, and produces a small localized wave instead of feeling random.
 
 ## Squirrel Death Retaliation
 
@@ -48,8 +49,9 @@ Checklist:
 - [ ] Kill one squirrel.
 - [ ] Confirm the death produces a stronger warning than nonlethal harm.
 - [ ] Confirm a localized retaliation marker or alert appears if a revenge source is available.
+- [ ] Wait briefly and confirm a stronger revenge wave launches from the localized source toward the death site.
 - [ ] Press `ALT+S` near the death site.
 - [ ] Confirm trust falls and unrest rises relative to the pre-kill baseline.
 
 Pass condition:
-- One squirrel death is clearly attributable, visibly escalates local tension, and points the player toward the localized retaliation source.
+- One squirrel death is clearly attributable, visibly escalates local tension, and launches a readable nearby revenge wave from the localized retaliation source.
