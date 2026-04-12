@@ -138,6 +138,14 @@ local function launched_wave_units(state)
   return units
 end
 
+local function clear_retaliation_feedback()
+  remote.call(
+    constants.mod_name,
+    "debug_process_retaliation_feedback_expiry",
+    game.tick + constants.retaliation_feedback_duration + 1
+  )
+end
+
 local function reset_runtime_storage()
   storage.regions = {}
   storage.last_refresh_tick = 0
@@ -168,6 +176,7 @@ local function reset_runtime_storage()
   storage.squirrel_incidents = {}
   storage.next_squirrel_incident_id = 1
   storage.squirrel_retaliation = {}
+  storage.squirrel_retaliation_feedback = {}
 end
 
 local function cleanup_area()
@@ -180,6 +189,7 @@ end
 before_each(function()
   spawned_entities = {}
   surface().clear_pollution()
+  clear_retaliation_feedback()
   reset_runtime_storage()
   prepare_origin(ORIGIN)
   player().teleport({x = 0, y = 0}, surface())
@@ -192,6 +202,7 @@ end)
 
 after_each(function()
   surface().clear_pollution()
+  clear_retaliation_feedback()
   reset_runtime_storage()
 
   for _, entity in ipairs(spawned_entities or {}) do
@@ -308,6 +319,45 @@ describe("milestone 5 retaliation and relocation foundation", function()
     assert.is_true(after.squirrel_death_penalty > before.squirrel_death_penalty)
     assert.is_true(after.squirrel_unrest > before.squirrel_unrest)
     assert.is_true(after.squirrel_trust < before.squirrel_trust)
+  end)
+
+  it("creates temporary death-site and revenge-source feedback for squirrel deaths", function()
+    spawn_forest(18, ORIGIN)
+    local squirrel_id = remote.call(constants.mod_name, "debug_spawn_squirrel", surface().index, ORIGIN.x + 6, ORIGIN.y)
+    local squirrel_entity, squirrel = find_squirrel_entity(squirrel_id)
+
+    track_entity(surface().create_entity({
+      name = "biter-spawner",
+      position = {x = squirrel.position.x + 18, y = squirrel.position.y},
+      force = game.forces.enemy
+    }))
+
+    assert.is_not_nil(squirrel_entity)
+    assert.is_true(squirrel_entity.die(player().force, player().character))
+
+    local feedback = remote.call(constants.mod_name, "debug_get_retaliation_feedback", player().index)
+    assert.equal(2, #feedback)
+    assert.equal("death-site-pin", feedback[1].kind)
+    assert.equal("revenge-source-alert", feedback[2].kind)
+    assert.equal(game.tick + constants.retaliation_feedback_duration, feedback[1].expires_tick)
+    assert.equal(game.tick + constants.retaliation_feedback_duration, feedback[2].expires_tick)
+
+    local remaining_before_expiry = remote.call(
+      constants.mod_name,
+      "debug_process_retaliation_feedback_expiry",
+      game.tick + constants.retaliation_feedback_duration - 1
+    )
+    assert.equal(2, remaining_before_expiry)
+
+    local remaining_after_expiry = remote.call(
+      constants.mod_name,
+      "debug_process_retaliation_feedback_expiry",
+      game.tick + constants.retaliation_feedback_duration
+    )
+    local final_feedback = remote.call(constants.mod_name, "debug_get_retaliation_feedback", player().index)
+
+    assert.equal(0, remaining_after_expiry)
+    assert.equal(0, #final_feedback)
   end)
 
   it("launches a bounded revenge wave at the incident hotspot", function()

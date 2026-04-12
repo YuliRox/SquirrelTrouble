@@ -47,9 +47,11 @@ Preconditions:
 
 Checklist:
 - [ ] Kill one squirrel.
-- [ ] Confirm the death produces a stronger warning than nonlethal harm.
-- [ ] Confirm a localized retaliation marker or alert appears if a revenge source is available.
+- [ ] Confirm the death produces the mourning warning `Mother Nauvis mourns its children...` instead of the nonlethal harm warning.
+- [ ] Confirm a temporary death-site tag appears where the squirrel died.
+- [ ] Confirm a localized retaliation marker or alert appears at the revenge source if one is available.
 - [ ] Wait briefly and confirm a stronger revenge wave launches from the localized source toward the death site.
+- [ ] Confirm both death-site and revenge-source feedback clear again after roughly one minute instead of lingering permanently.
 - [ ] Press `ALT+S` near the death site.
 - [ ] Confirm trust falls and unrest rises relative to the pre-kill baseline.
 

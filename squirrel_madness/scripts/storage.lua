@@ -28,6 +28,7 @@ function storage_lib.ensure()
   storage.squirrel_incidents = storage.squirrel_incidents or {}
   storage.next_squirrel_incident_id = storage.next_squirrel_incident_id or 1
   storage.squirrel_retaliation = storage.squirrel_retaliation or {}
+  storage.squirrel_retaliation_feedback = storage.squirrel_retaliation_feedback or {}
   storage.region_refresh_queue = storage.region_refresh_queue or {}
   storage.region_refresh_enqueued = storage.region_refresh_enqueued or {}
   storage.player_region_centers = storage.player_region_centers or {}

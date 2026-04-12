@@ -59,6 +59,11 @@ local function get_squirrel_retaliation()
   return storage.squirrel_retaliation
 end
 
+local function get_squirrel_retaliation_feedback()
+  storage.squirrel_retaliation_feedback = storage.squirrel_retaliation_feedback or {}
+  return storage.squirrel_retaliation_feedback
+end
+
 local function active_region_offsets()
   if ACTIVE_REGION_OFFSETS then
     return ACTIVE_REGION_OFFSETS
@@ -650,6 +655,38 @@ local function find_revenge_spawner(surface, position)
   return nearest
 end
 
+local function resolve_revenge_source_entity(surface, revenge_source)
+  if not (surface and surface.valid and revenge_source) then
+    return nil
+  end
+
+  if revenge_source.unit_number then
+    local entity = game.get_entity_by_unit_number(revenge_source.unit_number)
+    if entity and entity.valid and entity.surface == surface then
+      return entity
+    end
+  end
+
+  if revenge_source.position then
+    local candidates = surface.find_entities_filtered({
+      area = {
+        {revenge_source.position.x - 1, revenge_source.position.y - 1},
+        {revenge_source.position.x + 1, revenge_source.position.y + 1}
+      },
+      type = "unit-spawner",
+      force = "enemy"
+    })
+
+    for _, entity in ipairs(candidates) do
+      if entity.valid then
+        return entity
+      end
+    end
+  end
+
+  return nil
+end
+
 local function retaliation_wave_unit_name(enemy_force, surface, retaliation_level)
   local evolution = 0
   local level = retaliation_level or 0
@@ -811,6 +848,44 @@ local function process_retaliation_waves(tick)
   }
 end
 
+local function process_retaliation_feedback_expiry(tick)
+  local feedback = get_squirrel_retaliation_feedback()
+  local write_index = 1
+
+  for read_index = 1, #feedback do
+    local entry = feedback[read_index]
+    if tick >= entry.expires_tick then
+      local player = game.get_player(entry.player_index)
+      if player and player.valid then
+        if entry.kind == "death-site-pin" then
+          local tag = entry.tag
+          if tag and tag.valid then
+            tag.destroy()
+          end
+        elseif entry.kind == "revenge-source-alert" and entry.entity_unit_number then
+          local entity = game.get_entity_by_unit_number(entry.entity_unit_number)
+          if entity and entity.valid then
+            player.remove_alert({
+              entity = entity,
+              icon = {type = "item", name = constants.names.nut},
+              message = entry.message
+            })
+          end
+        end
+      end
+    else
+      feedback[write_index] = entry
+      write_index = write_index + 1
+    end
+  end
+
+  for index = write_index, #feedback do
+    feedback[index] = nil
+  end
+
+  return #feedback
+end
+
 local function notify_retaliation(surface, position, force, player_index, incident)
   local players = connected_force_players(force)
   local direct_player = player_index and game.get_player(player_index) or nil
@@ -820,19 +895,48 @@ local function notify_retaliation(surface, position, force, player_index, incide
   end
 
   for _, player in ipairs(players) do
-    player.print({incident.message_key, incident.retaliation_level or incident.severity})
+    local message = {incident.message_key, incident.retaliation_level or incident.severity}
+    player.print(message)
 
-    if incident.revenge_source and incident.revenge_source.unit_number then
-      local spawner = game.get_entity_by_unit_number(incident.revenge_source.unit_number)
+    if incident.kind == "death" then
+      local tag = player.add_pin({
+        surface = surface,
+        position = incident.position,
+        label = "Squirrel death site",
+        always_visible = false
+      })
+
+      local feedback = get_squirrel_retaliation_feedback()
+      feedback[#feedback + 1] = {
+        kind = "death-site-pin",
+        player_index = player.index,
+        incident_id = incident.incident_id,
+        expires_tick = game.tick + constants.retaliation_feedback_duration,
+        tag = tag
+      }
+    end
+
+    if incident.revenge_source then
+      local spawner = resolve_revenge_source_entity(surface, incident.revenge_source)
       if spawner and spawner.valid then
         player.add_custom_alert(
           spawner,
           {type = "item", name = constants.names.nut},
-          {incident.message_key, incident.retaliation_level or incident.severity},
+          message,
           true
         )
+
+        local feedback = get_squirrel_retaliation_feedback()
+        feedback[#feedback + 1] = {
+          kind = "revenge-source-alert",
+          player_index = player.index,
+          incident_id = incident.incident_id,
+          expires_tick = game.tick + constants.retaliation_feedback_duration,
+          entity_unit_number = spawner.unit_number,
+          message = message
+        }
       end
-    else
+    elseif incident.kind ~= "death" then
       player.add_pin({
         surface = surface,
         position = incident.marker_position,
@@ -1086,6 +1190,7 @@ local function on_tick(event)
     end
   end
 
+  process_retaliation_feedback_expiry(event.tick)
   process_retaliation_waves(event.tick)
 
   squirrels.on_tick(event.tick)
@@ -1578,6 +1683,28 @@ local function install_remote_interface()
       local state = get_retaliation_state(surface_index, player_index)
       prune_retaliation_state(state, game.tick)
       return state
+    end,
+    debug_get_retaliation_feedback = function(player_index)
+      storage_lib.ensure()
+      local entries = {}
+
+      for _, entry in ipairs(get_squirrel_retaliation_feedback()) do
+        if not player_index or entry.player_index == player_index then
+          entries[#entries + 1] = {
+            kind = entry.kind,
+            player_index = entry.player_index,
+            incident_id = entry.incident_id,
+            expires_tick = entry.expires_tick,
+            entity_unit_number = entry.entity_unit_number
+          }
+        end
+      end
+
+      return entries
+    end,
+    debug_process_retaliation_feedback_expiry = function(tick)
+      storage_lib.ensure()
+      return process_retaliation_feedback_expiry(tick or game.tick)
     end,
     debug_process_retaliation_waves = function(tick)
       storage_lib.ensure()
