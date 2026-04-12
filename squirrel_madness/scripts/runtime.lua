@@ -37,6 +37,28 @@ local function get_survey_station_overlays()
   return storage.survey_station_overlays
 end
 
+local function get_squirrel_damage_attribution()
+  storage.squirrel_damage_attribution = storage.squirrel_damage_attribution or {}
+  return storage.squirrel_damage_attribution
+end
+
+local function get_squirrel_incidents()
+  storage.squirrel_incidents = storage.squirrel_incidents or {}
+  return storage.squirrel_incidents
+end
+
+local function next_squirrel_incident_id()
+  storage.next_squirrel_incident_id = storage.next_squirrel_incident_id or 1
+  local incident_id = storage.next_squirrel_incident_id
+  storage.next_squirrel_incident_id = incident_id + 1
+  return incident_id
+end
+
+local function get_squirrel_retaliation()
+  storage.squirrel_retaliation = storage.squirrel_retaliation or {}
+  return storage.squirrel_retaliation
+end
+
 local function active_region_offsets()
   if ACTIVE_REGION_OFFSETS then
     return ACTIVE_REGION_OFFSETS
@@ -501,6 +523,329 @@ local function survey_region_for_player(player)
   print_survey_result(player, result)
 end
 
+local function serialize_position(position)
+  if not position then
+    return nil
+  end
+
+  return {
+    x = position.x,
+    y = position.y
+  }
+end
+
+local function current_selected_squirrel(player)
+  local selected = player and player.valid and player.selected or nil
+
+  if selected and selected.valid and selected.name == constants.names.squirrel then
+    return selected
+  end
+
+  return nil
+end
+
+local function player_index_from_actor(actor)
+  if not (actor and actor.valid) then
+    return nil
+  end
+
+  if actor.type == "character" and actor.player then
+    return actor.player.index
+  end
+
+  return nil
+end
+
+local function retaliation_state_key(surface_index, player_index)
+  return surface_index .. ":" .. player_index
+end
+
+local function get_retaliation_state(surface_index, player_index)
+  local retaliation = get_squirrel_retaliation()
+  local key = retaliation_state_key(surface_index, player_index)
+  retaliation[key] = retaliation[key] or {
+    surface_index = surface_index,
+    player_index = player_index,
+    recent_incidents = {},
+    total_severity = 0,
+    pending_wave = nil
+  }
+  return retaliation[key]
+end
+
+local function prune_retaliation_state(state, tick)
+  local cutoff_tick = tick - constants.retaliation_window
+  local total_severity = 0
+  local write_index = 1
+
+  for read_index = 1, #state.recent_incidents do
+    local incident = state.recent_incidents[read_index]
+    if incident.tick >= cutoff_tick then
+      state.recent_incidents[write_index] = incident
+      write_index = write_index + 1
+      total_severity = total_severity + (incident.severity or 0)
+    end
+  end
+
+  for index = write_index, #state.recent_incidents do
+    state.recent_incidents[index] = nil
+  end
+
+  state.total_severity = total_severity
+
+  if state.pending_wave and state.pending_wave.tick < cutoff_tick then
+    state.pending_wave = nil
+  end
+end
+
+local function connected_force_players(force)
+  local players = {}
+
+  for _, player in ipairs(game.connected_players) do
+    if player.valid and player.force == force then
+      players[#players + 1] = player
+    end
+  end
+
+  return players
+end
+
+local function find_revenge_spawner(surface, position)
+  local nearest
+  local nearest_distance
+
+  for _, spawner in ipairs(surface.find_entities_filtered({
+    area = {
+      {position.x - constants.retaliation_spawner_search_radius, position.y - constants.retaliation_spawner_search_radius},
+      {position.x + constants.retaliation_spawner_search_radius, position.y + constants.retaliation_spawner_search_radius}
+    },
+    type = "unit-spawner",
+    force = "enemy"
+  })) do
+    if spawner.valid then
+      local distance = station_distance_squared(position, spawner.position)
+      if not nearest or distance < nearest_distance then
+        nearest = spawner
+        nearest_distance = distance
+      end
+    end
+  end
+
+  return nearest
+end
+
+local function notify_retaliation(surface, position, force, player_index, incident)
+  local players = connected_force_players(force)
+  local direct_player = player_index and game.get_player(player_index) or nil
+
+  if #players == 0 and direct_player then
+    players[1] = direct_player
+  end
+
+  for _, player in ipairs(players) do
+    player.print({incident.message_key, incident.retaliation_level or incident.severity})
+
+    if incident.revenge_source and incident.revenge_source.unit_number then
+      local spawner = game.get_entity_by_unit_number(incident.revenge_source.unit_number)
+      if spawner and spawner.valid then
+        player.add_custom_alert(
+          spawner,
+          {type = "item", name = constants.names.nut},
+          {incident.message_key, incident.retaliation_level or incident.severity},
+          true
+        )
+      end
+    else
+      player.add_pin({
+        surface = surface,
+        position = incident.marker_position,
+        label = "Squirrel retaliation",
+        always_visible = false
+      })
+    end
+  end
+end
+
+local function record_squirrel_incident(surface, position, force, player_index, kind, tick, extra)
+  local incident_id = next_squirrel_incident_id()
+  local coord = regions.position_to_region_coord(position)
+  local incident = {
+    incident_id = incident_id,
+    surface_index = surface.index,
+    player_index = player_index,
+    kind = kind,
+    tick = tick,
+    region_x = coord.x,
+    region_y = coord.y,
+    position = serialize_position(position),
+    marker_position = serialize_position(position)
+  }
+
+  if kind == "relocation" then
+    incident.message_key = "message.squirrel-madness-relocation-success"
+    incident.destination_region_x = extra.destination_region_x
+    incident.destination_region_y = extra.destination_region_y
+    incident.destination_position = serialize_position(extra.destination_position)
+  else
+    incident.severity = kind == "death" and constants.retaliation_death_severity or constants.retaliation_step_severity
+    incident.message_key = kind == "death"
+      and "message.squirrel-madness-squirrel-killed-warning"
+      or "message.squirrel-madness-squirrel-harmed-warning"
+
+    if player_index then
+      local state = get_retaliation_state(surface.index, player_index)
+      prune_retaliation_state(state, tick)
+      state.recent_incidents[#state.recent_incidents + 1] = {
+        incident_id = incident_id,
+        tick = tick,
+        severity = incident.severity,
+        kind = kind
+      }
+      state.total_severity = state.total_severity + incident.severity
+
+      local spawner = find_revenge_spawner(surface, position)
+      state.pending_wave = {
+        incident_id = incident_id,
+        trigger = kind,
+        tick = tick,
+        severity = incident.severity,
+        retaliation_level = state.total_severity,
+        target_position = serialize_position(position),
+        source_position = serialize_position(spawner and spawner.position or position),
+        source_unit_number = spawner and spawner.unit_number or nil
+      }
+
+      incident.retaliation_level = state.total_severity
+      incident.revenge_source = spawner and {
+        unit_number = spawner.unit_number,
+        name = spawner.name,
+        position = serialize_position(spawner.position)
+      } or nil
+      incident.marker_position = incident.revenge_source and incident.revenge_source.position or incident.marker_position
+    end
+  end
+
+  get_squirrel_incidents()[incident_id] = incident
+  return incident
+end
+
+local function relocation_candidate_score(report, origin_region_x, origin_region_y)
+  local tree_mass = (report.tree_count or 0) + (report.sapling_count or 0) + (report.nut_tree_count or 0)
+  local distance = math.abs(report.region_x - origin_region_x) + math.abs(report.region_y - origin_region_y)
+
+  return (report.forest_health * 2.0)
+    + (report.squirrel_trust * 1.25)
+    + math.min(tree_mass, 32)
+    - (report.habitat_pressure * 1.5)
+    - (distance * 6)
+end
+
+local function find_relocation_destination(surface, origin_position, tick)
+  local origin_coord = regions.position_to_region_coord(origin_position)
+  local candidates = {}
+
+  for dx = -constants.relocation_search_radius, constants.relocation_search_radius do
+    for dy = -constants.relocation_search_radius, constants.relocation_search_radius do
+      if dx ~= 0 or dy ~= 0 then
+        local region_x = origin_coord.x + dx
+        local region_y = origin_coord.y + dy
+        local report = regions.get_region_report_by_coord(surface, region_x, region_y, tick)
+        local tree_mass = (report.tree_count or 0) + (report.sapling_count or 0) + (report.nut_tree_count or 0)
+
+        if report.forest_health >= constants.relocation_min_forest_health
+          and report.habitat_pressure <= constants.relocation_max_habitat_pressure
+          and report.squirrel_trust >= constants.relocation_min_trust
+          and tree_mass >= constants.relocation_min_tree_count
+        then
+          candidates[#candidates + 1] = {
+            region_x = region_x,
+            region_y = region_y,
+            forest_health = report.forest_health,
+            squirrel_trust = report.squirrel_trust,
+            habitat_pressure = report.habitat_pressure,
+            tree_mass = tree_mass,
+            score = relocation_candidate_score(report, origin_coord.x, origin_coord.y)
+          }
+        end
+      end
+    end
+  end
+
+  table.sort(candidates, function(left, right)
+    if left.score ~= right.score then
+      return left.score > right.score
+    end
+
+    if left.forest_health ~= right.forest_health then
+      return left.forest_health > right.forest_health
+    end
+
+    if left.region_x ~= right.region_x then
+      return left.region_x < right.region_x
+    end
+
+    return left.region_y < right.region_y
+  end)
+
+  return candidates[1], candidates
+end
+
+local function relocate_selected_squirrel(player, tick)
+  if not force_has_technology(player.force, constants.technologies.wildlife_relocation) then
+    player.print({"message.squirrel-madness-relocation-required"})
+    return nil
+  end
+
+  local squirrel_entity = current_selected_squirrel(player)
+  if not squirrel_entity then
+    player.print({"message.squirrel-madness-relocation-no-selection"})
+    return nil
+  end
+
+  local squirrel_id = squirrels.squirrel_id_for_entity(squirrel_entity)
+  if not squirrel_id then
+    player.print({"message.squirrel-madness-relocation-no-selection"})
+    return nil
+  end
+
+  local snapshot = squirrels.snapshot(squirrel_id)
+  if not snapshot then
+    player.print({"message.squirrel-madness-relocation-no-selection"})
+    return nil
+  end
+
+  local origin_position = snapshot.position
+  local destination = find_relocation_destination(player.surface, origin_position, tick)
+  if not destination then
+    player.print({"message.squirrel-madness-relocation-no-destination"})
+    return nil
+  end
+
+  local result = squirrels.relocate_squirrel(squirrel_id, destination.region_x, destination.region_y, tick)
+  if not result then
+    player.print({"message.squirrel-madness-relocation-no-destination"})
+    return nil
+  end
+
+  regions.note_successful_relocation(player.surface.index, origin_position, 1, tick)
+  enqueue_region_refresh_at_position(player.surface, origin_position, tick)
+  enqueue_region_refresh_at_position(player.surface, result.position, tick)
+
+  local incident = record_squirrel_incident(player.surface, origin_position, player.force, player.index, "relocation", tick, {
+    destination_region_x = destination.region_x,
+    destination_region_y = destination.region_y,
+    destination_position = result.position
+  })
+
+  player.print({
+    incident.message_key,
+    destination.region_x,
+    destination.region_y
+  })
+
+  return incident
+end
+
 local function on_init()
   storage_lib.ensure()
   storage.survey_station_overlays = {}
@@ -581,6 +926,20 @@ local function on_entity_removed(event)
   end
 
   if entity.name == constants.names.squirrel then
+    if event.name == defines.events.on_entity_died then
+      local player_index = player_index_from_actor(event.cause) or player_index_from_actor(event.source)
+      if player_index then
+        regions.note_squirrel_death(entity.surface.index, entity.position, 1, game.tick)
+        enqueue_region_refresh_at_position(entity.surface, entity.position, game.tick)
+
+        local player = game.get_player(player_index)
+        if player then
+          local incident = record_squirrel_incident(entity.surface, entity.position, player.force, player_index, "death", game.tick, {})
+          notify_retaliation(entity.surface, entity.position, player.force, player_index, incident)
+        end
+      end
+    end
+
     squirrels.on_squirrel_removed(entity, game.tick)
     return
   end
@@ -692,6 +1051,41 @@ local function on_research_finished(event)
   habitat.on_research_finished(event.research)
 end
 
+local function on_squirrel_damaged(event)
+  local entity = event.entity
+  if not (entity and entity.valid and entity.name == constants.names.squirrel) then
+    return
+  end
+
+  local player_index = player_index_from_actor(event.cause) or player_index_from_actor(event.source)
+  if not player_index then
+    return
+  end
+
+  local player = game.get_player(player_index)
+  if not player then
+    return
+  end
+
+  if event.final_health <= 0 then
+    return
+  end
+
+  local cooldown_key = entity.unit_number .. ":" .. player_index
+  local attribution = get_squirrel_damage_attribution()
+  local last_tick = attribution[cooldown_key] or 0
+  if event.tick < (last_tick + constants.squirrel_damage_attribution_cooldown) then
+    return
+  end
+
+  attribution[cooldown_key] = event.tick
+  regions.note_rough_handling(entity.surface.index, entity.position, 1, event.tick)
+  enqueue_region_refresh_at_position(entity.surface, entity.position, event.tick)
+
+  local incident = record_squirrel_incident(entity.surface, entity.position, player.force, player_index, "rough-handling", event.tick, {})
+  notify_retaliation(entity.surface, entity.position, player.force, player_index, incident)
+end
+
 local function on_custom_input(event)
   local player = game.get_player(event.player_index)
   if not player then
@@ -701,7 +1095,7 @@ local function on_custom_input(event)
   if event.input_name == constants.names.survey_input then
     survey_region_for_player(player)
   elseif event.input_name == constants.names.relocation_input then
-    player.print({"message.squirrel-madness-relocation-placeholder"})
+    relocate_selected_squirrel(player, event.tick)
   end
 end
 
@@ -888,6 +1282,52 @@ local function install_remote_interface()
       storage_lib.ensure()
       return squirrels.debug_spawn_squirrel(surface_index, {x = x, y = y}, game.tick)
     end,
+    debug_find_relocation_destination = function(surface_index, x, y)
+      storage_lib.ensure()
+      local surface = game.surfaces[surface_index]
+      if not surface then
+        return nil
+      end
+
+      local best, candidates = find_relocation_destination(surface, {x = x, y = y}, game.tick)
+      return {
+        best = best,
+        candidates = candidates
+      }
+    end,
+    debug_relocate_squirrel = function(squirrel_id, player_index)
+      storage_lib.ensure()
+      local snapshot = squirrels.snapshot(squirrel_id)
+      if not snapshot then
+        return nil
+      end
+
+      local player = player_index and game.get_player(player_index) or game.players[1]
+      local surface = game.surfaces[snapshot.surface_index]
+      if not (player and surface) then
+        return nil
+      end
+
+      local destination = find_relocation_destination(surface, snapshot.position, game.tick)
+      if not destination then
+        return nil
+      end
+
+      local result = squirrels.relocate_squirrel(squirrel_id, destination.region_x, destination.region_y, game.tick)
+      if not result then
+        return nil
+      end
+
+      regions.note_successful_relocation(surface.index, snapshot.position, 1, game.tick)
+      enqueue_region_refresh_at_position(surface, snapshot.position, game.tick)
+      enqueue_region_refresh_at_position(surface, result.position, game.tick)
+
+      return record_squirrel_incident(surface, snapshot.position, player.force, player.index, "relocation", game.tick, {
+        destination_region_x = destination.region_x,
+        destination_region_y = destination.region_y,
+        destination_position = result.position
+      })
+    end,
     debug_kill_squirrel = function(squirrel_id)
       storage_lib.ensure()
       return squirrels.debug_kill_squirrel(squirrel_id)
@@ -937,6 +1377,28 @@ local function install_remote_interface()
     debug_cleanup_empty_stashes = function(surface_index)
       storage_lib.ensure()
       return squirrels.cleanup_empty_stashes(surface_index)
+    end,
+    debug_get_squirrel_incidents = function(surface_index)
+      storage_lib.ensure()
+      local incidents = {}
+
+      for _, incident in pairs(get_squirrel_incidents()) do
+        if not surface_index or incident.surface_index == surface_index then
+          incidents[#incidents + 1] = incident
+        end
+      end
+
+      table.sort(incidents, function(left, right)
+        return left.incident_id < right.incident_id
+      end)
+
+      return incidents
+    end,
+    debug_get_retaliation_state = function(surface_index, player_index)
+      storage_lib.ensure()
+      local state = get_retaliation_state(surface_index, player_index)
+      prune_retaliation_state(state, game.tick)
+      return state
     end
   })
 end
@@ -960,6 +1422,9 @@ function runtime.register()
     defines.events.on_entity_died,
     defines.events.script_raised_destroy
   }, on_entity_removed)
+  script.on_event(defines.events.on_entity_damaged, on_squirrel_damaged, {
+    {filter = "name", name = constants.names.squirrel}
+  })
   register_events({
     defines.events.on_built_entity,
     defines.events.on_robot_built_entity,

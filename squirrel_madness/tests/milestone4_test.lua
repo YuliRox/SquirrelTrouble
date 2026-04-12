@@ -818,7 +818,7 @@ describe("milestone 4 squirrel nuisance runtime", function()
     assert.is_nil(storage.squirrels[squirrel_id])
   end)
 
-  it("keeps the relocation hotkey scaffold available for later squirrel control", function()
+  it("keeps the relocation custom input registered for squirrel control", function()
     assert.is_not_nil(prototypes.custom_input[constants.names.relocation_input])
   end)
 end)

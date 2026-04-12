@@ -65,8 +65,8 @@ Checklist:
 - [X] Press `ALT+S` while the survey station is selected or while standing nearby.
 - [X] Confirm `ALT+S` prints an exact multi-line regional report in the lower-left message log, including region coordinates plus health, unrest, trust, habitat pressure, and the main scoring inputs.
 - [X] Press `ALT+R`.
-- [X] Confirm a readable relocation placeholder message appears instead of a script error.
-  Expected result: `Wildlife relocation is scaffolded in data and runtime hooks, but the actual squirrel tool is not implemented yet.`
+- [X] Confirm a readable relocation message appears instead of a script error.
+  Expected result: if no squirrel is selected, the game should tell you to select a squirrel before using `ALT+R`.
 
 Pass condition:
-- The milestone-0 placeables and placeholder input behave like stable scaffolding in a live save.
+- The milestone-0 placeables and basic inputs behave like stable scaffolding in a live save.

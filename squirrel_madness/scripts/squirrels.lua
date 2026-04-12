@@ -2184,6 +2184,59 @@ local function note_squirrel_loss(record, entity, tick)
     (tick or game.tick) + constants.squirrel_grief_duration
 end
 
+function squirrels.relocate_squirrel(squirrel_id, region_x, region_y, tick)
+  local record = get_squirrel_store()[squirrel_id]
+  local entity = record and resolve_entity_reference(record.entity) or nil
+  if not (record and entity and entity.valid) then
+    return nil
+  end
+
+  local surface = entity.surface
+  local squirrel_force = ensure_squirrel_force()
+  local destination = eligible_spawn_position(surface, region_x, region_y, count_region_squirrels(surface.index, region_x, region_y), squirrel_force)
+  if not destination then
+    return nil
+  end
+
+  if record.carrying then
+    surface.spill_item_stack(entity.position, record.carrying, true, nil, false)
+    clear_carrying(record, entity)
+  end
+
+  unindex_record(record)
+
+  if not entity.teleport(destination) then
+    index_record(record)
+    return nil
+  end
+
+  record.surface_index = surface.index
+  record.region_x = region_x
+  record.region_y = region_y
+  record.home_position = clone_position(destination)
+  record.state = "calm"
+  record.mode = "idle"
+  record.intent = nil
+  record.target = nil
+  record.destination = nil
+  record.excursion_target = nil
+  record.excursion_intent = nil
+  record.arrival_distance = nil
+  record.blocking_until_tick = nil
+  record.action_due_tick = tick or game.tick
+  record.next_decision_tick = (tick or game.tick) + constants.squirrel_decision_interval
+  record.last_action_tick = tick or game.tick
+  set_record_stash(record, nil)
+  index_record(record)
+  stop_entity(entity)
+
+  return {
+    position = clone_position(destination),
+    region_x = region_x,
+    region_y = region_y
+  }
+end
+
 function squirrels.debug_spawn_squirrel(surface_index, position, tick)
   local surface = game.surfaces[surface_index]
   if not surface then
@@ -2211,6 +2264,35 @@ function squirrels.debug_spawn_squirrel(surface_index, position, tick)
   local coord = regions.position_to_region_coord(spawn_position)
   local record = create_record(entity, spawn_position, coord.x, coord.y, tick or game.tick)
   return record and record.squirrel_id or nil
+end
+
+function squirrels.squirrel_id_for_entity(entity)
+  if not (entity and entity.valid and entity.unit_number) then
+    return nil
+  end
+
+  return get_entity_squirrel_index()[entity.unit_number]
+end
+
+function squirrels.snapshot(squirrel_id)
+  local record = get_squirrel_store()[squirrel_id]
+  local entity = record and resolve_entity_reference(record.entity) or nil
+  if not (record and entity and entity.valid) then
+    return nil
+  end
+
+  return {
+    squirrel_id = squirrel_id,
+    surface_index = record.surface_index,
+    region_x = record.region_x,
+    region_y = record.region_y,
+    position = clone_position(entity.position),
+    home_position = clone_position(record.home_position),
+    carrying = record.carrying and {
+      name = record.carrying.name,
+      count = record.carrying.count
+    } or nil
+  }
 end
 
 local function get_squirrel_record(squirrel_id)

@@ -153,18 +153,27 @@ local function ensure_region_shape(region, surface_index, region_x, region_y)
   region.stocked_feeders = region.stocked_feeders or 0
   region.empty_feeders = region.empty_feeders or 0
   region.recent_tree_loss = region.recent_tree_loss or 0
+  region.recent_squirrel_deaths = region.recent_squirrel_deaths or 0
+  region.recent_rough_handling = region.recent_rough_handling or 0
+  region.recent_relocations = region.recent_relocations or 0
   region.instant_pollution = region.instant_pollution or 0
   region.pollution = region.pollution or 0
   region.last_updated_tick = region.last_updated_tick or 0
   region.dirty = region.dirty ~= false
   region.tree_loss_events = region.tree_loss_events or {}
+  region.squirrel_death_events = region.squirrel_death_events or {}
+  region.rough_handling_events = region.rough_handling_events or {}
+  region.relocation_events = region.relocation_events or {}
   region.pollution_samples = region.pollution_samples or {}
   region.canopy_score = region.canopy_score or 0
   region.nut_tree_bonus = region.nut_tree_bonus or 0
   region.stocked_feeder_bonus = region.stocked_feeder_bonus or 0
   region.reforestation_bonus = region.reforestation_bonus or 0
+  region.relocation_bonus = region.relocation_bonus or 0
   region.empty_feeder_penalty = region.empty_feeder_penalty or 0
   region.recent_tree_loss_penalty = region.recent_tree_loss_penalty or 0
+  region.squirrel_death_penalty = region.squirrel_death_penalty or 0
+  region.rough_handling_penalty = region.rough_handling_penalty or 0
   region.rolling_pollution_penalty = region.rolling_pollution_penalty or 0
   region.forest_health_band = region.forest_health_band or "collapsed"
   region.squirrel_unrest_band = region.squirrel_unrest_band or "calm"
@@ -181,6 +190,9 @@ local function default_region(surface_index, region_x, region_y)
     region_y = region_y,
     dirty = true,
     tree_loss_events = {},
+    squirrel_death_events = {},
+    rough_handling_events = {},
+    relocation_events = {},
     pollution_samples = {},
     drivers = {}
   }, surface_index, region_x, region_y)
@@ -256,6 +268,27 @@ local function prune_tree_loss_events(region, tick)
   return region.recent_tree_loss
 end
 
+local function prune_recent_events(events, tick, window)
+  local cutoff_tick = tick - window
+  local total = 0
+  local write_index = 1
+
+  for read_index = 1, #events do
+    local entry = events[read_index]
+    if entry.tick >= cutoff_tick then
+      events[write_index] = entry
+      write_index = write_index + 1
+      total = total + (entry.amount or 0)
+    end
+  end
+
+  for index = write_index, #events do
+    events[index] = nil
+  end
+
+  return round_tenths(total)
+end
+
 local function region_drivers(region)
   local drivers = {}
 
@@ -317,6 +350,29 @@ function regions.note_tree_loss(surface_index, position, amount, tick)
   return region
 end
 
+local function note_recent_region_event(surface_index, position, field_name, amount, tick)
+  local coord = regions.position_to_region_coord(position)
+  local region = get_or_create(surface_index, coord.x, coord.y)
+  region[field_name][#region[field_name] + 1] = {
+    tick = tick or game.tick,
+    amount = amount or 1
+  }
+  region.dirty = true
+  return region
+end
+
+function regions.note_squirrel_death(surface_index, position, amount, tick)
+  return note_recent_region_event(surface_index, position, "squirrel_death_events", amount, tick)
+end
+
+function regions.note_rough_handling(surface_index, position, amount, tick)
+  return note_recent_region_event(surface_index, position, "rough_handling_events", amount, tick)
+end
+
+function regions.note_successful_relocation(surface_index, position, amount, tick)
+  return note_recent_region_event(surface_index, position, "relocation_events", amount, tick)
+end
+
 function regions.mark_dirty(surface_index, position)
   local coord = regions.position_to_region_coord(position)
   local region = get_or_create(surface_index, coord.x, coord.y)
@@ -370,6 +426,13 @@ function regions.recompute_region(surface, region_x, region_y, tick)
   local empty_feeders = math.max(feeder_count - stocked_feeders, 0)
   local rolling_pollution = append_pollution_sample(region, sample_region_pollution(surface, area))
   local recent_tree_loss = prune_tree_loss_events(region, current_tick)
+  local recent_squirrel_deaths = prune_recent_events(region.squirrel_death_events, current_tick, constants.squirrel_conflict_window)
+  local recent_rough_handling = prune_recent_events(
+    region.rough_handling_events,
+    current_tick,
+    constants.squirrel_conflict_window
+  )
+  local recent_relocations = prune_recent_events(region.relocation_events, current_tick, constants.squirrel_conflict_window)
   local canopy_score = clamp((tree_count / constants.full_canopy_tree_count) * 100, 0, 100)
   local nut_tree_bonus = clamp(
     nut_tree_count * constants.nut_tree_bonus_per_tree,
@@ -401,6 +464,21 @@ function regions.recompute_region(surface, region_x, region_y, tick)
     0,
     constants.max_tree_loss_penalty
   )
+  local squirrel_death_penalty = clamp(
+    recent_squirrel_deaths * constants.squirrel_death_penalty_per_event,
+    0,
+    constants.max_squirrel_death_penalty
+  )
+  local rough_handling_penalty = clamp(
+    recent_rough_handling * constants.squirrel_rough_handling_penalty_per_event,
+    0,
+    constants.max_squirrel_rough_handling_penalty
+  )
+  local relocation_bonus = clamp(
+    recent_relocations * constants.relocation_bonus_per_event,
+    0,
+    constants.max_relocation_bonus
+  )
 
   region.tree_count = tree_count
   region.sapling_count = sapling_count
@@ -408,12 +486,18 @@ function regions.recompute_region(surface, region_x, region_y, tick)
   region.feeder_count = feeder_count
   region.stocked_feeders = stocked_feeders
   region.empty_feeders = empty_feeders
+  region.recent_squirrel_deaths = recent_squirrel_deaths
+  region.recent_rough_handling = recent_rough_handling
+  region.recent_relocations = recent_relocations
   region.canopy_score = round(canopy_score)
   region.nut_tree_bonus = round(nut_tree_bonus)
   region.stocked_feeder_bonus = round(stocked_feeder_bonus)
   region.reforestation_bonus = round(reforestation_bonus)
+  region.relocation_bonus = round(relocation_bonus)
   region.empty_feeder_penalty = round(empty_feeder_penalty)
   region.recent_tree_loss_penalty = round(recent_tree_loss_penalty)
+  region.squirrel_death_penalty = round(squirrel_death_penalty)
+  region.rough_handling_penalty = round(rough_handling_penalty)
   region.rolling_pollution_penalty = round(rolling_pollution_penalty)
   region.forest_health = round(clamp(
     canopy_score + nut_tree_bonus + stocked_feeder_bonus + reforestation_bonus - rolling_pollution_penalty - recent_tree_loss_penalty,
@@ -423,9 +507,12 @@ function regions.recompute_region(surface, region_x, region_y, tick)
   region.squirrel_unrest = round(clamp(
     10
       + recent_tree_loss_penalty
+      + squirrel_death_penalty
+      + rough_handling_penalty
       + rolling_pollution_penalty
       + empty_feeder_penalty
       - stocked_feeder_bonus
+      - (relocation_bonus * 0.8)
       - (reforestation_bonus * 0.35)
       - (region.forest_health * 0.15),
     0,
@@ -435,8 +522,11 @@ function regions.recompute_region(surface, region_x, region_y, tick)
     45
       + stocked_feeder_bonus
       + nut_tree_bonus
+      + relocation_bonus
       + (reforestation_bonus * 0.5)
       - empty_feeder_penalty
+      - squirrel_death_penalty
+      - (rough_handling_penalty * 0.75)
       - (recent_tree_loss_penalty * 0.65)
       - (rolling_pollution_penalty * 0.35),
     0,
@@ -446,7 +536,10 @@ function regions.recompute_region(surface, region_x, region_y, tick)
     ((100 - region.forest_health) * 0.55)
       + (region.squirrel_unrest * 0.65)
       + empty_feeder_penalty
+      + (squirrel_death_penalty * 0.35)
+      + (rough_handling_penalty * 0.2)
       - (stocked_feeder_bonus * 0.4)
+      - (relocation_bonus * 0.5)
       - (reforestation_bonus * 0.5),
     0,
     100
@@ -737,7 +830,11 @@ function regions.serialize(region)
     stocked_feeders = region.stocked_feeders,
     empty_feeders = region.empty_feeders,
     recent_tree_loss = region.recent_tree_loss,
+    recent_squirrel_deaths = region.recent_squirrel_deaths,
+    recent_rough_handling = region.recent_rough_handling,
+    recent_relocations = region.recent_relocations,
     recent_tree_loss_window_ticks = constants.recent_tree_loss_window,
+    recent_conflict_window_ticks = constants.squirrel_conflict_window,
     rolling_pollution = region.pollution,
     instant_pollution = region.instant_pollution,
     last_updated_tick = region.last_updated_tick,
@@ -749,8 +846,11 @@ function regions.serialize(region)
     nut_tree_bonus = region.nut_tree_bonus,
     stocked_feeder_bonus = region.stocked_feeder_bonus,
     reforestation_bonus = region.reforestation_bonus,
+    relocation_bonus = region.relocation_bonus,
     empty_feeder_penalty = region.empty_feeder_penalty,
     recent_tree_loss_penalty = region.recent_tree_loss_penalty,
+    squirrel_death_penalty = region.squirrel_death_penalty,
+    rough_handling_penalty = region.rough_handling_penalty,
     rolling_pollution_penalty = region.rolling_pollution_penalty,
     drivers = region.drivers
   }

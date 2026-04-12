@@ -22,6 +22,12 @@ constants.stocked_feeder_bonus_per_feeder = 12
 constants.max_stocked_feeder_bonus = 30
 constants.empty_feeder_penalty_per_feeder = 6
 constants.max_empty_feeder_penalty = 18
+constants.relocation_bonus_per_event = 10
+constants.max_relocation_bonus = 20
+constants.squirrel_death_penalty_per_event = 16
+constants.max_squirrel_death_penalty = 40
+constants.squirrel_rough_handling_penalty_per_event = 6
+constants.max_squirrel_rough_handling_penalty = 18
 constants.pollution_penalty_multiplier = 3.5
 constants.max_pollution_penalty = 65
 constants.tree_loss_penalty_per_tree = 6
@@ -97,12 +103,24 @@ constants.squirrel_target_cooldown = 60 * 15
 constants.squirrel_repeat_item_bonus = 12
 constants.squirrel_grief_duration = 60 * 60 * 3
 constants.squirrel_stash_search_radius = 10
+constants.squirrel_conflict_window = 60 * 60 * 10
+constants.squirrel_damage_attribution_cooldown = 60 * 3
+constants.relocation_search_radius = 6
+constants.relocation_min_forest_health = 60
+constants.relocation_max_habitat_pressure = 45
+constants.relocation_min_tree_count = 12
+constants.relocation_min_trust = 35
+constants.retaliation_window = 60 * 60 * 10
+constants.retaliation_step_severity = 1
+constants.retaliation_death_severity = 3
+constants.retaliation_spawner_search_radius = 192
 constants.squirrel_force_name = "squirrel-madness-fauna"
 
 constants.technologies = {
   arboriculture = "arboriculture",
   wildlife_diversion = "wildlife-diversion",
   forest_surveying = "forest-surveying",
+  wildlife_relocation = "wildlife-relocation",
   ecological_stabilization = "ecological-stabilization"
 }
 
