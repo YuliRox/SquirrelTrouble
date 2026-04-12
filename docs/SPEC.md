@@ -213,6 +213,7 @@ Planned tiers:
 Rules:
 
 - squirrels prefer stocked feeders over stealing
+- squirrels should visibly visit stocked feeders, pause beside them, and occasionally consume nuts before wandering off
 - the wooden feeder is the first peace offering; the steel feeder is the scaled-up version for heavier pressure and longer uptime
 - empty feeders become disappointment points and can increase unrest
 - feeders are best placed near forest edges and safe corridors
@@ -385,6 +386,7 @@ Squirrel disruption should be meaningful, readable, and rate-limited.
 - That tile is treated as blocked while the squirrel sits there.
 - Light belt sitting may happen even in healthy forest-edge areas.
 - Stocked feeders should locally suppress that passive belt sitting in their vicinity.
+- Stocked feeders should also attract nearby squirrels away from belts so the diversion is visible, not just statistical.
 - Heavier belt blocking should be most common near the forest edge or poorly managed corridors.
 - Squirrels should reach belts by visibly wandering outward from habitat, not by seeming to spawn directly onto a distant logistics target.
 
@@ -392,6 +394,7 @@ Squirrel disruption should be meaningful, readable, and rate-limited.
 
 - A squirrel may stay on belts and keep stealing from nearby moving items until it has built up a meaningful carried stack.
 - Belt raids should feel like a visible nuisance burst, not a one-item joke.
+- The carried item and the carried count should both be visible while the squirrel is loaded up.
 - It then carries the accumulated stack visibly back toward a stash or feeder in the forest.
 
 ### Chest Scavenging
@@ -615,6 +618,7 @@ Unlocks:
 - visibility of forest health, unrest, trust, and habitat pressure
 - broad state bands in normal inspection, with exact numbers available through surveyed forest clusters
 - a selection overlay that outlines the forest cluster currently being read by a survey station
+- a selected survey station should also show a side panel with the exact health, unrest, trust, pressure, tree counts, and feeder state for that local footprint
 
 Purpose:
 

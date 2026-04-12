@@ -146,6 +146,7 @@ Playtest focus:
 
 - confirm squirrels visibly spawn, move, and read correctly on screen
 - confirm passive forest-edge belt sitting, stocked-feeder diversion, stack-building belt raids, and forest retreat behavior feel readable and fair
+- confirm stocked feeders visibly attract squirrels away from belts instead of only suppressing nuisance invisibly
 - confirm stash creation and loot recovery are understandable in normal play
 
 Deliverables:
@@ -155,7 +156,9 @@ Deliverables:
 - replace direct home-anchor target snapping with readable outward wandering from the forest edge
 - make higher pressure widen squirrel wandering and allow deeper initial incursions before a theft attempt
 - allow calm squirrels to sit on nearby belts as a low-grade nuisance unless stocked feeders pacify the area
+- make stocked feeders visibly draw squirrels in for short nut-eating visits
 - add belt blocking, repeated belt theft that builds toward full carried stacks, forest retreat paths, and stash creation
+- show the carried item and carried count while a squirrel is hauling loot
 - add full-stack chest scavenging only under higher pressure
 - tune visible behavior, readability, and fairness through in-game playtests
 - create and use the milestone manual playtest to validate on-screen squirrel behavior

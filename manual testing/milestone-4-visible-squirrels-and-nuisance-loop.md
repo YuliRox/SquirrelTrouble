@@ -15,10 +15,8 @@ Validated so far:
 - squirrels stay local to the forest edge instead of wandering across the whole base
 
 Current failures:
-- belt nuisance is not readable enough yet
-- squirrels do not commit toward belts consistently enough in live play
-- squirrel movement still feels too opaque once nuisance should begin
-- save-local lag was observed during this playtest cycle, so the next Milestone 4 retest should start from a fresh scenario
+- retest required after the latest belt-sitting, feeder-attraction, and rough-handling changes
+- the next Milestone 4 retest should start from a fresh scenario so the new local squirrel population rules are what you are actually evaluating
 
 Next implementation target:
 - squirrels should range outward from forest habitat as pressure rises
@@ -59,9 +57,9 @@ Preconditions:
 
 Checklist:
 - [X] Place items on the belt and watch the line for a short while.
-- [ ] Confirm at least one squirrel visibly sits on or interrupts the belt.
+- [ ] Confirm at least one squirrel visibly sits on or interrupts the belt for several seconds.
 - [ ] Confirm this can happen even before the forest is badly damaged.
-- [ ] Place a stocked feeder near the same belt and confirm the nearby passive belt-sitting stops.
+- [ ] Place a stocked feeder near the same belt and confirm nearby squirrels prefer the feeder and the passive belt-sitting stops.
 - [ ] Confirm the belt blockage is short-lived and readable.
 - [ ] Confirm the line does not look permanently deadlocked.
 - [ ] Confirm squirrels seem to wander outward from the forest before engaging the belt instead of snapping to an arbitrary target.
@@ -77,11 +75,12 @@ Preconditions:
 - Keep stocked feeders away from the target belt or chest so theft pressure is not being actively pacified.
 
 Checklist:
-- [ ] Watch for a squirrel to leave the belt line or approach a chest.
-- [ ] Confirm the squirrel carries away a meaningful but bounded amount of loot at once.
-- [ ] Confirm the carried item is visible in the squirrel’s behavior or pathing.
-- [ ] Follow the squirrel toward the forest.
-- [ ] Confirm it retreats back toward the forest rather than hanging around the factory edge forever.
+- [X] Watch for a squirrel to leave the belt line or approach a chest.
+- [X] Confirm the squirrel carries away a meaningful but bounded amount of loot at once.
+- [X] Confirm the carried item is visible in the squirrel’s behavior or pathing.
+- [ ] Confirm a small carried-count number is visible with the stolen item while the squirrel is loaded up.
+- [X] Follow the squirrel toward the forest.
+- [X] Confirm it retreats back toward the forest rather than hanging around the factory edge forever.
 - [ ] If a feeder is stocked, confirm it is preferred over the nearby logistics target when both are available.
 
 Pass condition:
@@ -94,11 +93,11 @@ Preconditions:
 - Stay near the forest edge long enough to spot where stolen items end up.
 
 Checklist:
-- [ ] Look for a visible squirrel stash in or near the forest.
-- [ ] Confirm the stash is readable as a recovery point, not just random clutter.
-- [ ] Retrieve items from the stash if the implementation allows it in this slice.
-- [ ] Confirm recovered items feel like they were actually stolen earlier.
-- [ ] Confirm an emptied stash is no longer an active recovery target.
+- [X] Look for a visible squirrel stash in or near the forest.
+- [X] Confirm the stash is readable as a recovery point, not just random clutter.
+- [X] Retrieve items from the stash if the implementation allows it in this slice.
+- [X] Confirm recovered items feel like they were actually stolen earlier.
+- [X] Confirm an emptied stash is no longer an active recovery target.
 
 Pass condition:
 - Lost items feel recoverable and the stash reads like part of the ecology loop.
@@ -114,7 +113,9 @@ Checklist:
 - [ ] Observe the damaged edge next.
 - [ ] Confirm the damaged edge produces more disruptive squirrel behavior.
 - [ ] Confirm the behavior shift is local and tied to the damaged area.
-- [ ] If a squirrel is stepped on or killed accidentally, confirm the reaction is clearly noticeable and not easy to miss.
+- [ ] Confirm squirrels now sit still for noticeable 5-10 second pauses instead of constantly sprinting.
+- [X] If a squirrel is stepped on or killed accidentally, confirm the reaction is clearly noticeable and not easy to miss.
+- [ ] Walk over a squirrel on purpose and confirm it immediately flees and raises a noticeable rough-handling warning.
 
 Pass condition:
 - The player can tell that forest damage makes squirrel behavior worse without needing debug numbers.

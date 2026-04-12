@@ -184,6 +184,55 @@ describe("milestone 1 survey flow", function()
     }, cluster.member_regions)
   end)
 
+  it("keeps exact survey clusters local to the selected station", function()
+    local anchor_region = regions.position_to_region_coord(TEST_POSITION)
+    local anchor_origin = {
+      x = (anchor_region.x * constants.region_tile_span) + 4,
+      y = (anchor_region.y * constants.region_tile_span) + 4
+    }
+    local east_origin = {
+      x = ((anchor_region.x + 1) * constants.region_tile_span) + 4,
+      y = (anchor_region.y * constants.region_tile_span) + 4
+    }
+    local far_east_origin = {
+      x = ((anchor_region.x + 2) * constants.region_tile_span) + 4,
+      y = (anchor_region.y * constants.region_tile_span) + 4
+    }
+
+    player_force().technologies[constants.technologies.forest_surveying].researched = true
+    player_force().reset_technology_effects()
+
+    station = surface().create_entity({
+      name = constants.names.survey_station,
+      position = TEST_POSITION,
+      force = player_force()
+    })
+
+    assert.is_not_nil(station)
+    station.energy = 60000
+
+    trees = spawn_trees(constants.survey_cluster_min_tree_count, anchor_origin)
+
+    local east_trees = spawn_trees(constants.survey_cluster_min_tree_count, east_origin)
+    for _, tree in ipairs(east_trees) do
+      trees[#trees + 1] = tree
+    end
+
+    local far_east_trees = spawn_trees(constants.survey_cluster_min_tree_count, far_east_origin)
+    for _, tree in ipairs(far_east_trees) do
+      trees[#trees + 1] = tree
+    end
+
+    local cluster = remote.call(constants.mod_name, "debug_get_survey_cluster", surface().index, TEST_POSITION.x, TEST_POSITION.y)
+
+    assert.is_table(cluster)
+    assert.equal(2, cluster.region_count)
+    assert.same({
+      {region_x = anchor_region.x, region_y = anchor_region.y},
+      {region_x = anchor_region.x + 1, region_y = anchor_region.y}
+    }, cluster.member_regions)
+  end)
+
   it("shows and clears a station footprint overlay for the selecting player", function()
     local anchor_region = regions.position_to_region_coord(TEST_POSITION)
     local anchor_origin = {
@@ -213,12 +262,17 @@ describe("milestone 1 survey flow", function()
       TEST_POSITION.y
     )
     local overlay = remote.call(constants.mod_name, "debug_get_survey_overlay_state", game.players[1].index)
+    local panel = remote.call(constants.mod_name, "debug_get_survey_panel_state", game.players[1].index)
 
     assert.is_table(shown)
     assert.is_table(overlay)
+    assert.is_table(panel)
     assert.equal(shown.region_count, overlay.region_count)
-    assert.equal(overlay.region_count, overlay.render_count)
+    assert.equal(overlay.region_count + 1, overlay.render_count)
     assert.equal(1, overlay.region_count)
+    assert.is_true(panel.powered)
+    assert.equal(1, panel.region_count)
+    assert.equal(constants.survey_cluster_min_tree_count, panel.tree_count)
 
     assert.is_true(remote.call(constants.mod_name, "debug_clear_survey_overlay", game.players[1].index))
     assert.is_nil(remote.call(constants.mod_name, "debug_get_survey_overlay_state", game.players[1].index))

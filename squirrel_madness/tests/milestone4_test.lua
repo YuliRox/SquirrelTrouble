@@ -470,7 +470,7 @@ describe("milestone 4 squirrel nuisance runtime", function()
     assert.equal("belt", target.chosen_target.target_type)
   end)
 
-  it("lets stocked feeders suppress nearby calm belt sitting", function()
+  it("makes stocked feeders outrank nearby calm belt sitting", function()
     spawn_forest(18, BELT_ORIGIN)
     local squirrel_id = remote.call(constants.mod_name, "debug_spawn_squirrel", surface().index, BELT_ORIGIN.x + 6, BELT_ORIGIN.y)
     local belt = track_entity(surface().create_entity({
@@ -500,9 +500,44 @@ describe("milestone 4 squirrel nuisance runtime", function()
     local target = remote.call(constants.mod_name, "debug_get_squirrel_target", squirrel_id)
 
     assert.equal("calm", target.state)
-    assert.is_nil(target.local_target)
-    assert.is_nil(target.excursion_target)
-    assert.is_nil(target.chosen_target)
+    assert.is_table(target.local_target)
+    assert.equal("feeder", target.local_target.target_type)
+    assert.equal("feed", target.local_intent)
+    assert.is_table(target.chosen_target)
+    assert.equal("feeder", target.chosen_target.target_type)
+  end)
+
+  it("lets squirrels visit stocked feeders, eat nuts, and then leave", function()
+    spawn_forest(18, BELT_ORIGIN)
+    local squirrel_id = remote.call(constants.mod_name, "debug_spawn_squirrel", surface().index, BELT_ORIGIN.x + 6, BELT_ORIGIN.y)
+    local feeder = track_entity(surface().create_entity({
+      name = constants.names.feeder,
+      position = {x = BELT_ORIGIN.x + 9, y = BELT_ORIGIN.y + 1},
+      force = game.forces.player
+    }))
+
+    local inventory = feeder.get_inventory(defines.inventory.chest)
+    assert.is_not_nil(inventory)
+    assert.equal(constants.stocked_feeder_threshold, inventory.insert({
+      name = constants.names.nut,
+      count = constants.stocked_feeder_threshold
+    }))
+
+    player().teleport({x = BELT_ORIGIN.x - 10, y = BELT_ORIGIN.y}, surface())
+
+    remote.call(
+      constants.mod_name,
+      "debug_advance_squirrel_runtime",
+      constants.squirrel_idle_pause_max
+        + constants.squirrel_move_timeout
+        + constants.squirrel_feeder_visit_duration
+    )
+
+    local snapshot = remote.call(constants.mod_name, "debug_get_squirrel_snapshot", squirrel_id)
+
+    assert.is_not_nil(snapshot)
+    assert.is_true(inventory.get_item_count(constants.names.nut) < constants.stocked_feeder_threshold)
+    assert.is_true(snapshot.mode == "roam" or snapshot.mode == "idle")
   end)
 
   it("lets curious squirrels inspect nearby belts once they have ranged to the forest edge", function()
@@ -586,6 +621,35 @@ describe("milestone 4 squirrel nuisance runtime", function()
     )
 
     assert.is_true(total_belt_item_count(belts, "iron-plate") <= (60 - constants.squirrel_belt_grab_amount))
+  end)
+
+  it("renders both the carried item and stolen count after a belt grab", function()
+    local trees = spawn_forest(18, BELT_ORIGIN)
+    local squirrel_id = remote.call(constants.mod_name, "debug_spawn_squirrel", surface().index, BELT_ORIGIN.x + 6, BELT_ORIGIN.y)
+    local belts = create_belt_line({x = BELT_ORIGIN.x + 8, y = BELT_ORIGIN.y}, 4, "iron-plate", 20)
+
+    for index = 1, 8 do
+      local tree = trees[index]
+      if tree and tree.valid then
+        regions.note_tree_loss(surface().index, tree.position, 1, game.tick)
+        tree.destroy()
+      end
+    end
+
+    local snapshot = remote.call(
+      constants.mod_name,
+      "debug_force_single_belt_grab",
+      surface().index,
+      squirrel_id,
+      belts[1].position.x,
+      belts[1].position.y
+    )
+
+    assert.is_table(snapshot)
+    assert.is_table(snapshot.carrying)
+    assert.is_true(snapshot.carrying.count > 0)
+    assert.is_true(snapshot.render_sprite)
+    assert.is_true(snapshot.render_count)
   end)
 
   it("stays on belts long enough to steal a meaningful stack before retreating", function()
@@ -734,6 +798,31 @@ describe("milestone 4 squirrel nuisance runtime", function()
     assert.is_string(report.squirrels[1].state)
     assert.is_string(report.squirrels[1].mode)
     assert.is_table(report.squirrels[1].position)
+  end)
+
+  it("treats walking onto a squirrel as rough handling and makes it flee", function()
+    spawn_forest(18, FOREST_ORIGIN)
+    local squirrel_id = remote.call(constants.mod_name, "debug_spawn_squirrel", surface().index, FOREST_ORIGIN.x + 6, FOREST_ORIGIN.y + 2)
+    local before = remote.call(constants.mod_name, "force_recompute_at_position", surface().index, FOREST_ORIGIN.x + 6, FOREST_ORIGIN.y + 2)
+    local snapshot_before = remote.call(constants.mod_name, "debug_get_squirrel_snapshot", squirrel_id)
+
+    assert.is_number(squirrel_id)
+    assert.is_table(snapshot_before)
+
+    local incident_id = remote.call(
+      constants.mod_name,
+      "debug_handle_player_step",
+      player().index,
+      snapshot_before.position.x,
+      snapshot_before.position.y
+    )
+    local snapshot_after = remote.call(constants.mod_name, "debug_get_squirrel_snapshot", squirrel_id)
+    local after = remote.call(constants.mod_name, "force_recompute_at_position", surface().index, FOREST_ORIGIN.x + 6, FOREST_ORIGIN.y + 2)
+
+    assert.is_number(incident_id)
+    assert.is_table(snapshot_after)
+    assert.equal("roam", snapshot_after.mode)
+    assert.is_true(after.rough_handling_penalty > before.rough_handling_penalty)
   end)
 
   it("can clear all squirrels on a surface in one debug call", function()

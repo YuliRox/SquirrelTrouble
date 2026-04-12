@@ -63,7 +63,9 @@ Checklist:
 - [X] Place the `Solar Panel` and a `Small Electric Pole` so the survey station is powered.
 - [X] If it is night, wait for daylight before continuing.
 - [X] Click the powered survey station.
-- [X] Confirm the game outlines the connected forest footprint that the station is surveying, instead of leaving the exact scan area invisible.
+- [X] Confirm the game outlines a local nearby forest footprint around the station, instead of a huge hard-to-read biome-wide area.
+- [X] Confirm a survey information panel appears while the station is selected.
+- [X] Confirm the panel reports exact forest health, unrest, trust, pressure, tree counts, and feeder counts for the outlined footprint.
 - [X] Stand beside the powered survey station and press `ALT+S`.
 - [X] Confirm the report switches to exact numeric values for the outlined forest cluster, not just your current standing tile.
 - [X] Walk a short distance away but keep the station selected.

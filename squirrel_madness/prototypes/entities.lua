@@ -232,6 +232,7 @@ local stash = clone_container("wooden-chest", "forest-stash")
 stash.icon = "__base__/graphics/icons/wooden-chest.png"
 stash.icon_size = 64
 stash.inventory_size = 8
+stash.icon_draw_specification = {scale = 0, scale_for_many = 0}
 stash.minable = nil
 stash.destructible = false
 stash.localised_description = {"entity-description.forest-stash"}

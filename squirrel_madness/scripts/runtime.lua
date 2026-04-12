@@ -37,6 +37,11 @@ local function get_survey_station_overlays()
   return storage.survey_station_overlays
 end
 
+local function get_survey_station_panels()
+  storage.survey_station_panels = storage.survey_station_panels or {}
+  return storage.survey_station_panels
+end
+
 local function get_squirrel_damage_attribution()
   storage.squirrel_damage_attribution = storage.squirrel_damage_attribution or {}
   return storage.squirrel_damage_attribution
@@ -390,6 +395,18 @@ local function clear_survey_overlay(player_index)
   return true
 end
 
+local function clear_survey_panel(player_index)
+  local player = game.get_player(player_index)
+  if player and player.valid then
+    local panel = player.gui.left["squirrel_madness_survey_station_panel"]
+    if panel and panel.valid then
+      panel.destroy()
+    end
+  end
+
+  get_survey_station_panels()[player_index] = nil
+end
+
 local function current_selected_survey_station(player)
   local selected = player and player.valid and player.selected or nil
 
@@ -398,6 +415,100 @@ local function current_selected_survey_station(player)
   end
 
   return nil
+end
+
+local function survey_panel_driver_labels(cluster)
+  local labels = {}
+
+  for _, driver in ipairs(cluster.drivers or {}) do
+    labels[#labels + 1] = localized_driver(driver)
+  end
+
+  return join_localized_labels(labels)
+end
+
+local function render_survey_panel(player, station, cluster)
+  clear_survey_panel(player.index)
+
+  if not (player and player.valid and station and station.valid) then
+    return nil
+  end
+
+  local powered = is_powered_survey_station(station)
+  local frame = player.gui.left.add({
+    type = "frame",
+    name = "squirrel_madness_survey_station_panel",
+    direction = "vertical",
+    caption = {"entity-name.forest-survey-station"}
+  })
+  frame.style.minimal_width = 280
+
+  local content = frame.add({
+    type = "flow",
+    direction = "vertical"
+  })
+  content.style.vertical_spacing = 2
+
+  content.add({
+    type = "label",
+    caption = powered
+      and {"gui.squirrel-madness-survey-panel-status-working"}
+      or {"gui.squirrel-madness-survey-panel-status-unpowered"}
+  })
+
+  if not cluster then
+    content.add({
+      type = "label",
+      caption = {"gui.squirrel-madness-survey-panel-no-data"}
+    })
+  else
+    content.add({
+      type = "label",
+      caption = {"gui.squirrel-madness-survey-panel-cells", cluster.region_count}
+    })
+    content.add({
+      type = "label",
+      caption = {"gui.squirrel-madness-survey-panel-health", cluster.forest_health, {"message.squirrel-madness-band-" .. cluster.forest_health_band}}
+    })
+    content.add({
+      type = "label",
+      caption = {"gui.squirrel-madness-survey-panel-unrest", cluster.squirrel_unrest, {"message.squirrel-madness-band-" .. cluster.squirrel_unrest_band}}
+    })
+    content.add({
+      type = "label",
+      caption = {"gui.squirrel-madness-survey-panel-trust", cluster.squirrel_trust, {"message.squirrel-madness-band-" .. cluster.squirrel_trust_band}}
+    })
+    content.add({
+      type = "label",
+      caption = {"gui.squirrel-madness-survey-panel-pressure", cluster.habitat_pressure, {"message.squirrel-madness-band-" .. cluster.habitat_pressure_band}}
+    })
+    content.add({
+      type = "label",
+      caption = {"gui.squirrel-madness-survey-panel-observed", cluster.tree_count, cluster.nut_tree_count, cluster.sapling_count}
+    })
+    content.add({
+      type = "label",
+      caption = {"gui.squirrel-madness-survey-panel-feeders", cluster.stocked_feeders, cluster.feeder_count}
+    })
+    content.add({
+      type = "label",
+      caption = {"gui.squirrel-madness-survey-panel-forces", survey_panel_driver_labels(cluster)}
+    })
+  end
+
+  get_survey_station_panels()[player.index] = {
+    station_unit_number = station.unit_number,
+    surface_index = station.surface.index,
+    powered = powered,
+    region_count = cluster and cluster.region_count or 0,
+    tree_count = cluster and cluster.tree_count or 0,
+    forest_health = cluster and cluster.forest_health or nil,
+    squirrel_unrest = cluster and cluster.squirrel_unrest or nil,
+    squirrel_trust = cluster and cluster.squirrel_trust or nil,
+    habitat_pressure = cluster and cluster.habitat_pressure or nil
+  }
+
+  return frame
 end
 
 local function render_survey_overlay(player, station, tick)
@@ -426,6 +537,18 @@ local function render_survey_overlay(player, station, tick)
     render_ids[#render_ids + 1] = render_object.id
   end
 
+  local station_marker = rendering.draw_circle({
+    color = {r = 0.82, g = 0.94, b = 0.28, a = 0.95},
+    radius = 1.2,
+    width = 2,
+    filled = false,
+    target = station,
+    surface = station.surface,
+    players = {player.index},
+    draw_on_ground = true
+  })
+  render_ids[#render_ids + 1] = station_marker.id
+
   get_survey_station_overlays()[player.index] = {
     station_unit_number = station.unit_number,
     surface_index = station.surface.index,
@@ -449,10 +572,13 @@ local function update_survey_overlay_for_player(player, selected_entity, tick)
   end
 
   if station then
-    return render_survey_overlay(player, station, tick)
+    local cluster = render_survey_overlay(player, station, tick)
+    render_survey_panel(player, station, cluster)
+    return cluster
   end
 
   clear_survey_overlay(player.index)
+  clear_survey_panel(player.index)
   return nil
 end
 
@@ -1130,6 +1256,7 @@ end
 local function on_init()
   storage_lib.ensure()
   storage.survey_station_overlays = {}
+  storage.survey_station_panels = {}
   feeders.rebuild_tracking()
   local nauvis = game.surfaces[constants.primary_surface_name]
   if nauvis then
@@ -1143,6 +1270,7 @@ end
 local function on_configuration_changed()
   storage_lib.ensure()
   storage.survey_station_overlays = {}
+  storage.survey_station_panels = {}
   feeders.rebuild_tracking()
   feeders.sync_registered()
   refresh_active_regions(true)
@@ -1187,6 +1315,7 @@ local function on_tick(event)
 
     for _, player_index in ipairs(overlays_to_clear) do
       clear_survey_overlay(player_index)
+      clear_survey_panel(player_index)
     end
   end
 
@@ -1279,6 +1408,7 @@ local function on_entity_removed(event)
 
     for _, player_index in ipairs(overlays_to_clear) do
       clear_survey_overlay(player_index)
+      clear_survey_panel(player_index)
     end
 
     regions.mark_dirty(entity.surface.index, entity.position)
@@ -1335,6 +1465,54 @@ local function on_research_finished(event)
   habitat.on_research_finished(event.research)
 end
 
+local function find_squirrel_at_position(surface, position)
+  local nearest
+  local nearest_distance
+
+  for _, entity in ipairs(surface.find_entities_filtered({
+    area = {
+      {position.x - constants.squirrel_step_trigger_radius, position.y - constants.squirrel_step_trigger_radius},
+      {position.x + constants.squirrel_step_trigger_radius, position.y + constants.squirrel_step_trigger_radius}
+    },
+    name = constants.names.squirrel
+  })) do
+    if entity.valid then
+      local distance = station_distance_squared(position, entity.position)
+      if distance <= (constants.squirrel_step_trigger_radius * constants.squirrel_step_trigger_radius)
+        and (not nearest or distance < nearest_distance)
+      then
+        nearest = entity
+        nearest_distance = distance
+      end
+    end
+  end
+
+  return nearest
+end
+
+local function handle_squirrel_rough_handling(entity, player, tick)
+  if not (entity and entity.valid and entity.name == constants.names.squirrel and player and player.valid) then
+    return nil
+  end
+
+  local player_index = player.index
+  local cooldown_key = entity.unit_number .. ":" .. player_index
+  local attribution = get_squirrel_damage_attribution()
+  local last_tick = attribution[cooldown_key] or 0
+  if tick < (last_tick + constants.squirrel_damage_attribution_cooldown) then
+    return nil
+  end
+
+  attribution[cooldown_key] = tick
+  regions.note_rough_handling(entity.surface.index, entity.position, 1, tick)
+  enqueue_region_refresh_at_position(entity.surface, entity.position, tick)
+  squirrels.on_stepped(entity, tick)
+
+  local incident = record_squirrel_incident(entity.surface, entity.position, player.force, player_index, "rough-handling", tick, {})
+  notify_retaliation(entity.surface, entity.position, player.force, player_index, incident)
+  return incident
+end
+
 local function on_squirrel_damaged(event)
   local entity = event.entity
   if not (entity and entity.valid and entity.name == constants.names.squirrel) then
@@ -1355,19 +1533,21 @@ local function on_squirrel_damaged(event)
     return
   end
 
-  local cooldown_key = entity.unit_number .. ":" .. player_index
-  local attribution = get_squirrel_damage_attribution()
-  local last_tick = attribution[cooldown_key] or 0
-  if event.tick < (last_tick + constants.squirrel_damage_attribution_cooldown) then
+  if not handle_squirrel_rough_handling(entity, player, event.tick) then
+    return
+  end
+end
+
+local function on_player_changed_position(event)
+  local player = game.get_player(event.player_index)
+  if not (player and player.valid and player.surface) then
     return
   end
 
-  attribution[cooldown_key] = event.tick
-  regions.note_rough_handling(entity.surface.index, entity.position, 1, event.tick)
-  enqueue_region_refresh_at_position(entity.surface, entity.position, event.tick)
-
-  local incident = record_squirrel_incident(entity.surface, entity.position, player.force, player_index, "rough-handling", event.tick, {})
-  notify_retaliation(entity.surface, entity.position, player.force, player_index, incident)
+  local squirrel = find_squirrel_at_position(player.surface, player.position)
+  if squirrel then
+    handle_squirrel_rough_handling(squirrel, player, event.tick)
+  end
 end
 
 local function on_custom_input(event)
@@ -1484,6 +1664,10 @@ local function install_remote_interface()
         region_count = overlay.region_count,
         member_regions = overlay.member_regions
       }
+    end,
+    debug_get_survey_panel_state = function(player_index)
+      storage_lib.ensure()
+      return get_survey_station_panels()[player_index]
     end,
     debug_clear_survey_overlay = function(player_index)
       storage_lib.ensure()
@@ -1628,6 +1812,10 @@ local function install_remote_interface()
       storage_lib.ensure()
       return squirrels.debug_target_for_squirrel(squirrel_id, game.tick)
     end,
+    debug_get_squirrel_snapshot = function(squirrel_id)
+      storage_lib.ensure()
+      return squirrels.snapshot(squirrel_id)
+    end,
     debug_force_region_squirrels = function(surface_index, x, y)
       storage_lib.ensure()
       local surface = game.surfaces[surface_index]
@@ -1650,6 +1838,10 @@ local function install_remote_interface()
       storage_lib.ensure()
       return squirrels.debug_force_belt_theft(surface_index, squirrel_id, {x = x, y = y}, game.tick)
     end,
+    debug_force_single_belt_grab = function(surface_index, squirrel_id, x, y)
+      storage_lib.ensure()
+      return squirrels.debug_force_single_belt_grab(surface_index, squirrel_id, {x = x, y = y}, game.tick)
+    end,
     debug_force_chest_scavenge = function(surface_index, squirrel_id, x, y)
       storage_lib.ensure()
       return squirrels.debug_force_chest_scavenge(surface_index, squirrel_id, {x = x, y = y}, game.tick)
@@ -1661,6 +1853,21 @@ local function install_remote_interface()
     debug_cleanup_empty_stashes = function(surface_index)
       storage_lib.ensure()
       return squirrels.cleanup_empty_stashes(surface_index)
+    end,
+    debug_handle_player_step = function(player_index, x, y, tick)
+      storage_lib.ensure()
+      local player = game.get_player(player_index)
+      if not (player and player.valid and player.surface) then
+        return nil
+      end
+
+      local squirrel = find_squirrel_at_position(player.surface, {x = x, y = y})
+      if not squirrel then
+        return nil
+      end
+
+      local incident = handle_squirrel_rough_handling(squirrel, player, tick or game.tick)
+      return incident and incident.incident_id or nil
     end,
     debug_get_squirrel_incidents = function(surface_index)
       storage_lib.ensure()
@@ -1742,6 +1949,7 @@ function runtime.register()
     defines.events.script_raised_revive
   }, on_entity_created)
   script.on_event(defines.events.on_chunk_generated, on_chunk_generated)
+  script.on_event(defines.events.on_player_changed_position, on_player_changed_position)
   script.on_event(defines.events.on_selected_entity_changed, on_selected_entity_changed)
   script.on_event(defines.events.on_research_finished, on_research_finished)
   script.on_event(constants.names.survey_input, on_custom_input)

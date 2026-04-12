@@ -274,7 +274,12 @@ local function destroy_render(record)
     record.render_id.destroy()
   end
 
+  if record.render_count_id then
+    record.render_count_id.destroy()
+  end
+
   record.render_id = nil
+  record.render_count_id = nil
 end
 
 local function sync_render(record, entity)
@@ -287,9 +292,11 @@ local function sync_render(record, entity)
   local sprite = "item/" .. record.carrying.name
   local render_id = rendering.draw_sprite({
     sprite = sprite,
-    target = entity,
+    target = {
+      entity = entity,
+      offset = {0, -0.9}
+    },
     surface = entity.surface,
-    oriented_offset = {0, -0.9},
     x_scale = 0.55,
     y_scale = 0.55,
     render_layer = "higher-object-under"
@@ -297,17 +304,32 @@ local function sync_render(record, entity)
 
   if render_id then
     record.render_id = render_id
-    return
+  else
+    record.render_id = rendering.draw_sprite({
+      sprite = "utility/questionmark",
+      target = {
+        entity = entity,
+        offset = {0, -0.9}
+      },
+      surface = entity.surface,
+      x_scale = 0.55,
+      y_scale = 0.55,
+      render_layer = "higher-object-under"
+    })
   end
 
-  record.render_id = rendering.draw_sprite({
-    sprite = "utility/questionmark",
-    target = entity,
+  record.render_count_id = rendering.draw_text({
+    text = tostring(record.carrying.count or 0),
+    target = {
+      entity = entity,
+      offset = {0.45, -0.95}
+    },
     surface = entity.surface,
-    oriented_offset = {0, -0.9},
-    x_scale = 0.55,
-    y_scale = 0.55,
-    render_layer = "higher-object-under"
+    color = {r = 1, g = 1, b = 1, a = 1},
+    scale = 1.0,
+    alignment = "center",
+    vertical_alignment = "middle",
+    use_rich_text = false
   })
 end
 
@@ -681,6 +703,24 @@ local function choose_chest_item(entity, preferred_item_name, report)
   return best
 end
 
+local function choose_feeder_item(entity, report)
+  if not constants.feeder_variant_by_name[entity.name] then
+    return nil
+  end
+
+  local inventory = entity.get_inventory(defines.inventory.chest)
+  local nut_count = inventory and inventory.valid and inventory.get_item_count(constants.names.nut) or 0
+  if nut_count <= 0 then
+    return nil
+  end
+
+  local target = serialize_target(entity, "feeder", constants.names.nut, 1)
+  target.score = item_desirability(constants.names.nut)
+    + constants.squirrel_feeder_target_bonus
+    + math.min((report and report.habitat_pressure or 0) / 8, 10)
+  return target
+end
+
 local function target_area(origin, radius)
   return {
     left_top = {
@@ -756,6 +796,10 @@ local function state_can_steal(state)
 end
 
 local function local_target_intent(state, report, target_type, theft_available)
+  if target_type == "feeder" then
+    return "feed"
+  end
+
   if state == "calm" then
     if target_type == "belt" then
       return "inspect"
@@ -825,6 +869,8 @@ local function build_squirrel_target(record, opportunity, origin_position, tick,
   candidate.score = candidate.score - (current_distance_squared * 0.015)
   if candidate.target_type == "belt" then
     candidate.score = candidate.score + 6
+  elseif candidate.target_type == "feeder" then
+    candidate.score = candidate.score + 10
   end
 
   return candidate
@@ -878,9 +924,14 @@ local function consider_scanned_target(
     return best, best_intent
   end
 
-  local opportunity = target_type == "belt"
-      and choose_belt_item(entity, preferred_item_name)
-    or choose_chest_item(entity, preferred_item_name, report)
+  local opportunity
+  if target_type == "belt" then
+    opportunity = choose_belt_item(entity, preferred_item_name)
+  elseif target_type == "chest" then
+    opportunity = choose_chest_item(entity, preferred_item_name, report)
+  elseif target_type == "feeder" then
+    opportunity = choose_feeder_item(entity, report)
+  end
   if not opportunity then
     return best, best_intent
   end
@@ -958,6 +1009,29 @@ local function scan_targets_near_position(
       max_distance_from_home,
       preferred_item_name,
       item_name_filter,
+      inspect_bonus,
+      best,
+      best_intent
+    )
+  end
+
+  for _, entity in ipairs(surface.find_entities_filtered({
+    area = area,
+    name = constants.feeder_entity_names
+  })) do
+    best, best_intent = consider_scanned_target(
+      record,
+      entity,
+      "feeder",
+      state,
+      report,
+      tick,
+      origin_position,
+      theft_available,
+      max_distance_from_origin,
+      max_distance_from_home,
+      preferred_item_name,
+      nil,
       inspect_bonus,
       best,
       best_intent
@@ -1066,9 +1140,14 @@ local function refresh_target_from_entity(target_entity, target_type, preferred_
     return nil
   end
 
-  local opportunity = target_type == "belt"
-      and choose_belt_item(target_entity, preferred_item_name)
-    or choose_chest_item(target_entity, preferred_item_name, report)
+  local opportunity
+  if target_type == "belt" then
+    opportunity = choose_belt_item(target_entity, preferred_item_name)
+  elseif target_type == "chest" then
+    opportunity = choose_chest_item(target_entity, preferred_item_name, report)
+  elseif target_type == "feeder" then
+    opportunity = choose_feeder_item(target_entity, report)
+  end
 
   if not opportunity then
     return nil
@@ -1228,6 +1307,7 @@ local function enter_idle(record, entity, tick)
   record.intent = nil
   record.target = nil
   set_excursion_focus(record, nil, nil)
+  record.feeder_nibbles_remaining = nil
   record.destination = nil
   record.arrival_distance = nil
   record.action_due_tick = tick + idle_pause_duration(record)
@@ -1241,6 +1321,7 @@ local function send_home(record, entity, tick)
   record.intent = nil
   set_excursion_focus(record, nil, nil)
   set_record_stash(record, nil)
+  record.feeder_nibbles_remaining = nil
   record.destination = clone_position(record.home_position)
   record.arrival_distance = 0.8
   record.action_due_tick = tick + constants.squirrel_move_timeout
@@ -1490,6 +1571,7 @@ local function start_retreat(record, entity, tick)
   record.mode = "retreat"
   record.intent = "deposit"
   set_excursion_focus(record, nil, nil)
+  record.feeder_nibbles_remaining = nil
   record.target = stash and serialize_target(stash, "stash") or nil
   record.destination = stash and clone_position(stash.position) or clone_position(record.home_position)
   record.arrival_distance = 0.8
@@ -1518,6 +1600,7 @@ local function start_roam(record, entity, tick, state, report, preferred_target,
   record.intent = nil
   record.target = nil
   set_excursion_focus(record, preferred_target, preferred_intent)
+  record.feeder_nibbles_remaining = nil
   record.destination = clone_position(destination)
   record.arrival_distance = 0.8
   record.blocking_until_tick = nil
@@ -1531,6 +1614,7 @@ start_target_run = function(record, entity, target, intent, tick)
   record.intent = intent
   record.target = target
   set_excursion_focus(record, nil, nil)
+  record.feeder_nibbles_remaining = nil
   record.destination = clone_position(target.position)
   record.arrival_distance = target.target_type == "belt" and 0.18 or 0.45
   record.blocking_until_tick = nil
@@ -1539,12 +1623,34 @@ start_target_run = function(record, entity, target, intent, tick)
   move_entity(entity, target.position)
 end
 
+local function feeder_nibble_target(report)
+  local habitat_pressure = report and report.habitat_pressure or 0
+  return math.max(1, 1 + math.floor(habitat_pressure / 35))
+end
+
+local function start_feeder_visit(record, entity, feeder_entity, tick)
+  local _, report = squirrel_state_for_region(record.surface_index, record.region_x, record.region_y, tick)
+
+  record.mode = "blocking"
+  record.intent = "feed"
+  record.target = serialize_target(feeder_entity, "feeder", constants.names.nut, 1)
+  set_excursion_focus(record, nil, nil)
+  record.feeder_nibbles_remaining = feeder_nibble_target(report)
+  record.destination = nil
+  record.arrival_distance = nil
+  record.blocking_until_tick = tick + constants.squirrel_feeder_visit_duration
+  record.action_due_tick = tick
+  record.next_decision_tick = tick + constants.squirrel_decision_interval
+  stop_entity(entity)
+end
+
 local function start_belt_block(record, entity, belt_entity, tick)
   local intent = record.intent or "steal"
   record.mode = "blocking"
   record.intent = intent
   record.target = serialize_target(belt_entity, "belt", record.target and record.target.item_name or nil, 1)
   set_excursion_focus(record, nil, nil)
+  record.feeder_nibbles_remaining = nil
   record.destination = nil
   record.arrival_distance = nil
   record.blocking_until_tick = tick + (
@@ -1554,6 +1660,42 @@ local function start_belt_block(record, entity, belt_entity, tick)
   )
   record.action_due_tick = intent == "inspect" and record.blocking_until_tick or tick
   record.next_decision_tick = tick + constants.squirrel_decision_interval
+  stop_entity(entity)
+end
+
+local function perform_feeder_visit(record, entity, tick)
+  local feeder = resolve_target(record)
+  if not (feeder and feeder.valid) then
+    send_home(record, entity, tick)
+    return
+  end
+
+  local inventory = feeder.get_inventory(defines.inventory.chest)
+  local nut_count = inventory and inventory.valid and inventory.get_item_count(constants.names.nut) or 0
+  if nut_count <= 0 or tick >= (record.blocking_until_tick or tick) then
+    send_home(record, entity, tick)
+    return
+  end
+
+  if (record.feeder_nibbles_remaining or 0) <= 0 then
+    send_home(record, entity, tick)
+    return
+  end
+
+  inventory.remove({name = constants.names.nut, count = 1})
+  regions.mark_dirty(record.surface_index, feeder.position)
+  record.feeder_nibbles_remaining = math.max(0, (record.feeder_nibbles_remaining or 0) - 1)
+
+  if record.feeder_nibbles_remaining <= 0 then
+    send_home(record, entity, tick)
+    return
+  end
+
+  record.mode = "blocking"
+  record.intent = "feed"
+  record.destination = nil
+  record.arrival_distance = nil
+  record.action_due_tick = tick + constants.squirrel_feeder_nibble_interval
   stop_entity(entity)
 end
 
@@ -1837,9 +1979,11 @@ local function create_record(entity, home_position, region_x, region_y, tick)
     last_loot_name = nil,
     stash_id = nil,
     render_id = nil,
+    render_count_id = nil,
     roam_step = 0,
     arrival_distance = nil,
-    blocking_until_tick = nil
+    blocking_until_tick = nil,
+    feeder_nibbles_remaining = nil
   }
 
   get_squirrel_store()[squirrel_id] = record
@@ -1993,6 +2137,11 @@ local function process_arrival(record, entity, tick)
       return
     end
 
+    if record.target.target_type == "feeder" then
+      start_feeder_visit(record, entity, target_entity, tick)
+      return
+    end
+
     if record.target.target_type == "chest" then
       if record.intent == "steal" then
         perform_chest_scavenge(record, entity, tick)
@@ -2018,6 +2167,8 @@ local function process_arrival(record, entity, tick)
   if record.mode == "blocking" then
     if record.intent == "inspect" then
       finish_belt_inspection(record, entity, tick)
+    elseif record.intent == "feed" then
+      perform_feeder_visit(record, entity, tick)
     else
       perform_belt_theft(record, entity, tick)
     end
@@ -2174,6 +2325,26 @@ function squirrels.on_squirrel_removed(entity, tick)
   end
 end
 
+function squirrels.on_stepped(entity, tick)
+  if not (entity and entity.valid and entity.name == constants.names.squirrel) then
+    return false
+  end
+
+  local squirrel_id = entity.unit_number and get_entity_squirrel_index()[entity.unit_number] or nil
+  local record = squirrel_id and get_squirrel_store()[squirrel_id] or nil
+  if not record then
+    return false
+  end
+
+  if record.carrying then
+    start_retreat(record, entity, tick or game.tick)
+  else
+    send_home(record, entity, tick or game.tick)
+  end
+
+  return true
+end
+
 local function note_squirrel_loss(record, entity, tick)
   if record and record.carrying then
     entity.surface.spill_item_stack(entity.position, record.carrying, true, nil, false)
@@ -2288,6 +2459,10 @@ function squirrels.snapshot(squirrel_id)
     region_y = record.region_y,
     position = clone_position(entity.position),
     home_position = clone_position(record.home_position),
+    mode = record.mode,
+    intent = record.intent,
+    render_sprite = record.render_id and record.render_id.valid or false,
+    render_count = record.render_count_id and record.render_count_id.valid or false,
     carrying = record.carrying and {
       name = record.carrying.name,
       count = record.carrying.count
@@ -2410,6 +2585,36 @@ function squirrels.debug_force_belt_theft(surface_index, squirrel_id, position, 
     count = carried_count,
     stash_id = stash_id
   }
+end
+
+function squirrels.debug_force_single_belt_grab(surface_index, squirrel_id, position, tick)
+  local surface = game.surfaces[surface_index]
+  local record = get_squirrel_record(squirrel_id)
+  local entity = record and resolve_entity_reference(record.entity) or nil
+  if not (surface and entity and entity.valid and record) then
+    return nil
+  end
+
+  local belt = surface.find_entities_filtered({
+    position = position,
+    type = {"transport-belt", "underground-belt", "splitter"},
+    limit = 1
+  })[1]
+  if not (belt and belt.valid) then
+    return nil
+  end
+
+  local current_tick = tick or game.tick
+  record.target = choose_belt_item(belt, record.last_loot_name)
+  if not record.target then
+    return nil
+  end
+
+  entity.teleport(belt.position)
+  start_belt_block(record, entity, belt, current_tick)
+  perform_belt_theft(record, entity, current_tick)
+
+  return squirrels.snapshot(squirrel_id)
 end
 
 function squirrels.debug_force_chest_scavenge(surface_index, squirrel_id, position, tick)
