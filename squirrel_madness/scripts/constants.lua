@@ -101,6 +101,7 @@ constants.squirrel_feeder_target_bonus = 18
 constants.squirrel_feeder_visit_duration = 60 * 6
 constants.squirrel_feeder_nibble_interval = 45
 constants.squirrel_step_trigger_radius = 0.65
+constants.squirrel_selection_hold_ticks = 60 * 60
 constants.squirrel_action_cooldown = 60 * 20
 constants.squirrel_region_action_cooldown = 60 * 12
 constants.squirrel_target_cooldown = 60 * 15
@@ -141,6 +142,7 @@ constants.names = {
   nut_tree = "nut-tree",
   nut_tree_harvested = "nut-tree-harvested",
   squirrel = "squirrel",
+  squirrel_sitting = "squirrel-sitting",
   feeder = "squirrel-feeder",
   feeder_empty = "squirrel-feeder-empty",
   steel_feeder = "steel-squirrel-feeder",
@@ -149,6 +151,16 @@ constants.names = {
   survey_station = "forest-survey-station",
   survey_input = "squirrel-madness-open-region-survey",
   relocation_input = "squirrel-madness-relocate-selected-squirrel"
+}
+
+constants.squirrel_entity_name_list = {
+  constants.names.squirrel,
+  constants.names.squirrel_sitting
+}
+
+constants.squirrel_entity_names = {
+  [constants.names.squirrel] = true,
+  [constants.names.squirrel_sitting] = true
 }
 
 constants.feeder_entity_names = {

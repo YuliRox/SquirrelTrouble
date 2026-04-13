@@ -21,6 +21,7 @@ function storage_lib.ensure()
   storage.squirrel_target_cooldowns = storage.squirrel_target_cooldowns or {}
   storage.squirrel_region_index = storage.squirrel_region_index or {}
   storage.squirrel_entity_index = storage.squirrel_entity_index or {}
+  storage.squirrel_ignored_removals = storage.squirrel_ignored_removals or {}
   storage.squirrel_stashes_by_region = storage.squirrel_stashes_by_region or {}
   storage.squirrel_stash_target_counts = storage.squirrel_stash_target_counts or {}
   storage.squirrel_last_cleanup_tick = storage.squirrel_last_cleanup_tick or 0

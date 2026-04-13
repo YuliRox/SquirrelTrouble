@@ -68,15 +68,97 @@ local function stash_picture(filename)
   }
 end
 
-local function squirrel_belt_pose_sprite(name, filename)
+local function squirrel_run_animation()
   return {
-    type = "sprite",
-    name = name,
-    filename = filename,
+    filenames = {
+      "__squirrel_madness__/graphics/entities/squirrel/run-strips/north.png",
+      "__squirrel_madness__/graphics/entities/squirrel/run-strips/north-east.png",
+      "__squirrel_madness__/graphics/entities/squirrel/run-strips/east.png",
+      "__squirrel_madness__/graphics/entities/squirrel/run-strips/south-east.png",
+      "__squirrel_madness__/graphics/entities/squirrel/run-strips/south.png",
+      "__squirrel_madness__/graphics/entities/squirrel/run-strips/south-west.png",
+      "__squirrel_madness__/graphics/entities/squirrel/run-strips/west.png",
+      "__squirrel_madness__/graphics/entities/squirrel/run-strips/north-west.png"
+    },
     width = 48,
     height = 48,
+    frame_count = 6,
+    direction_count = 8,
+    line_length = 6,
+    lines_per_file = 1,
+    animation_speed = 0.42,
     scale = 1.75
   }
+end
+
+local function squirrel_sitting_animation()
+  return {
+    filenames = {
+      "__squirrel_madness__/graphics/entities/squirrel/rotations/north.png",
+      "__squirrel_madness__/graphics/entities/squirrel/rotations/north-east.png",
+      "__squirrel_madness__/graphics/entities/squirrel/rotations/east.png",
+      "__squirrel_madness__/graphics/entities/squirrel/rotations/south-east.png",
+      "__squirrel_madness__/graphics/entities/squirrel/rotations/south.png",
+      "__squirrel_madness__/graphics/entities/squirrel/rotations/south-west.png",
+      "__squirrel_madness__/graphics/entities/squirrel/rotations/west.png",
+      "__squirrel_madness__/graphics/entities/squirrel/rotations/north-west.png"
+    },
+    width = 48,
+    height = 48,
+    frame_count = 1,
+    direction_count = 8,
+    line_length = 1,
+    lines_per_file = 1,
+    animation_speed = 0.01,
+    scale = 1.75
+  }
+end
+
+local function configure_squirrel(prototype, animation)
+  prototype.icon = "__squirrel_madness__/graphics/icons/squirrel.png"
+  prototype.icon_size = 48
+  prototype.flags = {"placeable-player", "placeable-off-grid", "not-repairable", "breaths-air"}
+  prototype.subgroup = "capsule"
+  prototype.factoriopedia_simulation = nil
+  prototype.max_health = 30
+  prototype.healing_per_tick = 0
+  prototype.vision_distance = 15
+  prototype.movement_speed = 0.11
+  prototype.distance_per_frame = 0.11
+  prototype.collision_mask = {layers = {}}
+  prototype.collision_box = {{-0.34, -0.34}, {0.34, 0.34}}
+  prototype.selection_box = {{-0.75, -0.95}, {0.75, 0.55}}
+  prototype.sticker_box = {{-0.3, -0.55}, {0.3, 0.1}}
+  prototype.selectable_in_game = true
+  prototype.distraction_cooldown = 30
+  prototype.damaged_trigger_effect = nil
+  prototype.absorptions_to_join_attack = nil
+  prototype.working_sound = nil
+  prototype.walking_sound = nil
+  prototype.running_sound_animation_positions = nil
+  prototype.water_reflection = nil
+  prototype.ai_settings = prototype.ai_settings or {}
+  prototype.ai_settings.destroy_when_commands_fail = false
+  prototype.ai_settings.path_resolution_modifier = -4
+  prototype.run_animation = animation
+  prototype.attack_parameters = prototype.attack_parameters or {}
+  prototype.attack_parameters.sound = nil
+  prototype.attack_parameters.range = 0.01
+  prototype.attack_parameters.animation = table.deepcopy(animation)
+  prototype.corpse = nil
+  prototype.dying_explosion = nil
+  prototype.dying_sound = nil
+
+  local squirrel_attack_effects = prototype.attack_parameters.ammo_type
+    and prototype.attack_parameters.ammo_type.action
+    and prototype.attack_parameters.ammo_type.action.action_delivery
+    and prototype.attack_parameters.ammo_type.action.action_delivery.target_effects
+
+  if squirrel_attack_effects and squirrel_attack_effects.damage then
+    squirrel_attack_effects.damage.amount = 0
+  end
+
+  return prototype
 end
 
 local function create_survey_station()
@@ -275,64 +357,13 @@ stash.destructible = false
 stash.localised_description = {"entity-description.forest-stash"}
 stash.picture = stash_picture("__squirrel_madness__/graphics/entities/structures/stash.png")
 
-local squirrel = clone_unit("small-biter", "squirrel")
-squirrel.icon = "__squirrel_madness__/graphics/icons/squirrel.png"
-squirrel.icon_size = 48
-squirrel.flags = {"placeable-player", "placeable-off-grid", "not-repairable", "breaths-air"}
-squirrel.subgroup = "capsule"
-squirrel.factoriopedia_simulation = nil
-squirrel.max_health = 30
-squirrel.healing_per_tick = 0
-squirrel.vision_distance = 15
-squirrel.movement_speed = 0.11
-squirrel.distance_per_frame = 0.11
-squirrel.collision_mask = {layers = {}}
-squirrel.distraction_cooldown = 30
-squirrel.damaged_trigger_effect = nil
-squirrel.absorptions_to_join_attack = nil
-squirrel.working_sound = nil
-squirrel.walking_sound = nil
-squirrel.running_sound_animation_positions = nil
-squirrel.water_reflection = nil
-squirrel.ai_settings = squirrel.ai_settings or {}
-squirrel.ai_settings.destroy_when_commands_fail = false
-squirrel.ai_settings.path_resolution_modifier = -4
-squirrel.run_animation = {
-  filenames = {
-    "__squirrel_madness__/graphics/entities/squirrel/run-strips/north.png",
-    "__squirrel_madness__/graphics/entities/squirrel/run-strips/north-east.png",
-    "__squirrel_madness__/graphics/entities/squirrel/run-strips/east.png",
-    "__squirrel_madness__/graphics/entities/squirrel/run-strips/south-east.png",
-    "__squirrel_madness__/graphics/entities/squirrel/run-strips/south.png",
-    "__squirrel_madness__/graphics/entities/squirrel/run-strips/south-west.png",
-    "__squirrel_madness__/graphics/entities/squirrel/run-strips/west.png",
-    "__squirrel_madness__/graphics/entities/squirrel/run-strips/north-west.png"
-  },
-  width = 48,
-  height = 48,
-  frame_count = 6,
-  direction_count = 8,
-  line_length = 6,
-  lines_per_file = 1,
-  animation_speed = 0.42,
-  scale = 1.75
-}
-squirrel.attack_parameters = squirrel.attack_parameters or {}
-squirrel.attack_parameters.sound = nil
-squirrel.attack_parameters.range = 0.01
-squirrel.attack_parameters.animation = table.deepcopy(squirrel.run_animation)
-squirrel.corpse = nil
-squirrel.dying_explosion = nil
-squirrel.dying_sound = nil
-
-local squirrel_attack_effects = squirrel.attack_parameters.ammo_type
-  and squirrel.attack_parameters.ammo_type.action
-  and squirrel.attack_parameters.ammo_type.action.action_delivery
-  and squirrel.attack_parameters.ammo_type.action.action_delivery.target_effects
-
-if squirrel_attack_effects and squirrel_attack_effects.damage then
-  squirrel_attack_effects.damage.amount = 0
-end
+local squirrel = configure_squirrel(clone_unit("small-biter", "squirrel"), squirrel_run_animation())
+local sitting_squirrel = configure_squirrel(clone_unit("small-biter", "squirrel-sitting"), squirrel_sitting_animation())
+sitting_squirrel.movement_speed = 0.01
+sitting_squirrel.distance_per_frame = 0.01
+sitting_squirrel.localised_name = {"entity-name.squirrel"}
+sitting_squirrel.localised_description = {"entity-description.squirrel"}
+sitting_squirrel.hidden = true
 
 local nut_tree = clone_tree("tree-04", "nut-tree")
 nut_tree.icon = "__base__/graphics/icons/tree-04.png"
@@ -371,6 +402,7 @@ nut_sapling.localised_description = {"entity-description.nut-sapling"}
 
 data:extend({
   squirrel,
+  sitting_squirrel,
   nut_tree,
   harvested_nut_tree,
   nut_sapling,
@@ -379,9 +411,5 @@ data:extend({
   steel_feeder,
   empty_steel_feeder,
   survey,
-  stash,
-  squirrel_belt_pose_sprite("squirrel-madness-belt-pose-north", "__squirrel_madness__/graphics/entities/squirrel/rotations/north.png"),
-  squirrel_belt_pose_sprite("squirrel-madness-belt-pose-east", "__squirrel_madness__/graphics/entities/squirrel/rotations/east.png"),
-  squirrel_belt_pose_sprite("squirrel-madness-belt-pose-south", "__squirrel_madness__/graphics/entities/squirrel/rotations/south.png"),
-  squirrel_belt_pose_sprite("squirrel-madness-belt-pose-west", "__squirrel_madness__/graphics/entities/squirrel/rotations/west.png")
+  stash
 })

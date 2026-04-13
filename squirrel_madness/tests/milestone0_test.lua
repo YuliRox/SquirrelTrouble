@@ -47,6 +47,8 @@ describe("milestone 0 scaffold", function()
     assert.is_not_nil(prototypes.entity[constants.names.steel_feeder_empty])
     assert.is_not_nil(prototypes.entity[constants.names.stash])
     assert.is_not_nil(prototypes.entity[constants.names.survey_station])
+    assert.is_not_nil(prototypes.entity[constants.names.squirrel])
+    assert.is_not_nil(prototypes.entity[constants.names.squirrel_sitting])
 
     assert.is_not_nil(prototypes.recipe[constants.names.nut_sapling_item])
     assert.is_not_nil(prototypes.recipe[constants.names.feeder])
@@ -71,6 +73,19 @@ describe("milestone 0 scaffold", function()
     assert.is_not_nil(wood)
     assert.is_true(nut.weight > 0)
     assert.is_true(nut.weight < wood.weight)
+  end)
+
+  it("gives squirrels a readable clickable footprint", function()
+    local moving = prototypes.entity[constants.names.squirrel]
+    local sitting = prototypes.entity[constants.names.squirrel_sitting]
+
+    assert.is_not_nil(moving)
+    assert.is_not_nil(sitting)
+    assert.is_true(moving.selectable_in_game)
+    assert.equal(moving.selection_box.left_top.x, sitting.selection_box.left_top.x)
+    assert.equal(moving.selection_box.right_bottom.x, sitting.selection_box.right_bottom.x)
+    assert.is_true((moving.selection_box.right_bottom.x - moving.selection_box.left_top.x) >= 1.4)
+    assert.is_true((moving.collision_box.right_bottom.x - moving.collision_box.left_top.x) >= 0.6)
   end)
 
   it("unlocks restoration recipes in the intended order", function()

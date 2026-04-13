@@ -661,6 +661,7 @@ describe("milestone 4 squirrel nuisance runtime", function()
 
   it("keeps a clicked squirrel selected for a short inspection window", function()
     spawn_forest(18, FOREST_ORIGIN)
+    local belts = create_belt_line({x = FOREST_ORIGIN.x + 10, y = FOREST_ORIGIN.y + 6}, 4, "iron-plate", 0)
 
     local squirrel_id = remote.call(constants.mod_name, "debug_spawn_squirrel", surface().index, FOREST_ORIGIN.x + 6, FOREST_ORIGIN.y + 6)
     local snapshot = remote.call(constants.mod_name, "debug_get_squirrel_snapshot", squirrel_id)
@@ -678,13 +679,23 @@ describe("milestone 4 squirrel nuisance runtime", function()
 
     player().selected = nil
 
+    local sat = remote.call(
+      constants.mod_name,
+      "debug_force_belt_sit",
+      surface().index,
+      squirrel_id,
+      belts[1].position.x,
+      belts[1].position.y
+    )
+
     local restored = remote.call(constants.mod_name, "debug_refresh_player_selection", player().index, game.tick + 1)
 
+    assert.is_table(sat)
+    assert.equal(constants.names.squirrel_sitting, sat.entity_name)
     assert.is_table(restored)
-    assert.equal(constants.names.squirrel, restored.name)
-    assert.equal(squirrel.unit_number, restored.unit_number)
+    assert.equal(constants.names.squirrel_sitting, restored.name)
     if player().selected then
-      assert.equal(squirrel.unit_number, player().selected.unit_number)
+      assert.equal(constants.names.squirrel_sitting, player().selected.name)
     else
       assert.is_true(restored.via_lock)
     end
@@ -949,6 +960,7 @@ describe("milestone 4 squirrel nuisance runtime", function()
     local initial = remote.call(constants.mod_name, "debug_force_belt_sit", surface().index, squirrel_id, belts[1].position.x, belts[1].position.y)
 
     assert.is_table(initial)
+    assert.equal(constants.names.squirrel_sitting, initial.entity_name)
     assert.equal("blocking", initial.mode)
     assert.equal("inspect", initial.intent)
     assert.is_true(initial.belt_riding)
@@ -961,6 +973,7 @@ describe("milestone 4 squirrel nuisance runtime", function()
 
     assert.is_table(before)
     assert.is_table(during)
+    assert.equal(constants.names.squirrel_sitting, during.entity_name)
     assert.equal("blocking", during.mode)
     assert.equal("inspect", during.intent)
     assert.is_true(during.belt_riding)
@@ -977,6 +990,7 @@ describe("milestone 4 squirrel nuisance runtime", function()
     local after = remote.call(constants.mod_name, "debug_get_squirrel_snapshot", squirrel_id)
 
     assert.is_table(after)
+    assert.equal(constants.names.squirrel, after.entity_name)
     assert.is_false(after.belt_riding)
     assert.is_false(after.belt_pose_render)
     assert.is_true(after.mode == "roam" or after.mode == "idle")

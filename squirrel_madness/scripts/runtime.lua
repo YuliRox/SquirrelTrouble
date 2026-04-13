@@ -8,7 +8,7 @@ local storage_lib = require("scripts.storage")
 local runtime = {}
 local feeder_selection_overlays = {}
 local SQUIRREL_STEP_SOUND = "squirrel-madness-angry-squeak"
-local SQUIRREL_SELECTION_HOLD_TICKS = 60 * 30
+local SQUIRREL_SELECTION_HOLD_TICKS = constants.squirrel_selection_hold_ticks
 local destroy_feedback_pin
 
 local function get_created_entity(event)
@@ -479,7 +479,7 @@ end
 local function current_selected_squirrel(player)
   local selected = player and player.valid and player.selected or nil
 
-  if selected and selected.valid and selected.name == constants.names.squirrel then
+  if squirrels.is_squirrel_entity(selected) then
     return selected
   end
 
@@ -520,7 +520,7 @@ local function refresh_squirrel_selection(player, tick)
   end
 
   local locked = squirrels.entity_for_squirrel_id(lock.squirrel_id)
-  if not (locked and locked.valid and locked.name == constants.names.squirrel and locked.surface.index == lock.surface_index) then
+  if not (squirrels.is_squirrel_entity(locked) and locked.surface.index == lock.surface_index) then
     clear_squirrel_selection_lock(player.index)
     return nil
   end
@@ -533,6 +533,20 @@ local function refresh_squirrel_selection(player, tick)
   end
 
   return refreshed
+end
+
+local function refresh_locked_squirrel_selections(tick)
+  for player_index, lock in pairs(get_squirrel_selection_locks()) do
+    local player = game.get_player(player_index)
+    if
+      player
+      and player.valid
+      and lock
+      and (not player.selected or not player.selected.valid)
+    then
+      refresh_squirrel_selection(player, tick)
+    end
+  end
 end
 
 local function current_selected_feeder(player)
@@ -1648,6 +1662,7 @@ local function on_tick(event)
 
   refresh_active_regions(false)
   process_region_refresh_queue(constants.region_refresh_batch_size, event.tick)
+  refresh_locked_squirrel_selections(event.tick)
 
   if event.tick % constants.feeder_visual_update_interval == 0 then
     feeders.sync_registered()
@@ -1726,6 +1741,10 @@ local function on_entity_removed(event)
     return
   end
 
+  if squirrels.should_ignore_removed_entity(entity) then
+    return
+  end
+
   if entity.name == constants.names.nut_sapling then
     habitat.unregister_sapling(entity.surface.index, entity.position)
     regions.mark_dirty(entity.surface.index, entity.position)
@@ -1733,7 +1752,7 @@ local function on_entity_removed(event)
     return
   end
 
-  if entity.name == constants.names.squirrel then
+  if squirrels.is_squirrel_entity(entity) then
     local overlays_to_clear = {}
 
     for player_index, overlay in pairs(get_squirrel_selection_overlays()) do
@@ -1881,7 +1900,7 @@ local function find_squirrel_at_position(surface, position)
       {position.x - constants.squirrel_step_trigger_radius, position.y - constants.squirrel_step_trigger_radius},
       {position.x + constants.squirrel_step_trigger_radius, position.y + constants.squirrel_step_trigger_radius}
     },
-    name = constants.names.squirrel
+    name = constants.squirrel_entity_name_list
   })) do
     if entity.valid then
       local distance = station_distance_squared(position, entity.position)
@@ -1898,7 +1917,7 @@ local function find_squirrel_at_position(surface, position)
 end
 
 local function handle_squirrel_rough_handling(entity, player, tick)
-  if not (entity and entity.valid and entity.name == constants.names.squirrel and player and player.valid) then
+  if not (squirrels.is_squirrel_entity(entity) and player and player.valid) then
     return nil
   end
 
@@ -1914,7 +1933,7 @@ local function handle_squirrel_rough_handling(entity, player, tick)
   regions.note_rough_handling(entity.surface.index, entity.position, 1, tick)
   enqueue_region_refresh_at_position(entity.surface, entity.position, tick)
   squirrels.on_stepped(entity, tick)
-  player.play_sound({
+  entity.surface.play_sound({
     path = SQUIRREL_STEP_SOUND,
     position = entity.position,
     volume_modifier = 0.45
@@ -1934,7 +1953,7 @@ end
 
 local function on_squirrel_damaged(event)
   local entity = event.entity
-  if not (entity and entity.valid and entity.name == constants.names.squirrel) then
+  if not squirrels.is_squirrel_entity(entity) then
     return
   end
 
@@ -2107,7 +2126,7 @@ local function install_remote_interface()
 
       local squirrel = surface.find_entities_filtered({
         position = {x = x, y = y},
-        name = constants.names.squirrel,
+        name = constants.squirrel_entity_name_list,
         limit = 1
       })[1]
       if not squirrel then
@@ -2450,7 +2469,7 @@ local function install_remote_interface()
       end
 
       return {
-        name = constants.names.squirrel,
+        name = squirrels.entity_for_squirrel_id(lock.squirrel_id) and squirrels.entity_for_squirrel_id(lock.squirrel_id).name or constants.names.squirrel,
         unit_number = lock.squirrel_unit_number,
         surface_index = lock.surface_index,
         via_lock = true
@@ -2487,7 +2506,8 @@ function runtime.register()
     defines.events.script_raised_destroy
   }, on_entity_removed)
   script.on_event(defines.events.on_entity_damaged, on_squirrel_damaged, {
-    {filter = "name", name = constants.names.squirrel}
+    {filter = "name", name = constants.names.squirrel},
+    {filter = "name", name = constants.names.squirrel_sitting}
   })
   register_events({
     defines.events.on_built_entity,

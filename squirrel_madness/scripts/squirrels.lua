@@ -14,13 +14,6 @@ local CHEST_TYPES = {
   ["logistic-container"] = true
 }
 
-local BELT_POSE_SPRITES = {
-  [defines.direction.north] = "squirrel-madness-belt-pose-north",
-  [defines.direction.east] = "squirrel-madness-belt-pose-east",
-  [defines.direction.south] = "squirrel-madness-belt-pose-south",
-  [defines.direction.west] = "squirrel-madness-belt-pose-west"
-}
-
 local stop_entity
 local process_idle_decision
 local theft_is_available
@@ -28,9 +21,20 @@ local start_target_run
 local target_key
 local serialize_target
 local resolve_target_reference
+local destroy_render
+local sync_render
+local direction_to_orientation
 
 local function clone_position(position)
   return {x = position.x, y = position.y}
+end
+
+local function is_squirrel_entity_name(name)
+  return constants.squirrel_entity_names[name] == true
+end
+
+local function is_squirrel_entity(entity)
+  return entity and entity.valid and is_squirrel_entity_name(entity.name)
 end
 
 local function round_position_key(position)
@@ -194,6 +198,11 @@ end
 local function get_active_belt_riders()
   storage.squirrel_active_belt_riders = storage.squirrel_active_belt_riders or {}
   return storage.squirrel_active_belt_riders
+end
+
+local function get_ignored_removals()
+  storage.squirrel_ignored_removals = storage.squirrel_ignored_removals or {}
+  return storage.squirrel_ignored_removals
 end
 
 local function get_belt_block_counts()
@@ -386,6 +395,8 @@ local function advance_belt_ride(record, entity, tick)
 
   ride.progress = progress
   ride.last_tick = tick
+  entity.direction = belt_entity.direction
+  entity.orientation = direction_to_orientation(belt_entity.direction)
   entity.teleport(belt_world_position(
     belt_entity,
     progress,
@@ -420,6 +431,76 @@ local function resolve_entity_by_unit_number(unit_number)
   end
 
   return game.get_entity_by_unit_number(unit_number)
+end
+
+direction_to_orientation = function(direction)
+  if direction == defines.direction.east then
+    return 0.25
+  end
+  if direction == defines.direction.south then
+    return 0.5
+  end
+  if direction == defines.direction.west then
+    return 0.75
+  end
+  return 0
+end
+
+local function replace_record_entity(record, replacement)
+  if not (record and replacement and replacement.valid and replacement.unit_number) then
+    return nil
+  end
+
+  local old_unit_number = record.entity_unit_number
+  if old_unit_number then
+    get_entity_squirrel_index()[old_unit_number] = nil
+  end
+
+  record.entity = replacement
+  record.entity_unit_number = replacement.unit_number
+  get_entity_squirrel_index()[replacement.unit_number] = record.squirrel_id
+  return replacement
+end
+
+local function ensure_entity_variant(record, desired_name, direction)
+  local entity = record and resolve_entity_reference(record.entity) or nil
+  if not (record and entity and entity.valid) then
+    return nil
+  end
+
+  if entity.name == desired_name then
+    if direction ~= nil then
+      entity.direction = direction
+      entity.orientation = direction_to_orientation(direction)
+    end
+    return entity
+  end
+
+  destroy_render(record)
+
+  local replacement = entity.surface.create_entity({
+    name = desired_name,
+    position = entity.position,
+    force = entity.force,
+    create_build_effect_smoke = false,
+    spawn_decorations = false
+  })
+  if not (replacement and replacement.valid) then
+    return entity
+  end
+
+  replacement.health = math.min(entity.health or replacement.health, replacement.max_health or replacement.health)
+  replacement.direction = direction or entity.direction
+  replacement.orientation = direction_to_orientation(direction or entity.direction)
+
+  if entity.unit_number then
+    get_ignored_removals()[entity.unit_number] = true
+  end
+
+  replace_record_entity(record, replacement)
+  entity.destroy()
+  sync_render(record, replacement)
+  return replacement
 end
 
 serialize_target = function(entity, target_type, item_name, count)
@@ -484,11 +565,7 @@ local function set_excursion_focus(record, target, intent)
   record.excursion_intent = target and intent or nil
 end
 
-local function destroy_render(record)
-  if record.belt_pose_render_id then
-    record.belt_pose_render_id.destroy()
-  end
-
+destroy_render = function(record)
   if record.render_id then
     record.render_id.destroy()
   end
@@ -497,30 +574,12 @@ local function destroy_render(record)
     record.render_count_id.destroy()
   end
 
-  record.belt_pose_render_id = nil
   record.render_id = nil
   record.render_count_id = nil
 end
 
-local function sync_render(record, entity)
+sync_render = function(record, entity)
   destroy_render(record)
-
-  local belt_entity = record and record.belt_ride and resolve_target_reference(record.surface_index, record.belt_ride.belt) or nil
-  local pose_sprite = belt_entity and BELT_POSE_SPRITES[belt_entity.direction] or nil
-
-  if pose_sprite and entity and entity.valid and record.mode == "blocking" and record.target and record.target.target_type == "belt" then
-    record.belt_pose_render_id = rendering.draw_sprite({
-      sprite = pose_sprite,
-      target = {
-        entity = entity,
-        offset = {0, 0.05}
-      },
-      surface = entity.surface,
-      x_scale = 1.0,
-      y_scale = 1.0,
-      render_layer = "object"
-    })
-  end
 
   if not (record.carrying and record.carrying.name and entity and entity.valid) then
     return
@@ -1569,6 +1628,7 @@ local function idle_pause_duration(record)
 end
 
 local function enter_idle(record, entity, tick)
+  entity = ensure_entity_variant(record, constants.names.squirrel) or entity
   clear_belt_ride(record)
   record.mode = "idle"
   record.intent = nil
@@ -1584,6 +1644,7 @@ local function enter_idle(record, entity, tick)
 end
 
 local function send_home(record, entity, tick)
+  entity = ensure_entity_variant(record, constants.names.squirrel) or entity
   clear_belt_ride(record)
   record.mode = "roam"
   record.target = nil
@@ -1857,6 +1918,7 @@ local function start_retreat(record, entity, tick)
 end
 
 local function start_roam(record, entity, tick, state, report, preferred_target, preferred_intent)
+  entity = ensure_entity_variant(record, constants.names.squirrel) or entity
   clear_belt_ride(record)
   record.roam_step = (record.roam_step or 0) + 1
   local destination = bounded_roam_destination(
@@ -1886,6 +1948,7 @@ local function start_roam(record, entity, tick, state, report, preferred_target,
 end
 
 start_target_run = function(record, entity, target, intent, tick)
+  entity = ensure_entity_variant(record, constants.names.squirrel) or entity
   clear_belt_ride(record)
   record.mode = "approach"
   record.intent = intent
@@ -1906,6 +1969,7 @@ local function feeder_nibble_target(report)
 end
 
 local function start_feeder_visit(record, entity, feeder_entity, tick)
+  entity = ensure_entity_variant(record, constants.names.squirrel) or entity
   local _, report = squirrel_state_for_region(record.surface_index, record.region_x, record.region_y, tick)
 
   clear_belt_ride(record)
@@ -1942,8 +2006,10 @@ local function start_belt_block(record, entity, belt_entity, tick)
   record.action_due_tick = intent == "inspect" and record.blocking_until_tick or tick
   record.next_decision_tick = tick + constants.squirrel_decision_interval
   begin_belt_ride(record, entity, belt_entity, tick)
+  entity = ensure_entity_variant(record, constants.names.squirrel_sitting, belt_entity.direction) or entity
   stop_entity(entity)
   sync_render(record, entity)
+  return entity
 end
 
 local function perform_feeder_visit(record, entity, tick)
@@ -2636,7 +2702,7 @@ function squirrels.on_tick(tick)
 end
 
 function squirrels.on_squirrel_removed(entity, tick)
-  if not (entity and entity.valid and entity.name == constants.names.squirrel) then
+  if not is_squirrel_entity(entity) then
     return
   end
 
@@ -2656,7 +2722,7 @@ function squirrels.on_squirrel_removed(entity, tick)
 end
 
 function squirrels.on_stepped(entity, tick)
-  if not (entity and entity.valid and entity.name == constants.names.squirrel) then
+  if not is_squirrel_entity(entity) then
     return false
   end
 
@@ -2770,11 +2836,29 @@ function squirrels.debug_spawn_squirrel(surface_index, position, tick)
 end
 
 function squirrels.squirrel_id_for_entity(entity)
-  if not (entity and entity.valid and entity.unit_number) then
+  if not (is_squirrel_entity(entity) and entity.unit_number) then
     return nil
   end
 
   return get_entity_squirrel_index()[entity.unit_number]
+end
+
+function squirrels.is_squirrel_entity(entity)
+  return is_squirrel_entity(entity)
+end
+
+function squirrels.should_ignore_removed_entity(entity)
+  if not (entity and entity.unit_number) then
+    return false
+  end
+
+  local ignored = get_ignored_removals()
+  if not ignored[entity.unit_number] then
+    return false
+  end
+
+  ignored[entity.unit_number] = nil
+  return true
 end
 
 function squirrels.entity_for_squirrel_id(squirrel_id)
@@ -2799,12 +2883,13 @@ function squirrels.snapshot(squirrel_id)
     surface_index = record.surface_index,
     region_x = record.region_x,
     region_y = record.region_y,
+    entity_name = entity.name,
     position = clone_position(entity.position),
     home_position = clone_position(record.home_position),
     mode = record.mode,
     intent = record.intent,
     belt_riding = record.belt_ride ~= nil,
-    belt_pose_render = record.belt_pose_render_id and record.belt_pose_render_id.valid or false,
+    belt_pose_render = entity.name == constants.names.squirrel_sitting,
     render_sprite = record.render_id and record.render_id.valid or false,
     render_count = record.render_count_id and record.render_count_id.valid or false,
     carrying = record.carrying and {
@@ -2895,11 +2980,12 @@ function squirrels.debug_force_belt_theft(surface_index, squirrel_id, position, 
 
   local current_tick = tick or game.tick
   entity.teleport(belt.position)
-  start_belt_block(record, entity, belt, current_tick)
+  entity = start_belt_block(record, entity, belt, current_tick) or resolve_entity_reference(record.entity) or entity
 
   local iterations = 0
   while iterations < 128 and (record.mode == "blocking" or (record.mode == "approach" and record.intent == "steal")) do
     current_tick = current_tick + constants.squirrel_belt_grab_interval
+    entity = resolve_entity_reference(record.entity) or entity
     advance_belt_ride(record, entity, current_tick)
 
     if record.mode == "blocking" then
@@ -2919,9 +3005,11 @@ function squirrels.debug_force_belt_theft(surface_index, squirrel_id, position, 
   local stash = ensure_stash(record, record.carrying, record.home_position)
   local stash_id = record.stash_id
   if stash then
+    entity = resolve_entity_reference(record.entity) or entity
     entity.teleport(stash.position)
   end
 
+  entity = resolve_entity_reference(record.entity) or entity
   deposit_or_spill(record, entity)
   send_home(record, entity, current_tick)
 
@@ -2957,7 +3045,7 @@ function squirrels.debug_force_belt_sit(surface_index, squirrel_id, position, ti
 
   record.intent = "inspect"
   entity.teleport(belt.position)
-  start_belt_block(record, entity, belt, current_tick)
+  entity = start_belt_block(record, entity, belt, current_tick) or resolve_entity_reference(record.entity) or entity
   advance_belt_ride(record, entity, current_tick)
 
   return squirrels.snapshot(squirrel_id)
@@ -2987,7 +3075,7 @@ function squirrels.debug_force_single_belt_grab(surface_index, squirrel_id, posi
   end
 
   entity.teleport(belt.position)
-  start_belt_block(record, entity, belt, current_tick)
+  entity = start_belt_block(record, entity, belt, current_tick) or resolve_entity_reference(record.entity) or entity
   advance_belt_ride(record, entity, current_tick)
   perform_belt_theft(record, entity, current_tick)
 
@@ -3105,6 +3193,7 @@ function squirrels.debug_report(surface_index, tick)
       if entity and entity.valid then
         report.squirrels[#report.squirrels + 1] = {
           squirrel_id = squirrel_id,
+          entity_name = entity.name,
           state = record.state,
           mode = record.mode,
           intent = record.intent,
@@ -3157,7 +3246,7 @@ function squirrels.debug_state_for_position(surface_index, position, tick)
 end
 
 function squirrels.selection_overlay_state(entity, tick)
-  if not (entity and entity.valid and entity.name == constants.names.squirrel) then
+  if not is_squirrel_entity(entity) then
     return nil
   end
 
