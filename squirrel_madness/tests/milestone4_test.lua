@@ -635,6 +635,37 @@ describe("milestone 4 squirrel nuisance runtime", function()
     assert.is_nil(remote.call(constants.mod_name, "debug_get_squirrel_overlay_state", player().index))
   end)
 
+  it("keeps a clicked squirrel selected for a short inspection window", function()
+    spawn_forest(18, FOREST_ORIGIN)
+
+    local squirrel_id = remote.call(constants.mod_name, "debug_spawn_squirrel", surface().index, FOREST_ORIGIN.x + 6, FOREST_ORIGIN.y + 6)
+    local snapshot = remote.call(constants.mod_name, "debug_get_squirrel_snapshot", squirrel_id)
+    local squirrel = surface().find_entities_filtered({
+      position = snapshot.position,
+      name = constants.names.squirrel,
+      limit = 1
+    })[1]
+
+    assert.is_table(snapshot)
+    assert.is_not_nil(squirrel)
+
+    player().update_selected_entity(squirrel.position)
+    assert.is_not_nil(remote.call(constants.mod_name, "debug_refresh_player_selection", player().index, game.tick))
+
+    player().selected = nil
+
+    local restored = remote.call(constants.mod_name, "debug_refresh_player_selection", player().index, game.tick + 1)
+
+    assert.is_table(restored)
+    assert.equal(constants.names.squirrel, restored.name)
+    assert.equal(squirrel.unit_number, restored.unit_number)
+    if player().selected then
+      assert.equal(squirrel.unit_number, player().selected.unit_number)
+    else
+      assert.is_true(restored.via_lock)
+    end
+  end)
+
   it("suppresses squirrel selection overlays when the debug flag is disabled", function()
     spawn_forest(18, FOREST_ORIGIN)
 

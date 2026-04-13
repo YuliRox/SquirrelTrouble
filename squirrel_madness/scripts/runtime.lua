@@ -8,6 +8,7 @@ local storage_lib = require("scripts.storage")
 local runtime = {}
 local feeder_selection_overlays = {}
 local SQUIRREL_STEP_SOUND = "squirrel-madness-angry-squeak"
+local SQUIRREL_SELECTION_HOLD_TICKS = 60 * 30
 
 local function get_created_entity(event)
   return event.entity or event.created_entity or event.destination
@@ -47,6 +48,11 @@ end
 local function get_squirrel_selection_overlays()
   storage.squirrel_selection_overlays = storage.squirrel_selection_overlays or {}
   return storage.squirrel_selection_overlays
+end
+
+local function get_squirrel_selection_locks()
+  storage.squirrel_selection_locks = storage.squirrel_selection_locks or {}
+  return storage.squirrel_selection_locks
 end
 
 local function get_feeder_selection_overlays()
@@ -479,6 +485,55 @@ local function current_selected_squirrel(player)
   return nil
 end
 
+local function clear_squirrel_selection_lock(player_index)
+  get_squirrel_selection_locks()[player_index] = nil
+end
+
+local function refresh_squirrel_selection(player, tick)
+  if not (player and player.valid) then
+    return nil
+  end
+
+  local selected = player.selected
+  local squirrel = current_selected_squirrel(player)
+
+  if squirrel then
+    get_squirrel_selection_locks()[player.index] = {
+      squirrel_id = squirrels.squirrel_id_for_entity(squirrel),
+      squirrel_unit_number = squirrel.unit_number,
+      surface_index = squirrel.surface.index,
+      expires_tick = tick + SQUIRREL_SELECTION_HOLD_TICKS
+    }
+    return squirrel
+  end
+
+  if selected and selected.valid then
+    clear_squirrel_selection_lock(player.index)
+    return nil
+  end
+
+  local lock = get_squirrel_selection_locks()[player.index]
+  if not lock or tick > lock.expires_tick then
+    clear_squirrel_selection_lock(player.index)
+    return nil
+  end
+
+  local locked = squirrels.entity_for_squirrel_id(lock.squirrel_id)
+  if not (locked and locked.valid and locked.name == constants.names.squirrel and locked.surface.index == lock.surface_index) then
+    clear_squirrel_selection_lock(player.index)
+    return nil
+  end
+
+  player.update_selected_entity(locked.position)
+
+  local refreshed = current_selected_squirrel(player)
+  if not (refreshed and refreshed.valid and refreshed.unit_number == locked.unit_number) then
+    return nil
+  end
+
+  return refreshed
+end
+
 local function current_selected_feeder(player)
   local selected = player and player.valid and player.selected or nil
 
@@ -777,6 +832,8 @@ local function update_selected_debug_visuals_for_player(player, tick)
     return nil
   end
 
+  local restored_squirrel = refresh_squirrel_selection(player, tick)
+
   local station = current_selected_survey_station(player)
   if station then
     clear_feeder_overlay(player.index)
@@ -794,7 +851,7 @@ local function update_selected_debug_visuals_for_player(player, tick)
     return "feeder"
   end
 
-  local squirrel = current_selected_squirrel(player)
+  local squirrel = restored_squirrel or current_selected_squirrel(player)
   if squirrel then
     clear_survey_overlay(player.index)
     clear_survey_panel(player.index)
@@ -1480,6 +1537,7 @@ local function on_init()
   storage_lib.ensure()
   feeder_selection_overlays = {}
   storage.squirrel_step_feedback = nil
+  storage.squirrel_selection_locks = {}
   storage.survey_station_overlays = {}
   storage.survey_station_panels = {}
   storage.squirrel_selection_overlays = {}
@@ -1497,6 +1555,7 @@ local function on_configuration_changed()
   storage_lib.ensure()
   feeder_selection_overlays = {}
   storage.squirrel_step_feedback = nil
+  storage.squirrel_selection_locks = {}
   storage.survey_station_overlays = {}
   storage.survey_station_panels = {}
   storage.squirrel_selection_overlays = {}
@@ -2293,6 +2352,37 @@ local function install_remote_interface()
     debug_get_last_step_feedback = function()
       storage_lib.ensure()
       return get_squirrel_step_feedback()
+    end,
+    debug_refresh_player_selection = function(player_index, tick)
+      storage_lib.ensure()
+      local player = game.get_player(player_index)
+      if not (player and player.valid) then
+        return nil
+      end
+
+      local restored = refresh_squirrel_selection(player, tick or game.tick)
+      update_selected_debug_visuals_for_player(player, tick or game.tick)
+
+      local selected = player.selected or restored
+      if selected and selected.valid then
+        return {
+          name = selected.name,
+          unit_number = selected.unit_number,
+          surface_index = selected.surface.index
+        }
+      end
+
+      local lock = get_squirrel_selection_locks()[player_index]
+      if not lock then
+        return nil
+      end
+
+      return {
+        name = constants.names.squirrel,
+        unit_number = lock.squirrel_unit_number,
+        surface_index = lock.surface_index,
+        via_lock = true
+      }
     end,
     debug_process_retaliation_feedback_expiry = function(tick)
       storage_lib.ensure()

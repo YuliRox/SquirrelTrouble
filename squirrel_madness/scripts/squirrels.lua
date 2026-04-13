@@ -2763,6 +2763,16 @@ function squirrels.squirrel_id_for_entity(entity)
   return get_entity_squirrel_index()[entity.unit_number]
 end
 
+function squirrels.entity_for_squirrel_id(squirrel_id)
+  local record = squirrel_id and get_squirrel_store()[squirrel_id] or nil
+  local entity = record and resolve_entity_reference(record.entity) or nil
+  if not (entity and entity.valid) then
+    return nil
+  end
+
+  return entity
+end
+
 function squirrels.snapshot(squirrel_id)
   local record = get_squirrel_store()[squirrel_id]
   local entity = record and resolve_entity_reference(record.entity) or nil
