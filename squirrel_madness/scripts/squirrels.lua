@@ -14,6 +14,13 @@ local CHEST_TYPES = {
   ["logistic-container"] = true
 }
 
+local BELT_POSE_SPRITES = {
+  [defines.direction.north] = "squirrel-madness-belt-pose-north",
+  [defines.direction.east] = "squirrel-madness-belt-pose-east",
+  [defines.direction.south] = "squirrel-madness-belt-pose-south",
+  [defines.direction.west] = "squirrel-madness-belt-pose-west"
+}
+
 local stop_entity
 local process_idle_decision
 local theft_is_available
@@ -478,6 +485,10 @@ local function set_excursion_focus(record, target, intent)
 end
 
 local function destroy_render(record)
+  if record.belt_pose_render_id then
+    record.belt_pose_render_id.destroy()
+  end
+
   if record.render_id then
     record.render_id.destroy()
   end
@@ -486,12 +497,30 @@ local function destroy_render(record)
     record.render_count_id.destroy()
   end
 
+  record.belt_pose_render_id = nil
   record.render_id = nil
   record.render_count_id = nil
 end
 
 local function sync_render(record, entity)
   destroy_render(record)
+
+  local belt_entity = record and record.belt_ride and resolve_target_reference(record.surface_index, record.belt_ride.belt) or nil
+  local pose_sprite = belt_entity and BELT_POSE_SPRITES[belt_entity.direction] or nil
+
+  if pose_sprite and entity and entity.valid and record.mode == "blocking" and record.target and record.target.target_type == "belt" then
+    record.belt_pose_render_id = rendering.draw_sprite({
+      sprite = pose_sprite,
+      target = {
+        entity = entity,
+        offset = {0, 0.05}
+      },
+      surface = entity.surface,
+      x_scale = 1.0,
+      y_scale = 1.0,
+      render_layer = "object"
+    })
+  end
 
   if not (record.carrying and record.carrying.name and entity and entity.valid) then
     return
@@ -1529,6 +1558,7 @@ local function enter_idle(record, entity, tick)
   record.action_due_tick = tick + idle_pause_duration(record)
   record.next_decision_tick = record.action_due_tick
   stop_entity(entity)
+  sync_render(record, entity)
 end
 
 local function send_home(record, entity, tick)
@@ -1544,6 +1574,7 @@ local function send_home(record, entity, tick)
   record.action_due_tick = tick + constants.squirrel_move_timeout
   record.next_decision_tick = tick + constants.squirrel_decision_interval
   move_entity(entity, record.home_position)
+  sync_render(record, entity)
 end
 
 local function available_region_stashes(surface_index, region_x, region_y)
@@ -1800,6 +1831,7 @@ local function start_retreat(record, entity, tick)
   record.action_due_tick = tick + constants.squirrel_move_timeout
   record.next_decision_tick = tick + constants.squirrel_decision_interval
   move_entity(entity, record.destination)
+  sync_render(record, entity)
 end
 
 local function start_roam(record, entity, tick, state, report, preferred_target, preferred_intent)
@@ -1889,6 +1921,7 @@ local function start_belt_block(record, entity, belt_entity, tick)
   record.next_decision_tick = tick + constants.squirrel_decision_interval
   begin_belt_ride(record, entity, belt_entity, tick)
   stop_entity(entity)
+  sync_render(record, entity)
 end
 
 local function perform_feeder_visit(record, entity, tick)
@@ -2206,6 +2239,7 @@ local function create_record(entity, home_position, region_x, region_y, tick)
     last_action_tick = 0,
     last_loot_name = nil,
     stash_id = nil,
+    belt_pose_render_id = nil,
     render_id = nil,
     render_count_id = nil,
     roam_step = 0,
@@ -2723,6 +2757,7 @@ function squirrels.snapshot(squirrel_id)
     mode = record.mode,
     intent = record.intent,
     belt_riding = record.belt_ride ~= nil,
+    belt_pose_render = record.belt_pose_render_id and record.belt_pose_render_id.valid or false,
     render_sprite = record.render_id and record.render_id.valid or false,
     render_count = record.render_count_id and record.render_count_id.valid or false,
     carrying = record.carrying and {

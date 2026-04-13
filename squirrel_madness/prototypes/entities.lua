@@ -46,6 +46,17 @@ local function stash_picture(filename)
   }
 end
 
+local function squirrel_belt_pose_sprite(name, filename)
+  return {
+    type = "sprite",
+    name = name,
+    filename = filename,
+    width = 48,
+    height = 48,
+    scale = 1.75
+  }
+end
+
 local function create_survey_station()
   local source = data.raw.radar and data.raw.radar["radar"]
   if not source then
@@ -110,7 +121,7 @@ local function create_survey_station()
         height = 350,
         direction_count = 1,
         apply_projection = false,
-        shift = util.by_pixel(30, -8),
+        shift = util.by_pixel(1, -34),
         draw_as_shadow = true,
         scale = 0.5
       }
@@ -342,5 +353,9 @@ data:extend({
   steel_feeder,
   empty_steel_feeder,
   survey,
-  stash
+  stash,
+  squirrel_belt_pose_sprite("squirrel-madness-belt-pose-north", "__squirrel_madness__/graphics/entities/squirrel/rotations/north.png"),
+  squirrel_belt_pose_sprite("squirrel-madness-belt-pose-east", "__squirrel_madness__/graphics/entities/squirrel/rotations/east.png"),
+  squirrel_belt_pose_sprite("squirrel-madness-belt-pose-south", "__squirrel_madness__/graphics/entities/squirrel/rotations/south.png"),
+  squirrel_belt_pose_sprite("squirrel-madness-belt-pose-west", "__squirrel_madness__/graphics/entities/squirrel/rotations/west.png")
 })
