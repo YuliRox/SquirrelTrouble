@@ -568,6 +568,42 @@ describe("milestone 4 squirrel nuisance runtime", function()
     assert.equal("feeder", target.chosen_target.target_type)
   end)
 
+  it("shows and clears the feeder peace-radius overlay for the selecting player", function()
+    spawn_forest(18, BELT_ORIGIN)
+    local feeder = track_entity(surface().create_entity({
+      name = constants.names.feeder,
+      position = {x = BELT_ORIGIN.x + 9, y = BELT_ORIGIN.y + 2},
+      force = game.forces.player
+    }))
+    local inventory = feeder.get_inventory(defines.inventory.chest)
+
+    assert.is_not_nil(inventory)
+    assert.equal(constants.stocked_feeder_threshold, inventory.insert({
+      name = constants.names.nut,
+      count = constants.stocked_feeder_threshold
+    }))
+
+    local shown = remote.call(
+      constants.mod_name,
+      "debug_show_feeder_overlay",
+      player().index,
+      surface().index,
+      feeder.position.x,
+      feeder.position.y
+    )
+    local overlay = remote.call(constants.mod_name, "debug_get_feeder_overlay_state", player().index)
+
+    assert.is_table(shown)
+    assert.is_true(shown.stocked)
+    assert.is_table(overlay)
+    assert.is_true(overlay.stocked)
+    assert.equal(constants.squirrel_feeder_peace_radius, overlay.radius)
+    assert.equal(2, overlay.render_count)
+
+    assert.is_true(remote.call(constants.mod_name, "debug_clear_feeder_overlay", player().index))
+    assert.is_nil(remote.call(constants.mod_name, "debug_get_feeder_overlay_state", player().index))
+  end)
+
   it("shows and clears squirrel local and belt-interest overlays for the selecting player", function()
     spawn_forest(18, FOREST_ORIGIN)
 
@@ -770,6 +806,63 @@ describe("milestone 4 squirrel nuisance runtime", function()
     assert.is_true(snapshot.carrying.count > 0)
     assert.is_true(snapshot.render_sprite)
     assert.is_true(snapshot.render_count)
+  end)
+
+  it("diverts nearby belt theft into feeder visits once a stocked feeder pacifies that belt area", function()
+    local trees = spawn_forest(18, BELT_ORIGIN)
+    local squirrel_id = remote.call(constants.mod_name, "debug_spawn_squirrel", surface().index, BELT_ORIGIN.x + 6, BELT_ORIGIN.y)
+    local belts = create_belt_line({x = BELT_ORIGIN.x + 8, y = BELT_ORIGIN.y}, 4, "iron-plate", 40)
+
+    for index = 1, 8 do
+      local tree = trees[index]
+      if tree and tree.valid then
+        regions.note_tree_loss(surface().index, tree.position, 1, game.tick)
+        tree.destroy()
+      end
+    end
+
+    local feeder = track_entity(surface().create_entity({
+      name = constants.names.feeder,
+      position = {x = BELT_ORIGIN.x + 9, y = BELT_ORIGIN.y + 1},
+      force = game.forces.player
+    }))
+    local inventory = feeder.get_inventory(defines.inventory.chest)
+
+    assert.equal(constants.stocked_feeder_threshold, inventory.insert({
+      name = constants.names.nut,
+      count = constants.stocked_feeder_threshold
+    }))
+
+    local before_first_grab = total_belt_item_count(belts, "iron-plate")
+    local initial = remote.call(
+      constants.mod_name,
+      "debug_force_single_belt_grab",
+      surface().index,
+      squirrel_id,
+      belts[1].position.x,
+      belts[1].position.y
+    )
+    local after_first_grab = total_belt_item_count(belts, "iron-plate")
+
+    assert.is_table(initial)
+    assert.equal("blocking", initial.mode)
+    assert.equal("feed", initial.intent)
+    assert.equal(before_first_grab, after_first_grab)
+    assert.is_nil(initial.carrying)
+
+    remote.call(
+      constants.mod_name,
+      "debug_advance_squirrel_runtime",
+      constants.squirrel_belt_grab_interval + constants.squirrel_update_interval
+    )
+
+    local after = remote.call(constants.mod_name, "debug_get_squirrel_snapshot", squirrel_id)
+    local after_runtime_count = total_belt_item_count(belts, "iron-plate")
+
+    assert.equal(after_first_grab, after_runtime_count)
+    if after then
+      assert.is_false(after.mode == "blocking" and after.intent == "steal")
+    end
   end)
 
   it("stays on belts long enough to steal a meaningful stack before retreating", function()

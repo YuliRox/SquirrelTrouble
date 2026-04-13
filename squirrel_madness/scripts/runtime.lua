@@ -6,6 +6,7 @@ local squirrels = require("scripts.squirrels")
 local storage_lib = require("scripts.storage")
 
 local runtime = {}
+local feeder_selection_overlays = {}
 
 local function get_created_entity(event)
   return event.entity or event.created_entity or event.destination
@@ -45,6 +46,10 @@ end
 local function get_squirrel_selection_overlays()
   storage.squirrel_selection_overlays = storage.squirrel_selection_overlays or {}
   return storage.squirrel_selection_overlays
+end
+
+local function get_feeder_selection_overlays()
+  return feeder_selection_overlays
 end
 
 local function get_squirrel_damage_attribution()
@@ -430,6 +435,25 @@ local function clear_squirrel_overlay(player_index)
   return true
 end
 
+local function clear_feeder_overlay(player_index)
+  local overlays = get_feeder_selection_overlays()
+  local overlay = overlays[player_index]
+
+  if not overlay then
+    return false
+  end
+
+  for _, render_id in ipairs(overlay.render_ids or {}) do
+    local render_object = rendering.get_object_by_id(render_id)
+    if render_object and render_object.valid then
+      render_object.destroy()
+    end
+  end
+
+  overlays[player_index] = nil
+  return true
+end
+
 local function current_selected_survey_station(player)
   local selected = player and player.valid and player.selected or nil
 
@@ -444,6 +468,16 @@ local function current_selected_squirrel(player)
   local selected = player and player.valid and player.selected or nil
 
   if selected and selected.valid and selected.name == constants.names.squirrel then
+    return selected
+  end
+
+  return nil
+end
+
+local function current_selected_feeder(player)
+  local selected = player and player.valid and player.selected or nil
+
+  if selected and selected.valid and feeders.is_feeder_entity(selected) then
     return selected
   end
 
@@ -623,6 +657,62 @@ local function update_survey_overlay_for_player(player, selected_entity, tick)
   return nil
 end
 
+local function render_feeder_overlay(player, feeder)
+  clear_feeder_overlay(player.index)
+
+  if not (player and player.valid and feeder and feeder.valid and feeders.is_feeder_entity(feeder)) then
+    return nil
+  end
+
+  local state = feeders.debug_state(feeder.surface.index, feeder.position)
+  if not state then
+    return nil
+  end
+
+  local stocked = state.stocked
+  local fill_color = stocked
+      and {r = 0.34, g = 0.74, b = 0.22, a = 0.11}
+    or {r = 0.72, g = 0.44, b = 0.16, a = 0.09}
+  local outline_color = stocked
+      and {r = 0.64, g = 0.92, b = 0.28, a = 0.95}
+    or {r = 0.92, g = 0.62, b = 0.24, a = 0.95}
+
+  local render_ids = {}
+
+  local fill_circle = rendering.draw_circle({
+    color = fill_color,
+    radius = constants.squirrel_feeder_peace_radius,
+    filled = true,
+    target = feeder,
+    surface = feeder.surface,
+    players = {player.index},
+    draw_on_ground = true
+  })
+  render_ids[#render_ids + 1] = fill_circle.id
+
+  local range_circle = rendering.draw_circle({
+    color = outline_color,
+    radius = constants.squirrel_feeder_peace_radius,
+    width = 2,
+    filled = false,
+    target = feeder,
+    surface = feeder.surface,
+    players = {player.index},
+    draw_on_ground = true
+  })
+  render_ids[#render_ids + 1] = range_circle.id
+
+  get_feeder_selection_overlays()[player.index] = {
+    feeder_unit_number = feeder.unit_number,
+    surface_index = feeder.surface.index,
+    stocked = stocked,
+    radius = constants.squirrel_feeder_peace_radius,
+    render_ids = render_ids
+  }
+
+  return state
+end
+
 local function render_squirrel_overlay(player, squirrel, tick)
   clear_squirrel_overlay(player.index)
 
@@ -684,15 +774,26 @@ local function update_selected_debug_visuals_for_player(player, tick)
 
   local station = current_selected_survey_station(player)
   if station then
+    clear_feeder_overlay(player.index)
     clear_squirrel_overlay(player.index)
     update_survey_overlay_for_player(player, station, tick)
     return "survey-station"
+  end
+
+  local feeder = current_selected_feeder(player)
+  if feeder then
+    clear_survey_overlay(player.index)
+    clear_survey_panel(player.index)
+    clear_squirrel_overlay(player.index)
+    render_feeder_overlay(player, feeder)
+    return "feeder"
   end
 
   local squirrel = current_selected_squirrel(player)
   if squirrel then
     clear_survey_overlay(player.index)
     clear_survey_panel(player.index)
+    clear_feeder_overlay(player.index)
     if constants.debug_squirrel_selection_overlay then
       render_squirrel_overlay(player, squirrel, tick)
       return "squirrel"
@@ -704,6 +805,7 @@ local function update_selected_debug_visuals_for_player(player, tick)
 
   clear_survey_overlay(player.index)
   clear_survey_panel(player.index)
+  clear_feeder_overlay(player.index)
   clear_squirrel_overlay(player.index)
   return nil
 end
@@ -1371,6 +1473,7 @@ end
 
 local function on_init()
   storage_lib.ensure()
+  feeder_selection_overlays = {}
   storage.survey_station_overlays = {}
   storage.survey_station_panels = {}
   storage.squirrel_selection_overlays = {}
@@ -1386,6 +1489,7 @@ end
 
 local function on_configuration_changed()
   storage_lib.ensure()
+  feeder_selection_overlays = {}
   storage.survey_station_overlays = {}
   storage.survey_station_panels = {}
   storage.squirrel_selection_overlays = {}
@@ -1416,6 +1520,7 @@ local function on_tick(event)
 
   if event.tick % constants.survey_overlay_refresh_interval == 0 then
     local survey_overlays_to_clear = {}
+    local feeder_overlays_to_clear = {}
     local squirrel_overlays_to_clear = {}
 
     for player_index, overlay in pairs(get_survey_station_overlays()) do
@@ -1429,6 +1534,20 @@ local function on_tick(event)
         survey_overlays_to_clear[#survey_overlays_to_clear + 1] = player_index
       else
         render_survey_overlay(player, selected_station, event.tick)
+      end
+    end
+
+    for player_index, overlay in pairs(get_feeder_selection_overlays()) do
+      local player = game.get_player(player_index)
+      local selected_feeder = player and current_selected_feeder(player) or nil
+
+      if not selected_feeder
+        or selected_feeder.unit_number ~= overlay.feeder_unit_number
+        or selected_feeder.surface.index ~= overlay.surface_index
+      then
+        feeder_overlays_to_clear[#feeder_overlays_to_clear + 1] = player_index
+      else
+        render_feeder_overlay(player, selected_feeder)
       end
     end
 
@@ -1449,6 +1568,10 @@ local function on_tick(event)
     for _, player_index in ipairs(survey_overlays_to_clear) do
       clear_survey_overlay(player_index)
       clear_survey_panel(player_index)
+    end
+
+    for _, player_index in ipairs(feeder_overlays_to_clear) do
+      clear_feeder_overlay(player_index)
     end
 
     for _, player_index in ipairs(squirrel_overlays_to_clear) do
@@ -1874,6 +1997,44 @@ local function install_remote_interface()
     debug_get_feeder_state = function(surface_index, x, y)
       storage_lib.ensure()
       return feeders.debug_state(surface_index, {x = x, y = y})
+    end,
+    debug_show_feeder_overlay = function(player_index, surface_index, x, y)
+      storage_lib.ensure()
+      local player = game.get_player(player_index)
+      local surface = game.surfaces[surface_index]
+      if not (player and surface) then
+        return nil
+      end
+
+      local feeder = surface.find_entities_filtered({
+        position = {x = x, y = y},
+        name = constants.feeder_entity_names,
+        limit = 1
+      })[1]
+      if not feeder then
+        return nil
+      end
+
+      return render_feeder_overlay(player, feeder)
+    end,
+    debug_get_feeder_overlay_state = function(player_index)
+      storage_lib.ensure()
+      local overlay = get_feeder_selection_overlays()[player_index]
+      if not overlay then
+        return nil
+      end
+
+      return {
+        feeder_unit_number = overlay.feeder_unit_number,
+        surface_index = overlay.surface_index,
+        stocked = overlay.stocked,
+        radius = overlay.radius,
+        render_count = #overlay.render_ids
+      }
+    end,
+    debug_clear_feeder_overlay = function(player_index)
+      storage_lib.ensure()
+      return clear_feeder_overlay(player_index)
     end,
     force_recompute_at_position = function(surface_index, x, y)
       storage_lib.ensure()

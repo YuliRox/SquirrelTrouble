@@ -1120,10 +1120,10 @@ local function build_squirrel_target(record, opportunity, origin_position, tick,
   return candidate
 end
 
-local function stocked_feeder_near_position(surface_index, position, radius)
+local function find_stocked_feeder_near_position(surface_index, position, radius)
   local surface = game.surfaces[surface_index]
   if not (surface and radius and radius > 0) then
-    return false
+    return nil
   end
 
   for _, feeder in ipairs(surface.find_entities_filtered({
@@ -1132,8 +1132,16 @@ local function stocked_feeder_near_position(surface_index, position, radius)
   })) do
     local inventory = feeder.get_inventory(defines.inventory.chest)
     if inventory and inventory.valid and inventory.get_item_count(constants.names.nut) >= constants.stocked_feeder_threshold then
-      return true
+      return feeder
     end
+  end
+
+  return nil
+end
+
+local function stocked_feeder_near_position(surface_index, position, radius)
+  if find_stocked_feeder_near_position(surface_index, position, radius) then
+    return true
   end
 
   return false
@@ -1994,6 +2002,21 @@ local function perform_belt_theft(record, entity, tick)
       start_retreat(record, entity, tick)
     else
       send_home(record, entity, tick)
+    end
+    return false
+  end
+
+  local feeder = find_stocked_feeder_near_position(
+    record.surface_index,
+    belt_entity.position,
+    constants.squirrel_feeder_peace_radius
+  )
+  if feeder then
+    note_target_cooldown(belt_entity, tick)
+    if record.carrying then
+      start_retreat(record, entity, tick)
+    else
+      start_feeder_visit(record, entity, feeder, tick)
     end
     return false
   end
