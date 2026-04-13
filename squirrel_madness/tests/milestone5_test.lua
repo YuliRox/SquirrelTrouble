@@ -146,6 +146,14 @@ local function clear_retaliation_feedback()
   )
 end
 
+local function clear_chart_tags()
+  for _, tag in ipairs(player().force.find_chart_tags(surface())) do
+    if tag.valid then
+      tag.destroy()
+    end
+  end
+end
+
 local function reset_runtime_storage()
   storage.regions = {}
   storage.last_refresh_tick = 0
@@ -190,6 +198,7 @@ before_each(function()
   spawned_entities = {}
   surface().clear_pollution()
   clear_retaliation_feedback()
+  clear_chart_tags()
   reset_runtime_storage()
   prepare_origin(ORIGIN)
   player().teleport({x = 0, y = 0}, surface())
@@ -203,6 +212,7 @@ end)
 after_each(function()
   surface().clear_pollution()
   clear_retaliation_feedback()
+  clear_chart_tags()
   reset_runtime_storage()
 
   for _, entity in ipairs(spawned_entities or {}) do
@@ -356,11 +366,14 @@ describe("milestone 5 retaliation and relocation foundation", function()
     assert.is_true(squirrel_entity.die(player().force, player().character))
 
     local feedback = remote.call(constants.mod_name, "debug_get_retaliation_feedback", player().index)
+    local chart_tags = player().force.find_chart_tags(surface())
     assert.equal(2, #feedback)
     assert.equal("death-site-pin", feedback[1].kind)
     assert.equal("revenge-source-alert", feedback[2].kind)
     assert.equal(game.tick + constants.retaliation_feedback_duration, feedback[1].expires_tick)
     assert.equal(game.tick + constants.retaliation_feedback_duration, feedback[2].expires_tick)
+    assert.equal(1, #chart_tags)
+    assert.equal("Squirrel death site", chart_tags[1].text)
 
     local remaining_before_expiry = remote.call(
       constants.mod_name,
@@ -375,9 +388,11 @@ describe("milestone 5 retaliation and relocation foundation", function()
       game.tick + constants.retaliation_feedback_duration
     )
     local final_feedback = remote.call(constants.mod_name, "debug_get_retaliation_feedback", player().index)
+    local final_chart_tags = player().force.find_chart_tags(surface())
 
     assert.equal(0, remaining_after_expiry)
     assert.equal(0, #final_feedback)
+    assert.equal(0, #final_chart_tags)
   end)
 
   it("launches a bounded revenge wave at the incident hotspot", function()

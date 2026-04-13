@@ -9,6 +9,7 @@ local runtime = {}
 local feeder_selection_overlays = {}
 local SQUIRREL_STEP_SOUND = "squirrel-madness-angry-squeak"
 local SQUIRREL_SELECTION_HOLD_TICKS = 60 * 30
+local destroy_feedback_pin
 
 local function get_created_entity(event)
   return event.entity or event.created_entity or event.destination
@@ -1264,10 +1265,7 @@ local function process_retaliation_feedback_expiry(tick)
       local player = game.get_player(entry.player_index)
       if player and player.valid then
         if entry.kind == "death-site-pin" or entry.kind == "relocation-destination-pin" then
-          local tag = entry.tag
-          if tag and tag.valid then
-            tag.destroy()
-          end
+          destroy_feedback_pin(entry, player)
         elseif entry.kind == "revenge-source-alert" and entry.entity_unit_number then
           local entity = game.get_entity_by_unit_number(entry.entity_unit_number)
           if entity and entity.valid then
@@ -1290,6 +1288,28 @@ local function process_retaliation_feedback_expiry(tick)
   end
 
   return #feedback
+end
+
+destroy_feedback_pin = function(entry, player)
+  local tag = entry.tag
+  if tag and tag.valid then
+    tag.destroy()
+    return true
+  end
+
+  local surface = entry.surface_index and game.surfaces[entry.surface_index] or nil
+  if not (surface and player and player.valid) then
+    return false
+  end
+
+  for _, candidate in ipairs(player.force.find_chart_tags(surface)) do
+    if candidate.valid and entry.tag_number and candidate.tag_number == entry.tag_number then
+      candidate.destroy()
+      return true
+    end
+  end
+
+  return false
 end
 
 local function notify_relocation(player, squirrel_id, incident)
@@ -1328,6 +1348,7 @@ local function notify_relocation(player, squirrel_id, incident)
       player_index = player.index,
       incident_id = incident.incident_id,
       expires_tick = game.tick + constants.retaliation_feedback_duration,
+      surface_index = incident.surface_index,
       tag = tag,
       tag_number = tag.tag_number,
       entity_unit_number = squirrel_entity and squirrel_entity.valid and squirrel_entity.unit_number or nil
@@ -1338,9 +1359,23 @@ end
 local function notify_retaliation(surface, position, force, player_index, incident)
   local players = connected_force_players(force)
   local direct_player = player_index and game.get_player(player_index) or nil
+  local death_site_tag = nil
 
   if #players == 0 and direct_player then
     players[1] = direct_player
+  end
+
+  if incident.kind == "death" then
+    local death_position = incident.position
+    force.chart(surface, {
+      left_top = {x = death_position.x - 1, y = death_position.y - 1},
+      right_bottom = {x = death_position.x + 1, y = death_position.y + 1}
+    })
+    death_site_tag = force.add_chart_tag(surface, {
+      position = death_position,
+      text = "Squirrel death site",
+      last_user = direct_player or players[1]
+    })
   end
 
   for _, player in ipairs(players) do
@@ -1349,21 +1384,16 @@ local function notify_retaliation(surface, position, force, player_index, incide
       or {incident.message_key}
     player.print(message)
 
-    if incident.kind == "death" then
-      local tag = player.add_pin({
-        surface = surface,
-        position = incident.position,
-        label = "Squirrel death site",
-        always_visible = false
-      })
-
+    if death_site_tag then
       local feedback = get_squirrel_retaliation_feedback()
       feedback[#feedback + 1] = {
         kind = "death-site-pin",
         player_index = player.index,
         incident_id = incident.incident_id,
         expires_tick = game.tick + constants.retaliation_feedback_duration,
-        tag = tag
+        surface_index = surface.index,
+        tag = death_site_tag,
+        tag_number = death_site_tag.valid and death_site_tag.tag_number or nil
       }
     end
 
