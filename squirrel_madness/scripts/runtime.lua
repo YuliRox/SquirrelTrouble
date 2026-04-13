@@ -7,6 +7,7 @@ local storage_lib = require("scripts.storage")
 
 local runtime = {}
 local feeder_selection_overlays = {}
+local SQUIRREL_STEP_SOUND = "squirrel-madness-angry-squeak"
 
 local function get_created_entity(event)
   return event.entity or event.created_entity or event.destination
@@ -77,6 +78,10 @@ end
 local function get_squirrel_retaliation_feedback()
   storage.squirrel_retaliation_feedback = storage.squirrel_retaliation_feedback or {}
   return storage.squirrel_retaliation_feedback
+end
+
+local function get_squirrel_step_feedback()
+  return storage.squirrel_step_feedback
 end
 
 local function active_region_offsets()
@@ -1474,6 +1479,7 @@ end
 local function on_init()
   storage_lib.ensure()
   feeder_selection_overlays = {}
+  storage.squirrel_step_feedback = nil
   storage.survey_station_overlays = {}
   storage.survey_station_panels = {}
   storage.squirrel_selection_overlays = {}
@@ -1490,6 +1496,7 @@ end
 local function on_configuration_changed()
   storage_lib.ensure()
   feeder_selection_overlays = {}
+  storage.squirrel_step_feedback = nil
   storage.survey_station_overlays = {}
   storage.survey_station_panels = {}
   storage.squirrel_selection_overlays = {}
@@ -1779,6 +1786,18 @@ local function handle_squirrel_rough_handling(entity, player, tick)
   regions.note_rough_handling(entity.surface.index, entity.position, 1, tick)
   enqueue_region_refresh_at_position(entity.surface, entity.position, tick)
   squirrels.on_stepped(entity, tick)
+  player.play_sound({
+    path = SQUIRREL_STEP_SOUND,
+    position = entity.position,
+    volume_modifier = 0.45
+  })
+  storage.squirrel_step_feedback = {
+    player_index = player.index,
+    surface_index = entity.surface.index,
+    position = {x = entity.position.x, y = entity.position.y},
+    tick = tick,
+    path = SQUIRREL_STEP_SOUND
+  }
 
   local incident = record_squirrel_incident(entity.surface, entity.position, player.force, player_index, "rough-handling", tick, {})
   notify_retaliation(entity.surface, entity.position, player.force, player_index, incident)
@@ -2270,6 +2289,10 @@ local function install_remote_interface()
       end
 
       return entries
+    end,
+    debug_get_last_step_feedback = function()
+      storage_lib.ensure()
+      return get_squirrel_step_feedback()
     end,
     debug_process_retaliation_feedback_expiry = function(tick)
       storage_lib.ensure()
