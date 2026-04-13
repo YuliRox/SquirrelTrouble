@@ -1551,7 +1551,21 @@ end
 local function idle_pause_duration(record)
   local pause_span = math.max(0, constants.squirrel_idle_pause_max - constants.squirrel_idle_pause_min)
   local pause_seed = (((record.squirrel_id or 1) * 19) + ((record.roam_step or 0) * 23)) % (pause_span + 1)
-  return constants.squirrel_idle_pause_min + pause_seed
+  local base_pause = constants.squirrel_idle_pause_min + pause_seed
+  local state = record.state or "calm"
+  local multiplier = 1
+
+  if state == "calm" then
+    multiplier = 1.8
+  elseif state == "curious" then
+    multiplier = 1.5
+  elseif state == "mischievous" then
+    multiplier = 1.15
+  elseif state == "agitated" or state == "grieving" then
+    multiplier = 0.8
+  end
+
+  return math.floor(base_pause * multiplier)
 end
 
 local function enter_idle(record, entity, tick)

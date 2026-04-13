@@ -398,6 +398,30 @@ describe("milestone 4 squirrel nuisance runtime", function()
     end
   end)
 
+  it("lets calm squirrels linger in idle mode for longer stretches", function()
+    spawn_forest(18, FOREST_ORIGIN)
+    player().teleport(FOREST_ORIGIN, surface())
+    local squirrel_id = remote.call(constants.mod_name, "debug_spawn_squirrel", surface().index, FOREST_ORIGIN.x + 6, FOREST_ORIGIN.y + 6)
+
+    remote.call(
+      constants.mod_name,
+      "debug_advance_squirrel_runtime",
+      constants.squirrel_move_timeout + (constants.squirrel_update_interval * 2)
+    )
+
+    local before = remote.call(constants.mod_name, "debug_get_squirrel_snapshot", squirrel_id)
+
+    assert.is_table(before)
+    assert.equal("idle", before.mode)
+
+    remote.call(constants.mod_name, "debug_advance_squirrel_runtime", 60 * 6)
+
+    local after = remote.call(constants.mod_name, "debug_get_squirrel_snapshot", squirrel_id)
+
+    assert.is_table(after)
+    assert.equal("idle", after.mode)
+  end)
+
   it("tracks calm, curious, mischievous, agitated, and grieving state selection", function()
     local trees = spawn_forest(18, FOREST_ORIGIN)
 
@@ -724,7 +748,7 @@ describe("milestone 4 squirrel nuisance runtime", function()
 
     assert.is_not_nil(snapshot)
     assert.is_true(inventory.get_item_count(constants.names.nut) < constants.stocked_feeder_threshold)
-    assert.is_true(snapshot.mode == "roam" or snapshot.mode == "idle")
+    assert.is_false(snapshot.mode == "blocking" and snapshot.intent == "feed")
   end)
 
   it("lets curious squirrels inspect nearby belts once they have ranged to the forest edge", function()
