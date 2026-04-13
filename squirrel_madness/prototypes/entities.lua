@@ -11,6 +11,28 @@ local function clone_container(source_name, name)
   return prototype
 end
 
+local function remove_flag(flags, flag_name)
+  if not flags then
+    return {}
+  end
+
+  local filtered = {}
+
+  for _, flag in ipairs(flags) do
+    if flag ~= flag_name then
+      filtered[#filtered + 1] = flag
+    end
+  end
+
+  return filtered
+end
+
+local function make_feeder_repairable(prototype, max_health)
+  prototype.flags = remove_flag(prototype.flags, "not-repairable")
+  prototype.max_health = max_health
+  return prototype
+end
+
 local function feeder_picture(filename, shadow_filename, width, height, shadow_width, shadow_height, shadow_shift_x, shadow_shift_y)
   return {
     layers = {
@@ -162,6 +184,7 @@ local function clone_unit(source_name, new_name)
 end
 
 local feeder = clone_container("wooden-chest", "squirrel-feeder")
+make_feeder_repairable(feeder, 150)
 feeder.icon = "__squirrel_madness__/graphics/icons/wooden-feeder-icon.png"
 feeder.icon_size = 64
 feeder.inventory_size = 1
@@ -180,6 +203,7 @@ feeder.picture = feeder_picture(
 )
 
 local empty_feeder = clone_container("wooden-chest", "squirrel-feeder-empty")
+make_feeder_repairable(empty_feeder, 150)
 empty_feeder.icon = "__squirrel_madness__/graphics/icons/wooden-feeder-icon.png"
 empty_feeder.icon_size = 64
 empty_feeder.inventory_size = 1
@@ -200,6 +224,7 @@ empty_feeder.picture = feeder_picture(
 )
 
 local steel_feeder = clone_container("steel-chest", "steel-squirrel-feeder")
+make_feeder_repairable(steel_feeder, 400)
 steel_feeder.icon = "__squirrel_madness__/graphics/icons/steel-feeder-icon.png"
 steel_feeder.icon_size = 64
 steel_feeder.inventory_size = 2
@@ -218,6 +243,7 @@ steel_feeder.picture = feeder_picture(
 )
 
 local empty_steel_feeder = clone_container("steel-chest", "steel-squirrel-feeder-empty")
+make_feeder_repairable(empty_steel_feeder, 400)
 empty_steel_feeder.icon = "__squirrel_madness__/graphics/icons/steel-feeder-icon.png"
 empty_steel_feeder.icon_size = 64
 empty_steel_feeder.inventory_size = 2

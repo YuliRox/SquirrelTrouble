@@ -132,6 +132,48 @@ describe("milestone 0 scaffold", function()
     end
   end)
 
+  it("keeps feeder variants sturdier than their chest bases", function()
+    local wooden_chest = surface().create_entity({
+      name = "wooden-chest",
+      position = {x = 16, y = 8},
+      force = player_force()
+    })
+    local wooden_feeder = surface().create_entity({
+      name = constants.names.feeder_empty,
+      position = {x = 18, y = 8},
+      force = player_force()
+    })
+    local steel_chest = surface().create_entity({
+      name = "steel-chest",
+      position = {x = 20, y = 8},
+      force = player_force()
+    })
+    local steel_feeder = surface().create_entity({
+      name = constants.names.steel_feeder_empty,
+      position = {x = 22, y = 8},
+      force = player_force()
+    })
+
+    assert.is_true(wooden_feeder.health > wooden_chest.health)
+    assert.is_true(steel_feeder.health > steel_chest.health)
+
+    if wooden_chest and wooden_chest.valid then
+      wooden_chest.destroy()
+    end
+
+    if wooden_feeder and wooden_feeder.valid then
+      wooden_feeder.destroy()
+    end
+
+    if steel_chest and steel_chest.valid then
+      steel_chest.destroy()
+    end
+
+    if steel_feeder and steel_feeder.valid then
+      steel_feeder.destroy()
+    end
+  end)
+
   it("disables vanilla chest item overlays on feeder variants", function()
     for _, name in ipairs({
       constants.names.feeder,
