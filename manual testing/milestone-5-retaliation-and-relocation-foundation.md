@@ -16,12 +16,13 @@ Checklist:
 - [ ] Click a visible squirrel so it is selected.
 - [ ] Press `ALT+R`.
 - [ ] Confirm the game does not error and instead relocates that squirrel away from the current hotspot.
+- [ ] Confirm a temporary `Relocated squirrel` pin appears so the destination reads as relocation, not deletion.
 - [ ] Confirm the squirrel reappears in a healthier forest patch rather than on open ground or inside factory infrastructure.
 - [ ] Press `ALT+S` near the original hotspot before and after relocation.
 - [ ] Confirm the local trust/unrest reading improves slightly after a successful relocation.
 
 Pass condition:
-- Nonlethal relocation reads as intentional wildlife control, not disappearance or deletion.
+- Nonlethal relocation reads as intentional wildlife control, not disappearance or deletion, and the destination is easy to identify.
 
 ## Rough Handling Warning
 

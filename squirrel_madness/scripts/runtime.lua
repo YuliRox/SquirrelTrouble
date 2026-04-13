@@ -1263,7 +1263,7 @@ local function process_retaliation_feedback_expiry(tick)
     if tick >= entry.expires_tick then
       local player = game.get_player(entry.player_index)
       if player and player.valid then
-        if entry.kind == "death-site-pin" then
+        if entry.kind == "death-site-pin" or entry.kind == "relocation-destination-pin" then
           local tag = entry.tag
           if tag and tag.valid then
             tag.destroy()
@@ -1290,6 +1290,49 @@ local function process_retaliation_feedback_expiry(tick)
   end
 
   return #feedback
+end
+
+local function notify_relocation(player, squirrel_id, incident)
+  if not (player and player.valid and incident and incident.kind == "relocation") then
+    return
+  end
+
+  local label = "Relocated squirrel"
+  local tag
+  local squirrel_entity = squirrels.entity_for_squirrel_id(squirrel_id)
+
+  if squirrel_entity and squirrel_entity.valid then
+    tag = player.add_pin({
+      entity = squirrel_entity,
+      label = label,
+      preview_distance = 256,
+      always_visible = true
+    })
+  else
+    local surface = game.surfaces[incident.surface_index]
+    if surface and incident.destination_position then
+      tag = player.add_pin({
+        surface = surface,
+        position = incident.destination_position,
+        label = label,
+        preview_distance = 256,
+        always_visible = true
+      })
+    end
+  end
+
+  if tag then
+    local feedback = get_squirrel_retaliation_feedback()
+    feedback[#feedback + 1] = {
+      kind = "relocation-destination-pin",
+      player_index = player.index,
+      incident_id = incident.incident_id,
+      expires_tick = game.tick + constants.retaliation_feedback_duration,
+      tag = tag,
+      tag_number = tag.tag_number,
+      entity_unit_number = squirrel_entity and squirrel_entity.valid and squirrel_entity.unit_number or nil
+    }
+  end
 end
 
 local function notify_retaliation(surface, position, force, player_index, incident)
@@ -1524,6 +1567,7 @@ local function relocate_selected_squirrel(player, tick)
     destination_position = result.position
   })
 
+  notify_relocation(player, squirrel_id, incident)
   player.print({
     incident.message_key,
     destination.region_x,
@@ -2222,11 +2266,14 @@ local function install_remote_interface()
       enqueue_region_refresh_at_position(surface, snapshot.position, game.tick)
       enqueue_region_refresh_at_position(surface, result.position, game.tick)
 
-      return record_squirrel_incident(surface, snapshot.position, player.force, player.index, "relocation", game.tick, {
+      local incident = record_squirrel_incident(surface, snapshot.position, player.force, player.index, "relocation", game.tick, {
         destination_region_x = destination.region_x,
         destination_region_y = destination.region_y,
         destination_position = result.position
       })
+
+      notify_relocation(player, squirrel_id, incident)
+      return incident
     end,
     debug_kill_squirrel = function(squirrel_id)
       storage_lib.ensure()
