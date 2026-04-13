@@ -79,6 +79,45 @@ local function total_belt_item_count(belts, item_name)
   return total
 end
 
+local function total_debug_belt_block_count(belts)
+  local total = 0
+
+  for _, belt in ipairs(belts) do
+    if belt.valid then
+      total = total + remote.call(
+        constants.mod_name,
+        "debug_get_belt_block_count",
+        surface().index,
+        belt.position.x,
+        belt.position.y
+      )
+    end
+  end
+
+  return total
+end
+
+local function register_test_stash(entity, region_x, region_y)
+  local surface_index = entity.surface.index
+  local stash_id = storage.next_squirrel_stash_id
+  local key = region_x .. "," .. region_y
+
+  storage.next_squirrel_stash_id = stash_id + 1
+  storage.squirrel_stashes[surface_index] = storage.squirrel_stashes[surface_index] or {}
+  storage.squirrel_stashes[surface_index][stash_id] = {
+    entity = entity,
+    region_x = region_x,
+    region_y = region_y
+  }
+  storage.squirrel_stashes_by_region[surface_index] = storage.squirrel_stashes_by_region[surface_index] or {}
+  storage.squirrel_stashes_by_region[surface_index][key] = storage.squirrel_stashes_by_region[surface_index][key] or {
+    ids = {}
+  }
+  storage.squirrel_stashes_by_region[surface_index][key].ids[stash_id] = true
+
+  return stash_id
+end
+
 local function find_squirrel(report, squirrel_id)
   for _, squirrel in ipairs(report.squirrels or {}) do
     if squirrel.squirrel_id == squirrel_id then
@@ -184,6 +223,7 @@ local function reset_runtime_storage()
   storage.squirrel_stashes_by_region = {}
   storage.squirrel_stash_target_counts = {}
   storage.squirrel_last_cleanup_tick = 0
+  storage.squirrel_selection_overlays = {}
 end
 
 local function cleanup_area()
@@ -470,6 +510,27 @@ describe("milestone 4 squirrel nuisance runtime", function()
     assert.equal("belt", target.chosen_target.target_type)
   end)
 
+  it("lets calm squirrels choose nearby empty belts for passive sitting", function()
+    spawn_forest(18, BELT_ORIGIN)
+    local squirrel_id = remote.call(constants.mod_name, "debug_spawn_squirrel", surface().index, BELT_ORIGIN.x + 6, BELT_ORIGIN.y)
+    local belt = track_entity(surface().create_entity({
+      name = "transport-belt",
+      position = {x = BELT_ORIGIN.x + 8, y = BELT_ORIGIN.y},
+      direction = defines.direction.east,
+      force = game.forces.player
+    }))
+
+    assert.is_number(squirrel_id)
+    assert.is_not_nil(belt)
+
+    local target = remote.call(constants.mod_name, "debug_get_squirrel_target", squirrel_id)
+
+    assert.equal("calm", target.state)
+    assert.is_table(target.local_target)
+    assert.equal("belt", target.local_target.target_type)
+    assert.equal("inspect", target.local_intent)
+  end)
+
   it("makes stocked feeders outrank nearby calm belt sitting", function()
     spawn_forest(18, BELT_ORIGIN)
     local squirrel_id = remote.call(constants.mod_name, "debug_spawn_squirrel", surface().index, BELT_ORIGIN.x + 6, BELT_ORIGIN.y)
@@ -505,6 +566,65 @@ describe("milestone 4 squirrel nuisance runtime", function()
     assert.equal("feed", target.local_intent)
     assert.is_table(target.chosen_target)
     assert.equal("feeder", target.chosen_target.target_type)
+  end)
+
+  it("shows and clears squirrel local and belt-interest overlays for the selecting player", function()
+    spawn_forest(18, FOREST_ORIGIN)
+
+    local squirrel_id = remote.call(constants.mod_name, "debug_spawn_squirrel", surface().index, FOREST_ORIGIN.x + 4, FOREST_ORIGIN.y + 4)
+    local snapshot = remote.call(constants.mod_name, "debug_get_squirrel_snapshot", squirrel_id)
+
+    assert.is_number(squirrel_id)
+    assert.is_table(snapshot)
+
+    local shown = remote.call(
+      constants.mod_name,
+      "debug_show_squirrel_overlay",
+      player().index,
+      surface().index,
+      snapshot.position.x,
+      snapshot.position.y
+    )
+    local overlay = remote.call(constants.mod_name, "debug_get_squirrel_overlay_state", player().index)
+
+    assert.is_table(shown)
+    assert.is_table(overlay)
+    assert.equal(shown.local_radius, overlay.local_radius)
+    assert.equal(shown.belt_interest_radius, overlay.belt_interest_radius)
+    assert.is_true(overlay.belt_interest_radius > overlay.local_radius)
+    assert.equal(shown.state, overlay.state)
+    assert.equal(2, overlay.render_count)
+
+    assert.is_true(remote.call(constants.mod_name, "debug_clear_squirrel_overlay", player().index))
+    assert.is_nil(remote.call(constants.mod_name, "debug_get_squirrel_overlay_state", player().index))
+  end)
+
+  it("suppresses squirrel selection overlays when the debug flag is disabled", function()
+    spawn_forest(18, FOREST_ORIGIN)
+
+    local squirrel_id = remote.call(constants.mod_name, "debug_spawn_squirrel", surface().index, FOREST_ORIGIN.x + 4, FOREST_ORIGIN.y + 4)
+    local snapshot = remote.call(constants.mod_name, "debug_get_squirrel_snapshot", squirrel_id)
+    local original = constants.debug_squirrel_selection_overlay
+
+    assert.is_number(squirrel_id)
+    assert.is_table(snapshot)
+
+    constants.debug_squirrel_selection_overlay = false
+
+    local shown = remote.call(
+      constants.mod_name,
+      "debug_show_squirrel_overlay",
+      player().index,
+      surface().index,
+      snapshot.position.x,
+      snapshot.position.y
+    )
+    local overlay = remote.call(constants.mod_name, "debug_get_squirrel_overlay_state", player().index)
+
+    constants.debug_squirrel_selection_overlay = original
+
+    assert.is_nil(shown)
+    assert.is_nil(overlay)
   end)
 
   it("lets squirrels visit stocked feeders, eat nuts, and then leave", function()
@@ -671,6 +791,47 @@ describe("milestone 4 squirrel nuisance runtime", function()
     assert.equal(result.count, report.stashes[1].item_count)
   end)
 
+  it("rides belts while inspecting and releases the blocked segment afterwards", function()
+    spawn_forest(18, BELT_ORIGIN)
+    local squirrel_id = remote.call(constants.mod_name, "debug_spawn_squirrel", surface().index, BELT_ORIGIN.x, BELT_ORIGIN.y)
+    local belts = create_belt_line({x = BELT_ORIGIN.x + 8, y = BELT_ORIGIN.y}, 8, "iron-plate", 8)
+
+    player().teleport({x = BELT_ORIGIN.x - 10, y = BELT_ORIGIN.y}, surface())
+
+    local initial = remote.call(constants.mod_name, "debug_force_belt_sit", surface().index, squirrel_id, belts[1].position.x, belts[1].position.y)
+
+    assert.is_table(initial)
+    assert.equal("blocking", initial.mode)
+    assert.equal("inspect", initial.intent)
+    assert.is_true(initial.belt_riding)
+    assert.equal(1, total_debug_belt_block_count(belts))
+
+    local before = remote.call(constants.mod_name, "debug_get_squirrel_snapshot", squirrel_id)
+    remote.call(constants.mod_name, "debug_advance_squirrel_runtime", 60 * 2)
+    local during = remote.call(constants.mod_name, "debug_get_squirrel_snapshot", squirrel_id)
+
+    assert.is_table(before)
+    assert.is_table(during)
+    assert.equal("blocking", during.mode)
+    assert.equal("inspect", during.intent)
+    assert.is_true(during.belt_riding)
+    assert.is_true(during.position.x > (before.position.x + 0.5))
+    assert.equal(1, total_debug_belt_block_count(belts))
+
+    remote.call(
+      constants.mod_name,
+      "debug_advance_squirrel_runtime",
+      constants.squirrel_belt_inspect_duration + constants.squirrel_update_interval
+    )
+
+    local after = remote.call(constants.mod_name, "debug_get_squirrel_snapshot", squirrel_id)
+
+    assert.is_table(after)
+    assert.is_false(after.belt_riding)
+    assert.is_true(after.mode == "roam" or after.mode == "idle")
+    assert.equal(0, total_debug_belt_block_count(belts))
+  end)
+
   it("lets pressured squirrels range outward and raid nearby belts in an active forest-edge region", function()
     local coord = regions.position_to_region_coord(BELT_ORIGIN)
     local trees = fill_region_with_forest(coord.x, coord.y, 8)
@@ -723,6 +884,65 @@ describe("milestone 4 squirrel nuisance runtime", function()
 
     assert.equal(1, remote.call(constants.mod_name, "debug_cleanup_empty_stashes", surface().index))
     assert.equal(0, #remote.call(constants.mod_name, "debug_get_squirrel_report", surface().index).stashes)
+  end)
+
+  it("creates an overflow stash instead of dropping carried loot when existing stashes are full", function()
+    spawn_forest(18, BELT_ORIGIN)
+    local squirrel_id = remote.call(constants.mod_name, "debug_spawn_squirrel", surface().index, BELT_ORIGIN.x, BELT_ORIGIN.y)
+    local coord = regions.position_to_region_coord(BELT_ORIGIN)
+    local first_stash = track_entity(surface().create_entity({
+      name = constants.names.stash,
+      position = {x = BELT_ORIGIN.x + 3, y = BELT_ORIGIN.y + 4},
+      force = "neutral"
+    }))
+    local second_stash = track_entity(surface().create_entity({
+      name = constants.names.stash,
+      position = {x = BELT_ORIGIN.x + 6, y = BELT_ORIGIN.y + 4},
+      force = "neutral"
+    }))
+    local belts = create_belt_line({x = BELT_ORIGIN.x + 10, y = BELT_ORIGIN.y}, 8, "coal", 50)
+
+    register_test_stash(first_stash, coord.x, coord.y)
+    register_test_stash(second_stash, coord.x, coord.y)
+
+    for _, stash in ipairs({first_stash, second_stash}) do
+      local inventory = stash.get_inventory(defines.inventory.chest)
+      assert.is_not_nil(inventory)
+      assert.equal(50, inventory.insert({name = "stone", count = 50}))
+      assert.equal(50, inventory.insert({name = "wood", count = 50}))
+      assert.equal(50, inventory.insert({name = "iron-ore", count = 50}))
+      assert.equal(50, inventory.insert({name = "copper-ore", count = 50}))
+      assert.equal(50, inventory.insert({name = "iron-plate", count = 50}))
+      assert.equal(50, inventory.insert({name = "copper-plate", count = 50}))
+      assert.equal(50, inventory.insert({name = "iron-gear-wheel", count = 50}))
+      assert.equal(50, inventory.insert({name = "electronic-circuit", count = 50}))
+      assert.is_false(inventory.can_insert({name = "coal", count = 1}))
+    end
+
+    local result = remote.call(constants.mod_name, "debug_force_belt_theft", surface().index, squirrel_id, belts[1].position.x, belts[1].position.y)
+    local report = remote.call(constants.mod_name, "debug_get_squirrel_report", surface().index)
+    local all_stashes = surface().find_entities_filtered({
+      area = square_area(BELT_ORIGIN, 24),
+      name = constants.names.stash
+    })
+    local overflow_stash
+
+    assert.is_table(result)
+    assert.equal("coal", result.item_name)
+    assert.equal(3, #report.stashes)
+
+    for _, stash in ipairs(all_stashes) do
+      if stash.unit_number ~= first_stash.unit_number and stash.unit_number ~= second_stash.unit_number then
+        overflow_stash = stash
+        break
+      end
+    end
+
+    assert.is_not_nil(overflow_stash)
+    assert.is_true(
+      overflow_stash.get_inventory(defines.inventory.chest).get_item_count("coal")
+        >= constants.squirrel_belt_grab_amount
+    )
   end)
 
   it("rate-limits repeated theft and stash creation per squirrel and per region", function()

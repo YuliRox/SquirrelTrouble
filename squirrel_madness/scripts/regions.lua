@@ -138,6 +138,15 @@ local function region_is_cluster_candidate(region)
   return region_forest_mass(region) >= constants.survey_cluster_min_tree_count
 end
 
+local function region_intersects_circle(region_x, region_y, position, radius)
+  local area = regions.region_area(region_x, region_y)
+  local nearest_x = math.max(area.left_top.x, math.min(position.x, area.right_bottom.x))
+  local nearest_y = math.max(area.left_top.y, math.min(position.y, area.right_bottom.y))
+  local dx = position.x - nearest_x
+  local dy = position.y - nearest_y
+  return ((dx * dx) + (dy * dy)) <= (radius * radius)
+end
+
 local function ensure_region_shape(region, surface_index, region_x, region_y)
   region.surface_index = region.surface_index or surface_index
   region.region_x = region.region_x or region_x
@@ -578,34 +587,40 @@ local function ensure_region_recomputed(surface, region_x, region_y, tick)
   return region
 end
 
-local function find_cluster_seed(surface, anchor_region_x, anchor_region_y, tick)
+local function find_cluster_seed(surface, anchor_position, tick)
+  local anchor = regions.position_to_region_coord(anchor_position)
   local best_region
   local best_distance
   local best_mass = -1
 
   for _, offset in ipairs(cluster_seed_offsets()) do
-    local candidate = ensure_region_recomputed(
-      surface,
-      anchor_region_x + offset.dx,
-      anchor_region_y + offset.dy,
-      tick
-    )
+    local region_x = anchor.x + offset.dx
+    local region_y = anchor.y + offset.dy
 
-    if region_is_cluster_candidate(candidate) then
-      local mass = region_forest_mass(candidate)
+    if region_intersects_circle(region_x, region_y, anchor_position, constants.survey_station_exact_radius) then
+      local candidate = ensure_region_recomputed(
+        surface,
+        region_x,
+        region_y,
+        tick
+      )
 
-      if not best_region
-        or offset.distance_squared < best_distance
-        or (offset.distance_squared == best_distance and mass > best_mass)
-      then
-        best_region = candidate
-        best_distance = offset.distance_squared
-        best_mass = mass
+      if region_is_cluster_candidate(candidate) then
+        local mass = region_forest_mass(candidate)
+
+        if not best_region
+          or offset.distance_squared < best_distance
+          or (offset.distance_squared == best_distance and mass > best_mass)
+        then
+          best_region = candidate
+          best_distance = offset.distance_squared
+          best_mass = mass
+        end
       end
     end
   end
 
-  return best_region or ensure_region_recomputed(surface, anchor_region_x, anchor_region_y, tick)
+  return best_region or ensure_region_recomputed(surface, anchor.x, anchor.y, tick)
 end
 
 local function aggregate_cluster_report(seed_region, anchor_region_x, anchor_region_y, members)
@@ -723,11 +738,12 @@ local function aggregate_cluster_report(seed_region, anchor_region_x, anchor_reg
   return report
 end
 
-local function build_forest_cluster(surface, anchor_region_x, anchor_region_y, tick)
-  local seed_region = find_cluster_seed(surface, anchor_region_x, anchor_region_y, tick)
+local function build_forest_cluster(surface, anchor_position, tick)
+  local anchor = regions.position_to_region_coord(anchor_position)
+  local seed_region = find_cluster_seed(surface, anchor_position, tick)
 
   if not region_is_cluster_candidate(seed_region) then
-    return aggregate_cluster_report(seed_region, anchor_region_x, anchor_region_y, {seed_region})
+    return aggregate_cluster_report(seed_region, anchor.x, anchor.y, {seed_region})
   end
 
   local members = {}
@@ -746,10 +762,16 @@ local function build_forest_cluster(surface, anchor_region_x, anchor_region_y, t
     if not visited[key] then
       visited[key] = true
 
-      local within_anchor_limit = math.abs(entry.region_x - anchor_region_x) <= constants.survey_cluster_search_radius
-        and math.abs(entry.region_y - anchor_region_y) <= constants.survey_cluster_search_radius
+      local within_anchor_limit = math.abs(entry.region_x - anchor.x) <= constants.survey_cluster_search_radius
+        and math.abs(entry.region_y - anchor.y) <= constants.survey_cluster_search_radius
+      local within_station_range = region_intersects_circle(
+        entry.region_x,
+        entry.region_y,
+        anchor_position,
+        constants.survey_station_exact_radius
+      )
 
-      if within_anchor_limit then
+      if within_anchor_limit and within_station_range then
         local region = ensure_region_recomputed(surface, entry.region_x, entry.region_y, tick)
 
         if region_is_cluster_candidate(region) then
@@ -770,7 +792,7 @@ local function build_forest_cluster(surface, anchor_region_x, anchor_region_y, t
     members[1] = seed_region
   end
 
-  return aggregate_cluster_report(seed_region, anchor_region_x, anchor_region_y, members)
+  return aggregate_cluster_report(seed_region, anchor.x, anchor.y, members)
 end
 
 function regions.needs_recompute(surface, region_x, region_y, tick)
@@ -806,12 +828,14 @@ function regions.get_region_report_by_coord(surface, region_x, region_y, tick)
 end
 
 function regions.get_forest_cluster_report_at_position(surface, position, tick)
-  local coord = regions.position_to_region_coord(position)
-  return build_forest_cluster(surface, coord.x, coord.y, tick)
+  return build_forest_cluster(surface, position, tick)
 end
 
 function regions.get_forest_cluster_report_by_coord(surface, region_x, region_y, tick)
-  return build_forest_cluster(surface, region_x, region_y, tick)
+  return build_forest_cluster(surface, {
+    x = (region_x * constants.region_tile_span) + (constants.region_tile_span / 2),
+    y = (region_y * constants.region_tile_span) + (constants.region_tile_span / 2)
+  }, tick)
 end
 
 function regions.serialize(region)

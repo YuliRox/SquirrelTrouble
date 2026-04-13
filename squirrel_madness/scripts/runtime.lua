@@ -42,6 +42,11 @@ local function get_survey_station_panels()
   return storage.survey_station_panels
 end
 
+local function get_squirrel_selection_overlays()
+  storage.squirrel_selection_overlays = storage.squirrel_selection_overlays or {}
+  return storage.squirrel_selection_overlays
+end
+
 local function get_squirrel_damage_attribution()
   storage.squirrel_damage_attribution = storage.squirrel_damage_attribution or {}
   return storage.squirrel_damage_attribution
@@ -296,7 +301,6 @@ end
 local function print_cluster_report(player, cluster)
   player.print({
     "message.squirrel-madness-cluster-report",
-    cluster.region_count,
     cluster.forest_health,
     {"message.squirrel-madness-band-" .. cluster.forest_health_band},
     cluster.squirrel_unrest,
@@ -407,10 +411,39 @@ local function clear_survey_panel(player_index)
   get_survey_station_panels()[player_index] = nil
 end
 
+local function clear_squirrel_overlay(player_index)
+  local overlays = get_squirrel_selection_overlays()
+  local overlay = overlays[player_index]
+
+  if not overlay then
+    return false
+  end
+
+  for _, render_id in ipairs(overlay.render_ids or {}) do
+    local render_object = rendering.get_object_by_id(render_id)
+    if render_object and render_object.valid then
+      render_object.destroy()
+    end
+  end
+
+  overlays[player_index] = nil
+  return true
+end
+
 local function current_selected_survey_station(player)
   local selected = player and player.valid and player.selected or nil
 
   if selected and selected.valid and selected.name == constants.names.survey_station then
+    return selected
+  end
+
+  return nil
+end
+
+local function current_selected_squirrel(player)
+  local selected = player and player.valid and player.selected or nil
+
+  if selected and selected.valid and selected.name == constants.names.squirrel then
     return selected
   end
 
@@ -464,7 +497,7 @@ local function render_survey_panel(player, station, cluster)
   else
     content.add({
       type = "label",
-      caption = {"gui.squirrel-madness-survey-panel-cells", cluster.region_count}
+      caption = {"gui.squirrel-madness-survey-panel-footprint"}
     })
     content.add({
       type = "label",
@@ -521,21 +554,16 @@ local function render_survey_overlay(player, station, tick)
   local cluster = regions.get_forest_cluster_report_at_position(station.surface, station.position, tick)
   local render_ids = {}
 
-  for _, member in ipairs(cluster.member_regions or {}) do
-    local area = regions.region_area(member.region_x, member.region_y)
-    local render_object = rendering.draw_rectangle({
-      color = {r = 0.18, g = 0.42, b = 0.22, a = 0.9},
-      width = 2,
-      filled = false,
-      left_top = area.left_top,
-      right_bottom = area.right_bottom,
-      surface = station.surface,
-      players = {player.index},
-      draw_on_ground = true
-    })
-
-    render_ids[#render_ids + 1] = render_object.id
-  end
+  local footprint = rendering.draw_circle({
+    color = {r = 0.18, g = 0.42, b = 0.22, a = 0.14},
+    radius = constants.survey_station_exact_radius,
+    filled = true,
+    target = station,
+    surface = station.surface,
+    players = {player.index},
+    draw_on_ground = true
+  })
+  render_ids[#render_ids + 1] = footprint.id
 
   local station_marker = rendering.draw_circle({
     color = {r = 0.82, g = 0.94, b = 0.28, a = 0.95},
@@ -549,12 +577,25 @@ local function render_survey_overlay(player, station, tick)
   })
   render_ids[#render_ids + 1] = station_marker.id
 
+  local station_range = rendering.draw_circle({
+    color = {r = 0.52, g = 0.86, b = 0.68, a = 0.9},
+    radius = constants.survey_station_exact_radius,
+    width = 2,
+    filled = false,
+    target = station,
+    surface = station.surface,
+    players = {player.index},
+    draw_on_ground = true
+  })
+  render_ids[#render_ids + 1] = station_range.id
+
   get_survey_station_overlays()[player.index] = {
     station_unit_number = station.unit_number,
     surface_index = station.surface.index,
     render_ids = render_ids,
     region_count = cluster.region_count,
     member_regions = cluster.member_regions,
+    exact_radius = constants.survey_station_exact_radius,
     last_refresh_tick = tick or game.tick
   }
 
@@ -579,6 +620,91 @@ local function update_survey_overlay_for_player(player, selected_entity, tick)
 
   clear_survey_overlay(player.index)
   clear_survey_panel(player.index)
+  return nil
+end
+
+local function render_squirrel_overlay(player, squirrel, tick)
+  clear_squirrel_overlay(player.index)
+
+  if not constants.debug_squirrel_selection_overlay then
+    return nil
+  end
+
+  if not (player and player.valid and squirrel and squirrel.valid) then
+    return nil
+  end
+
+  local overlay_state = squirrels.selection_overlay_state(squirrel, tick)
+  if not overlay_state then
+    return nil
+  end
+
+  local render_ids = {}
+
+  local fill_circle = rendering.draw_circle({
+    color = {r = 0.95, g = 0.49, b = 0.12, a = 0.11},
+    radius = overlay_state.local_radius,
+    filled = true,
+    target = squirrel,
+    surface = squirrel.surface,
+    players = {player.index},
+    draw_on_ground = true
+  })
+  render_ids[#render_ids + 1] = fill_circle.id
+
+  local belt_interest_circle = rendering.draw_circle({
+    color = {r = 0.95, g = 0.18, b = 0.12, a = 0.95},
+    radius = overlay_state.belt_interest_radius,
+    width = 2,
+    filled = false,
+    target = squirrel,
+    surface = squirrel.surface,
+    players = {player.index},
+    draw_on_ground = true
+  })
+  render_ids[#render_ids + 1] = belt_interest_circle.id
+
+  get_squirrel_selection_overlays()[player.index] = {
+    squirrel_unit_number = squirrel.unit_number,
+    surface_index = squirrel.surface.index,
+    render_ids = render_ids,
+    local_radius = overlay_state.local_radius,
+    belt_interest_radius = overlay_state.belt_interest_radius,
+    state = overlay_state.state,
+    last_refresh_tick = tick or game.tick
+  }
+
+  return overlay_state
+end
+
+local function update_selected_debug_visuals_for_player(player, tick)
+  if not (player and player.valid) then
+    return nil
+  end
+
+  local station = current_selected_survey_station(player)
+  if station then
+    clear_squirrel_overlay(player.index)
+    update_survey_overlay_for_player(player, station, tick)
+    return "survey-station"
+  end
+
+  local squirrel = current_selected_squirrel(player)
+  if squirrel then
+    clear_survey_overlay(player.index)
+    clear_survey_panel(player.index)
+    if constants.debug_squirrel_selection_overlay then
+      render_squirrel_overlay(player, squirrel, tick)
+      return "squirrel"
+    end
+
+    clear_squirrel_overlay(player.index)
+    return nil
+  end
+
+  clear_survey_overlay(player.index)
+  clear_survey_panel(player.index)
+  clear_squirrel_overlay(player.index)
   return nil
 end
 
@@ -642,7 +768,7 @@ local function on_selected_entity_changed(event)
     return
   end
 
-  update_survey_overlay_for_player(player, current_selected_survey_station(player), event.tick)
+  update_selected_debug_visuals_for_player(player, event.tick)
 end
 
 local function survey_region_for_player(player)
@@ -674,16 +800,6 @@ local function deserialize_position(position)
     x = position.x,
     y = position.y
   }
-end
-
-local function current_selected_squirrel(player)
-  local selected = player and player.valid and player.selected or nil
-
-  if selected and selected.valid and selected.name == constants.names.squirrel then
-    return selected
-  end
-
-  return nil
 end
 
 local function player_index_from_actor(actor)
@@ -1257,6 +1373,7 @@ local function on_init()
   storage_lib.ensure()
   storage.survey_station_overlays = {}
   storage.survey_station_panels = {}
+  storage.squirrel_selection_overlays = {}
   feeders.rebuild_tracking()
   local nauvis = game.surfaces[constants.primary_surface_name]
   if nauvis then
@@ -1271,6 +1388,7 @@ local function on_configuration_changed()
   storage_lib.ensure()
   storage.survey_station_overlays = {}
   storage.survey_station_panels = {}
+  storage.squirrel_selection_overlays = {}
   feeders.rebuild_tracking()
   feeders.sync_registered()
   refresh_active_regions(true)
@@ -1297,7 +1415,8 @@ local function on_tick(event)
   end
 
   if event.tick % constants.survey_overlay_refresh_interval == 0 then
-    local overlays_to_clear = {}
+    local survey_overlays_to_clear = {}
+    local squirrel_overlays_to_clear = {}
 
     for player_index, overlay in pairs(get_survey_station_overlays()) do
       local player = game.get_player(player_index)
@@ -1307,15 +1426,33 @@ local function on_tick(event)
         or selected_station.unit_number ~= overlay.station_unit_number
         or selected_station.surface.index ~= overlay.surface_index
       then
-        overlays_to_clear[#overlays_to_clear + 1] = player_index
+        survey_overlays_to_clear[#survey_overlays_to_clear + 1] = player_index
       else
         render_survey_overlay(player, selected_station, event.tick)
       end
     end
 
-    for _, player_index in ipairs(overlays_to_clear) do
+    for player_index, overlay in pairs(get_squirrel_selection_overlays()) do
+      local player = game.get_player(player_index)
+      local selected_squirrel = player and current_selected_squirrel(player) or nil
+
+      if not selected_squirrel
+        or selected_squirrel.unit_number ~= overlay.squirrel_unit_number
+        or selected_squirrel.surface.index ~= overlay.surface_index
+      then
+        squirrel_overlays_to_clear[#squirrel_overlays_to_clear + 1] = player_index
+      else
+        render_squirrel_overlay(player, selected_squirrel, event.tick)
+      end
+    end
+
+    for _, player_index in ipairs(survey_overlays_to_clear) do
       clear_survey_overlay(player_index)
       clear_survey_panel(player_index)
+    end
+
+    for _, player_index in ipairs(squirrel_overlays_to_clear) do
+      clear_squirrel_overlay(player_index)
     end
   end
 
@@ -1339,6 +1476,18 @@ local function on_entity_removed(event)
   end
 
   if entity.name == constants.names.squirrel then
+    local overlays_to_clear = {}
+
+    for player_index, overlay in pairs(get_squirrel_selection_overlays()) do
+      if overlay.squirrel_unit_number == entity.unit_number and overlay.surface_index == entity.surface.index then
+        overlays_to_clear[#overlays_to_clear + 1] = player_index
+      end
+    end
+
+    for _, player_index in ipairs(overlays_to_clear) do
+      clear_squirrel_overlay(player_index)
+    end
+
     if event.name == defines.events.on_entity_died then
       local player_index = player_index_from_actor(event.cause) or player_index_from_actor(event.source)
       if player_index then
@@ -1662,7 +1811,8 @@ local function install_remote_interface()
         surface_index = overlay.surface_index,
         render_count = #overlay.render_ids,
         region_count = overlay.region_count,
-        member_regions = overlay.member_regions
+        member_regions = overlay.member_regions,
+        exact_radius = overlay.exact_radius
       }
     end,
     debug_get_survey_panel_state = function(player_index)
@@ -1672,6 +1822,49 @@ local function install_remote_interface()
     debug_clear_survey_overlay = function(player_index)
       storage_lib.ensure()
       return clear_survey_overlay(player_index)
+    end,
+    debug_show_squirrel_overlay = function(player_index, surface_index, x, y)
+      storage_lib.ensure()
+      if not constants.debug_squirrel_selection_overlay then
+        return nil
+      end
+
+      local player = game.get_player(player_index)
+      local surface = game.surfaces[surface_index]
+      if not (player and surface) then
+        return nil
+      end
+
+      local squirrel = surface.find_entities_filtered({
+        position = {x = x, y = y},
+        name = constants.names.squirrel,
+        limit = 1
+      })[1]
+      if not squirrel then
+        return nil
+      end
+
+      return render_squirrel_overlay(player, squirrel, game.tick)
+    end,
+    debug_get_squirrel_overlay_state = function(player_index)
+      storage_lib.ensure()
+      local overlay = get_squirrel_selection_overlays()[player_index]
+      if not overlay then
+        return nil
+      end
+
+      return {
+        squirrel_unit_number = overlay.squirrel_unit_number,
+        surface_index = overlay.surface_index,
+        local_radius = overlay.local_radius,
+        belt_interest_radius = overlay.belt_interest_radius,
+        state = overlay.state,
+        render_count = #overlay.render_ids
+      }
+    end,
+    debug_clear_squirrel_overlay = function(player_index)
+      storage_lib.ensure()
+      return clear_squirrel_overlay(player_index)
     end,
     debug_sync_feeders = function(surface_index)
       storage_lib.ensure()
@@ -1812,6 +2005,10 @@ local function install_remote_interface()
       storage_lib.ensure()
       return squirrels.debug_target_for_squirrel(squirrel_id, game.tick)
     end,
+    debug_get_belt_block_count = function(surface_index, x, y)
+      storage_lib.ensure()
+      return squirrels.debug_belt_block_count(surface_index, {x = x, y = y})
+    end,
     debug_get_squirrel_snapshot = function(squirrel_id)
       storage_lib.ensure()
       return squirrels.snapshot(squirrel_id)
@@ -1837,6 +2034,10 @@ local function install_remote_interface()
     debug_force_belt_theft = function(surface_index, squirrel_id, x, y)
       storage_lib.ensure()
       return squirrels.debug_force_belt_theft(surface_index, squirrel_id, {x = x, y = y}, game.tick)
+    end,
+    debug_force_belt_sit = function(surface_index, squirrel_id, x, y)
+      storage_lib.ensure()
+      return squirrels.debug_force_belt_sit(surface_index, squirrel_id, {x = x, y = y}, game.tick)
     end,
     debug_force_single_belt_grab = function(surface_index, squirrel_id, x, y)
       storage_lib.ensure()

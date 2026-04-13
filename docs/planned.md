@@ -86,8 +86,8 @@ Deliverables:
 - track recent tree loss by region from mining, death, and fire/combat removal
 - sample regional pollution and tree density every `10` seconds
 - compute `forest_health`, `squirrel_unrest`, `squirrel_trust`, and `habitat_pressure`
-- expose exact forest-cluster values through the survey station and a debug remote interface
-- show the surveyed forest-cluster footprint when the station is selected
+- expose exact station-footprint values through the survey station and a debug remote interface
+- show the surveyed station reach when the station is selected, without hidden cell boxes
 
 Exit criteria:
 
@@ -145,7 +145,9 @@ Hard stop before Milestone 5: mandatory in-game playtest.
 Playtest focus:
 
 - confirm squirrels visibly spawn, move, and read correctly on screen
-- confirm passive forest-edge belt sitting, stocked-feeder diversion, stack-building belt raids, and forest retreat behavior feel readable and fair
+- confirm passive forest-edge belt sitting means squirrels actually get onto a belt tile, ride with the belt, block that lane for a readable dwell, and then leave or escalate cleanly
+- confirm calm belt sitting can happen on nearby empty belts, while theft still only escalates on belts that actually carry loot
+- confirm stocked-feeder diversion, stack-building belt raids, and forest retreat behavior feel readable and fair
 - confirm stocked feeders visibly attract squirrels away from belts instead of only suppressing nuisance invisibly
 - confirm stash creation and loot recovery are understandable in normal play
 
@@ -155,7 +157,7 @@ Deliverables:
 - increase visible squirrel counts so factory-edge nuisance feels materially present
 - replace direct home-anchor target snapping with readable outward wandering from the forest edge
 - make higher pressure widen squirrel wandering and allow deeper initial incursions before a theft attempt
-- allow calm squirrels to sit on nearby belts as a low-grade nuisance unless stocked feeders pacify the area
+- allow calm squirrels to move onto nearby belt tiles and sit there as a low-grade nuisance unless stocked feeders pacify the area
 - make stocked feeders visibly draw squirrels in for short nut-eating visits
 - add belt blocking, repeated belt theft that builds toward full carried stacks, forest retreat paths, and stash creation
 - show the carried item and carried count while a squirrel is hauling loot

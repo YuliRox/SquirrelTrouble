@@ -319,7 +319,7 @@ Behavior:
 - wanders inside canopy
 - idles, gathers, socializes
 - visits feeders and stashes
-- may briefly sit on belts near the forest edge even in otherwise healthy habitat
+- may move onto a nearby belt tile at the forest edge and sit there even in otherwise healthy habitat
 - leaves nearby belts alone when a stocked feeder is pacifying the same area
 
 ### Curious
@@ -339,7 +339,7 @@ Triggered by moderate unrest or food scarcity.
 Behavior:
 
 - wanders beyond the canopy and spends more time outside safe forest cover
-- sits on belts and blocks throughput briefly
+- can move onto a belt tile, ride with the belt for a short time, and block throughput while sitting there
 - steals repeated batches from belts until carrying a full stack or being interrupted
 - may scavenge chests only under high habitat pressure
 - retreats with loot to forest stashes or feeders after a successful haul
@@ -382,9 +382,11 @@ Squirrel disruption should be meaningful, readable, and rate-limited.
 
 ### Belt Blocking
 
-- A squirrel may occupy a single belt tile for a short duration.
-- That tile is treated as blocked while the squirrel sits there.
+- Belt sitting means a squirrel moves onto a belt tile, stops there, and is visually carried by the belt while remaining on that lane.
+- While sitting on that belt tile, the squirrel should block that space so belt items cannot pass through it normally.
+- Passive belt sitting should remain visible for at least 5 seconds before the squirrel leaves or escalates into theft.
 - Light belt sitting may happen even in healthy forest-edge areas.
+- Passive belt sitting may target an empty nearby belt; actual theft still requires real items on the line.
 - Stocked feeders should locally suppress that passive belt sitting in their vicinity.
 - Stocked feeders should also attract nearby squirrels away from belts so the diversion is visible, not just statistical.
 - Heavier belt blocking should be most common near the forest edge or poorly managed corridors.
@@ -616,8 +618,8 @@ Unlocks:
 
 - `Forest Survey Station`
 - visibility of forest health, unrest, trust, and habitat pressure
-- broad state bands in normal inspection, with exact numbers available through surveyed forest clusters
-- a selection overlay that outlines the forest cluster currently being read by a survey station
+- broad state bands in normal inspection, with exact numbers available through a survey-station forest footprint
+- a selection overlay that shows the survey station reach directly, instead of hidden region boxes
 - a selected survey station should also show a side panel with the exact health, unrest, trust, pressure, tree counts, and feeder state for that local footprint
 
 Purpose:

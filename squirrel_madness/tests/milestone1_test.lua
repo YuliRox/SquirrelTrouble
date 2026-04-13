@@ -145,6 +145,10 @@ describe("milestone 1 survey flow", function()
 
   it("aggregates adjacent forest regions into a single exact survey cluster", function()
     local anchor_region = regions.position_to_region_coord(TEST_POSITION)
+    local station_position = {
+      x = ((anchor_region.x + 1) * constants.region_tile_span) - 12,
+      y = (anchor_region.y * constants.region_tile_span) + 32
+    }
     local anchor_origin = {
       x = (anchor_region.x * constants.region_tile_span) + 4,
       y = (anchor_region.y * constants.region_tile_span) + 4
@@ -159,7 +163,7 @@ describe("milestone 1 survey flow", function()
 
     station = surface().create_entity({
       name = constants.names.survey_station,
-      position = TEST_POSITION,
+      position = station_position,
       force = player_force()
     })
 
@@ -172,7 +176,7 @@ describe("milestone 1 survey flow", function()
       trees[#trees + 1] = tree
     end
 
-    local cluster = remote.call(constants.mod_name, "debug_get_survey_cluster", surface().index, TEST_POSITION.x, TEST_POSITION.y)
+    local cluster = remote.call(constants.mod_name, "debug_get_survey_cluster", surface().index, station_position.x, station_position.y)
 
     assert.is_table(cluster)
     assert.equal("cluster", cluster.scope)
@@ -186,6 +190,10 @@ describe("milestone 1 survey flow", function()
 
   it("keeps exact survey clusters local to the selected station", function()
     local anchor_region = regions.position_to_region_coord(TEST_POSITION)
+    local station_position = {
+      x = ((anchor_region.x + 1) * constants.region_tile_span) - 12,
+      y = (anchor_region.y * constants.region_tile_span) + 32
+    }
     local anchor_origin = {
       x = (anchor_region.x * constants.region_tile_span) + 4,
       y = (anchor_region.y * constants.region_tile_span) + 4
@@ -204,7 +212,7 @@ describe("milestone 1 survey flow", function()
 
     station = surface().create_entity({
       name = constants.names.survey_station,
-      position = TEST_POSITION,
+      position = station_position,
       force = player_force()
     })
 
@@ -223,7 +231,7 @@ describe("milestone 1 survey flow", function()
       trees[#trees + 1] = tree
     end
 
-    local cluster = remote.call(constants.mod_name, "debug_get_survey_cluster", surface().index, TEST_POSITION.x, TEST_POSITION.y)
+    local cluster = remote.call(constants.mod_name, "debug_get_survey_cluster", surface().index, station_position.x, station_position.y)
 
     assert.is_table(cluster)
     assert.equal(2, cluster.region_count)
@@ -268,7 +276,8 @@ describe("milestone 1 survey flow", function()
     assert.is_table(overlay)
     assert.is_table(panel)
     assert.equal(shown.region_count, overlay.region_count)
-    assert.equal(overlay.region_count + 1, overlay.render_count)
+    assert.equal(constants.survey_station_exact_radius, overlay.exact_radius)
+    assert.equal(3, overlay.render_count)
     assert.equal(1, overlay.region_count)
     assert.is_true(panel.powered)
     assert.equal(1, panel.region_count)
