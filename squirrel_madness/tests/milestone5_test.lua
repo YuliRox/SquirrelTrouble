@@ -231,6 +231,24 @@ after_each(function()
 end)
 
 describe("milestone 5 retaliation and relocation foundation", function()
+  it("keeps squirrels damageable by the player force", function()
+    spawn_forest(18, ORIGIN)
+    local squirrel_id = remote.call(constants.mod_name, "debug_spawn_squirrel", surface().index, ORIGIN.x + 6, ORIGIN.y)
+    local squirrel_entity = find_squirrel_entity(squirrel_id)
+    local squirrel_force = game.forces[constants.squirrel_force_name]
+
+    assert.is_not_nil(squirrel_entity)
+    assert.is_not_nil(squirrel_force)
+    assert.is_false(player().force.get_cease_fire(squirrel_force))
+    assert.is_false(player().force.get_friend(squirrel_force))
+
+    local before_health = squirrel_entity.health
+    local dealt = squirrel_entity.damage(1, player().force, nil, player().character, player().character)
+
+    assert.is_true(dealt > 0)
+    assert.is_true(squirrel_entity.health < before_health)
+  end)
+
   it("relocates squirrels into healthier forest and improves local trust", function()
     local origin_trees = spawn_forest(18, ORIGIN)
     local origin_coord = regions.position_to_region_coord(ORIGIN)

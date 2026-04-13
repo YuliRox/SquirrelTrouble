@@ -96,10 +96,11 @@ local function ensure_squirrel_force()
 
   for _, other_force in pairs(game.forces) do
     if other_force.valid and other_force.name ~= force.name then
-      force.set_friend(other_force, true)
-      other_force.set_friend(force, true)
-      force.set_cease_fire(other_force, true)
-      other_force.set_cease_fire(force, true)
+      local allied = other_force.name == "enemy" or other_force.name == "neutral"
+      force.set_friend(other_force, allied)
+      other_force.set_friend(force, allied)
+      force.set_cease_fire(other_force, allied)
+      other_force.set_cease_fire(force, allied)
     end
   end
 
