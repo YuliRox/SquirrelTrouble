@@ -33,12 +33,12 @@ Preconditions:
 Checklist:
 - [ ] Damage a squirrel without killing it.
 - [ ] Confirm the game prints a readable warning instead of failing silently.
-- [ ] Confirm a localized retaliation marker or alert appears near the suspected revenge source if one exists nearby.
-- [ ] Wait briefly and confirm a small biter wave actually emerges from that nearby nest instead of the warning ending as a dead-end.
+- [ ] Confirm no retaliation marker or revenge-source alert appears from nonlethal damage alone.
+- [ ] Wait briefly and confirm no biter wave launches from nonlethal damage alone.
 - [ ] Confirm nearby squirrel behavior feels more hostile or tense afterward.
 
 Pass condition:
-- Accidental rough handling creates a readable warning, points at the nearby retaliation source, and produces a small localized wave instead of feeling random.
+- Accidental rough handling creates a readable warning and worsens local tension, but does not launch a lethal revenge wave by itself.
 
 ## Squirrel Death Retaliation
 

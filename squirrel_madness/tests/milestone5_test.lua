@@ -284,17 +284,11 @@ describe("milestone 5 retaliation and relocation foundation", function()
     assert.is_true(after.squirrel_unrest < before.squirrel_unrest)
   end)
 
-  it("attributes player rough handling and selects a localized revenge source", function()
+  it("attributes player rough handling without launching retaliation", function()
     spawn_forest(18, ORIGIN)
     local squirrel_id = remote.call(constants.mod_name, "debug_spawn_squirrel", surface().index, ORIGIN.x + 6, ORIGIN.y)
     local squirrel_entity, squirrel = find_squirrel_entity(squirrel_id)
     local before = remote.call(constants.mod_name, "force_recompute_at_position", surface().index, squirrel.position.x, squirrel.position.y)
-
-    track_entity(surface().create_entity({
-      name = "biter-spawner",
-      position = {x = squirrel.position.x + 16, y = squirrel.position.y},
-      force = game.forces.enemy
-    }))
 
     assert.is_not_nil(squirrel_entity)
     assert.is_true(squirrel_entity.damage(1, player().force, nil, player().character, player().character) > 0)
@@ -302,13 +296,17 @@ describe("milestone 5 retaliation and relocation foundation", function()
     local after = remote.call(constants.mod_name, "force_recompute_at_position", surface().index, squirrel.position.x, squirrel.position.y)
     local incidents = remote.call(constants.mod_name, "debug_get_squirrel_incidents", surface().index)
     local state = remote.call(constants.mod_name, "debug_get_retaliation_state", surface().index, player().index)
+    local feedback = remote.call(constants.mod_name, "debug_get_retaliation_feedback", player().index)
+    local launched = remote.call(constants.mod_name, "debug_process_retaliation_waves", game.tick + constants.retaliation_wave_delay)
     local incident = incidents[#incidents]
 
     assert.equal("rough-handling", incident.kind)
     assert.equal(constants.retaliation_step_severity, incident.severity)
-    assert.is_not_nil(incident.revenge_source)
-    assert.equal(constants.retaliation_step_severity, state.total_severity)
-    assert.equal("rough-handling", state.pending_wave.trigger)
+    assert.is_nil(incident.revenge_source)
+    assert.equal(0, state.total_severity)
+    assert.is_nil(state.pending_wave)
+    assert.equal(0, #feedback)
+    assert.equal(0, launched.launched)
     assert.is_true(after.rough_handling_penalty > before.rough_handling_penalty)
     assert.is_true(after.squirrel_trust < before.squirrel_trust)
   end)
@@ -394,7 +392,7 @@ describe("milestone 5 retaliation and relocation foundation", function()
     }))
 
     assert.is_not_nil(squirrel_entity)
-    assert.is_true(squirrel_entity.damage(1, player().force, nil, player().character, player().character) > 0)
+    assert.is_true(squirrel_entity.die(player().force, player().character))
 
     local before_delay = remote.call(constants.mod_name, "debug_process_retaliation_waves", game.tick + constants.retaliation_wave_delay - 1)
     local before_state = remote.call(constants.mod_name, "debug_get_retaliation_state", surface().index, player().index)
@@ -409,7 +407,7 @@ describe("milestone 5 retaliation and relocation foundation", function()
     assert.equal(1, launched.launched)
     assert.is_nil(after_state.pending_wave)
     assert.is_table(after_state.last_wave)
-    assert.equal("rough-handling", after_state.last_wave.trigger)
+    assert.equal("death", after_state.last_wave.trigger)
     assert.equal("launched", after_state.last_wave.status)
     assert.is_true(after_state.last_wave.unit_count >= 1)
     assert.is_true(after_state.last_wave.unit_count <= constants.retaliation_wave_max_members)

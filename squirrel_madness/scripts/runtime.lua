@@ -1344,7 +1344,9 @@ local function notify_retaliation(surface, position, force, player_index, incide
   end
 
   for _, player in ipairs(players) do
-    local message = {incident.message_key, incident.retaliation_level or incident.severity}
+    local message = incident.kind == "death"
+      and {incident.message_key, incident.retaliation_level or incident.severity}
+      or {incident.message_key}
     player.print(message)
 
     if incident.kind == "death" then
@@ -1385,13 +1387,6 @@ local function notify_retaliation(surface, position, force, player_index, incide
           message = message
         }
       end
-    elseif incident.kind ~= "death" then
-      player.add_pin({
-        surface = surface,
-        position = incident.marker_position,
-        label = "Squirrel retaliation",
-        always_visible = false
-      })
     end
   end
 end
@@ -1422,7 +1417,7 @@ local function record_squirrel_incident(surface, position, force, player_index, 
       and "message.squirrel-madness-squirrel-killed-warning"
       or "message.squirrel-madness-squirrel-harmed-warning"
 
-    if player_index then
+    if player_index and kind == "death" then
       local state = get_retaliation_state(surface.index, player_index)
       prune_retaliation_state(state, tick)
       state.recent_incidents[#state.recent_incidents + 1] = {
