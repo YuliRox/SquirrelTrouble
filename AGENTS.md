@@ -26,8 +26,11 @@ The mod theme is scarcity, salvage, and ruined infrastructure. Prefer changes th
 - Keep Space Age content behind `if mods["space-age"] then`.
 - Favor small, targeted edits over broad rewrites unless the task explicitly calls for restructuring.
 - Features demand tests. There should be no untested edges. When implementing functionality, always implement and accompanying test to verfiy functionality behaves as expected. Alway try to optimize the test surface if you feel that certain features miss tests.
+- Never write tests that regex or snapshot source-code structure to infer behavior. Behavioral claims must be verified through runtime tests; static tests are only acceptable for external artifacts such as asset/file existence or similarly non-behavioral build outputs.
 - For each milestone, create a manual playtest document for ingame testing.
+- When updating manual playtests, reset any new or modified checklist items to `[ ]`. Do not leave touched items marked `[X]`; revalidation must be explicit.
 - When planning milestones, explicitly note whether a playtest is a hard stop before further milestone work and summarize what that playtest must validate.
+- If an assistant response would exceed roughly 30 lines, do not send it as chat prose. Write it to a markdown file in the repo and point the user to that file instead.
 
 ## Canonical References
 

@@ -8,6 +8,8 @@ yarn-error.log*
 # Local environment and workspace files
 .env.local
 *.code-workspace
+art-files/
+debug/
 
 # Local Factorio runtime and test scratch data
 .factorio/

@@ -34,6 +34,10 @@ function storage_lib.ensure()
   storage.region_refresh_enqueued = storage.region_refresh_enqueued or {}
   storage.player_region_centers = storage.player_region_centers or {}
   storage.survey_station_overlays = storage.survey_station_overlays or {}
+  storage.survey_station_panels = storage.survey_station_panels or {}
+  storage.squirrel_selection_overlays = storage.squirrel_selection_overlays or {}
+  storage.squirrel_active_belt_riders = storage.squirrel_active_belt_riders or {}
+  storage.squirrel_belt_block_counts = storage.squirrel_belt_block_counts or {}
 end
 
 return storage_lib

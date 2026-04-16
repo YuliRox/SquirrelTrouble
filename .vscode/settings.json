@@ -1,3 +1,18 @@
 {
-    "Lua.workspace.checkThirdParty": "ApplyInMemory"
+    "factorio.versions": [
+        {
+            "name": "Factorio 2.0.76 (Windows)",
+            "factorioPath": "C:/Program Files/Factorio/bin/x64/factorio.exe",
+            "configPath": "C:/Code/SquirrelTrouble/.factorio-test/config.ini"
+        },
+        {
+            "name": "Factorio 2.0.76 (WSL wrapper)",
+            "factorioPath": "/mnt/c/Code/SquirrelTrouble/scripts/factorio-debug-wrapper.sh",
+            "configPath": "/mnt/c/Code/SquirrelTrouble/.factorio-test/config.ini",
+            "docsPath": "../../../../Program Files/Factorio/doc-html/runtime-api.json",
+            "protosPath": "../../../../Program Files/Factorio/doc-html/prototype-api.json"
+        }
+    ],
+    "Lua.workspace.checkThirdParty": "ApplyInMemory",
+    "Lua.workspace.userThirdParty": []
 }

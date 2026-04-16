@@ -10,6 +10,7 @@ Automated coverage already exists for: starting grove guarantee, dense-forest nu
 
 Known current limitation:
 - `Nut Tree` still uses interim vanilla-tree art. Treat hover name, selection, and harvest loop as the source of truth during this playtest. Do not fail Milestone 2 solely because mature nut trees are not yet visually distinct from every ordinary vanilla tree at a glance.
+- `Squirrel Feeder` is still implemented as a chest-like container. The large floating in-world nut overlay is suppressed, but the small right-side inventory/hover nut icon from vanilla container UI may still appear when inspecting a stocked feeder. Do not fail Milestone 2 solely because of that remaining UI-level icon.
 
 ## Starting Grove Discovery
 
@@ -111,7 +112,7 @@ Setup shortcuts:
 /c game.player.force.technologies["forest-surveying"].researched = true
 /c game.player.insert{name="squirrel-feeder", count=1}
 /c game.player.insert{name="forest-survey-station", count=1}
-/c game.player.insert{name="solar-panel", count=1}
+/c game.player.insert{name="solar-panel", count=2}
 /c game.player.insert{name="small-electric-pole", count=2}
 /c game.player.insert{name="nut", count=40}
 ```
@@ -119,18 +120,18 @@ Setup shortcuts:
 Checklist:
 - [X] Complete `Wildlife Diversion` or apply the setup shortcuts.
 - [X] Confirm the Wildlife Diversion guidance message appears once.
-- [ ] Place a `Squirrel Feeder` on the forest edge.
-- [ ] Confirm the newly placed feeder shows the empty wooden feeder art, not a vanilla chest or the stocked art.
-- [ ] Confirm the feeder art and footprint make sense at that location.
-- [ ] Confirm the feeder does not show a large floating item icon above it when stocked.
-- [ ] Place a `Forest Survey Station` nearby.
-- [ ] Place the `Solar Panel` and a `Small Electric Pole` so the survey station is powered.
-- [ ] If it is night, wait for daylight before comparing reports.
-- [ ] Survey the region before stocking the feeder.
-- [ ] Insert a single nut and confirm the feeder switches from the empty art to the stocked wooden feeder art.
-- [ ] Insert at least 20 nuts into the feeder.
-- [ ] Survey the same region again.
-- [ ] Confirm the post-stocking report reads calmer or more trusted than the pre-stocking report.
+- [X] Place a `Squirrel Feeder` on the forest edge.
+- [X] Confirm the newly placed feeder shows the empty wooden feeder art, not a vanilla chest or the stocked art.
+- [X] Confirm the feeder art and footprint make sense at that location.
+- [X] Confirm the feeder does not show a large floating item icon above it when stocked.
+- [X] Place a `Forest Survey Station` nearby.
+- [X] Place the `Solar Panel` and a `Small Electric Pole` so the survey station is powered.
+- [X] If it is night, wait for daylight before comparing reports.
+- [X] Survey the region before stocking the feeder.
+- [X] Insert a single nut and confirm the feeder switches from the empty art to the stocked wooden feeder art.
+- [X] Insert at least 20 nuts into the feeder.
+- [X] Survey the same region again.
+- [X] Confirm the post-stocking report reads calmer or more trusted than the pre-stocking report.
 
 Pass condition:
 - Feeders feel like an understandable, visible mitigation tool rather than hidden score manipulation.

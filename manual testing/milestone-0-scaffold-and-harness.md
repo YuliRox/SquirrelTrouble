@@ -59,7 +59,7 @@ Checklist:
 - [X] Confirm the feeder has visible art, a sensible footprint, and a readable selection box.
 - [X] Open the feeder and confirm the UI feels like a one-slot wildlife container, not a broken chest clone.
 - [X] Place a `Forest Survey Station` nearby.
-- [X] Confirm the survey station uses green-tinted radar-style intermediate art, occupies a larger radar-like footprint, and can be selected reliably.
+- [X] Confirm the survey station uses the animated radio-station art, has a grounded readable shadow, occupies a larger radar-like footprint, and can be selected reliably.
 - [X] Click the survey station and confirm it does not open a chest inventory. Expected result: it behaves like a selectable survey structure, and selecting it now outlines the local forest footprint it will survey.
 - [X] While the survey station stays selected, confirm a survey information panel appears with exact local forest metrics instead of relying only on chat output.
 - [X] Place the `Solar Panel` and a `Small Electric Pole` so the survey station is powered.

@@ -39,6 +39,13 @@ Setup shortcuts:
 /c game.player.insert{name="nut", count=100}
 ```
 
+Debug aid:
+- Clicking a squirrel should now show:
+- an orange filled ground overlay for its current local infrastructure-detection radius
+- a red outline ring for its broader belt-interest/excursion radius
+Use this when checking whether a squirrel can plausibly notice a nearby belt or feeder.
+This debug aid is controlled by `constants.debug_squirrel_selection_overlay`.
+
 Checklist:
 - [X] Walk to a forest edge where belts or chests are close enough to be a tempting target.
 - [X] Wait without attacking anything.
@@ -53,17 +60,18 @@ Pass condition:
 
 Preconditions:
 - Stay at a forest edge with a short belt line in view.
-- Put a small amount of item traffic on that belt.
+- Item traffic helps make the blockage obvious, but passive belt sitting may also happen on an empty nearby belt.
 
 Checklist:
 - [X] Place items on the belt and watch the line for a short while.
-- [ ] Confirm at least one squirrel visibly sits on or interrupts the belt for several seconds.
+- [X] Confirm at least one squirrel visibly moves onto a belt tile, stays on the belt for at least 5 seconds, and rides with the belt instead of just hovering beside it.
 - [ ] Confirm this can happen even before the forest is badly damaged.
-- [ ] Place a stocked feeder near the same belt and confirm nearby squirrels prefer the feeder and the passive belt-sitting stops.
-- [ ] Confirm the belt blockage is short-lived and readable.
-- [ ] Confirm the line does not look permanently deadlocked.
-- [ ] Confirm squirrels seem to wander outward from the forest before engaging the belt instead of snapping to an arbitrary target.
-- [ ] Confirm the squirrel behavior feels annoying rather than opaque or arbitrary.
+- [X] Place a stocked feeder near the same belt and confirm nearby squirrels prefer the feeder and the passive belt-sitting stops.
+- [X] Confirm the squirrel actually blocks that belt space while sitting there, rather than merely standing near the belt.
+- [X] Confirm the belt blockage is short-lived and readable.
+- [X] Confirm the line does not look permanently deadlocked.
+- [X] Confirm squirrels seem to wander outward from the forest before engaging the belt instead of snapping to an arbitrary target.
+- [X] Confirm the squirrel behavior feels annoying rather than opaque or arbitrary.
 
 Pass condition:
 - Belt interference is clearly visible, rate-limited, and understandable at a glance.
@@ -78,10 +86,10 @@ Checklist:
 - [X] Watch for a squirrel to leave the belt line or approach a chest.
 - [X] Confirm the squirrel carries away a meaningful but bounded amount of loot at once.
 - [X] Confirm the carried item is visible in the squirrel’s behavior or pathing.
-- [ ] Confirm a small carried-count number is visible with the stolen item while the squirrel is loaded up.
+- [X] Confirm a small carried-count number is visible with the stolen item while the squirrel is loaded up.
 - [X] Follow the squirrel toward the forest.
 - [X] Confirm it retreats back toward the forest rather than hanging around the factory edge forever.
-- [ ] If a feeder is stocked, confirm it is preferred over the nearby logistics target when both are available.
+- [X] If a feeder is stocked, confirm it is preferred over the nearby logistics target when both are available.
 
 Pass condition:
 - Theft looks like a physical, visible retreat into the forest, not a silent inventory edit.
@@ -109,13 +117,13 @@ Preconditions:
 - Compare that area with a healthier forest edge nearby.
 
 Checklist:
-- [ ] Observe the healthier forest edge first.
-- [ ] Observe the damaged edge next.
-- [ ] Confirm the damaged edge produces more disruptive squirrel behavior.
-- [ ] Confirm the behavior shift is local and tied to the damaged area.
+- [X] Observe the healthier forest edge first.
+- [X] Observe the damaged edge next.
+- [X] Confirm the damaged edge produces more disruptive squirrel behavior.
+- [X] Confirm the behavior shift is local and tied to the damaged area.
 - [ ] Confirm squirrels now sit still for noticeable 5-10 second pauses instead of constantly sprinting.
 - [X] If a squirrel is stepped on or killed accidentally, confirm the reaction is clearly noticeable and not easy to miss.
-- [ ] Walk over a squirrel on purpose and confirm it immediately flees and raises a noticeable rough-handling warning.
+- [X] Walk over a squirrel on purpose and confirm it immediately flees and raises a noticeable rough-handling warning.
 
 Pass condition:
 - The player can tell that forest damage makes squirrel behavior worse without needing debug numbers.

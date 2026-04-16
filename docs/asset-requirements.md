@@ -40,6 +40,7 @@ Source basis:
 Research outcome as of `2026-03-26`:
 
 - `Krastorio2` and `Krastorio2Assets` are viable asset-reference or reuse candidates for structure art. The mod portal lists them as `GNU LGPLv3`.
+https://codeberg.org/raiguard/Krastorio2Assets/find/branch/trunk 
 - `Space Exploration` and `Alien Biomes` are not safe bundled asset sources for this mod. They are under `Limited Distribution Only Licence`.
 - `Arborist` is the preferred planting-mechanic integration target. Its repo documents `MIT License` and targets `Factorio 2.0`.
 - `Robot Tree Farm update for 2.0` is a viable automation reference. The mod portal lists it for `Factorio 2.0` under `CC BY-SA 4.0`.
@@ -61,6 +62,9 @@ Asset implications:
 - custom nut-tree and harvested-nut-tree identity is still required even if general tree planting is delegated to Arborist-style mechanics
 - some structure art pressure may be reduced if we can lawfully reuse or adapt `Krastorio2Assets`
 - third-party squirrel assets from marketplaces such as the Unity Asset Store are on hold until we have an explicit license path that permits rendered 2D derivative redistribution inside a public Factorio mod
+
+- https://github.com/snouz/factorio_free_graphics_for_modders
+- https://www.figma.com/proto/y1IQG08ZG2jIeJ5sTyF4MP/Factorio-Buildings?node-id=14934-304&node-type=frame&t=tk88gXWNIga60zMr-0&scaling=scale-down-width&content-scaling=fixed&page-id=0%3A1&starting-point-node-id=2585%3A1158&hotspot-hints=0&hide-ui=1
 
 ## Dependency Attribution And License Notes
 
@@ -107,6 +111,34 @@ Decision for now:
 - do not build the mod around a Unity Asset Store squirrel unless we later secure clear redistribution rights from the asset publisher
 - continue treating squirrel art as an unresolved requirement rather than a settled source
 
+## Integrated Asset Status
+
+Shipped or wired into the mod already:
+
+- [x] `nut` icon
+- [x] `wooden-squirrel-feeder` icon
+- [x] `steel-squirrel-feeder` icon
+- [x] `wooden-squirrel-feeder` world sprite, including empty and stocked variants
+- [x] `steel-squirrel-feeder` world sprite, including empty and stocked variants
+- [x] `forest-survey-station` icon
+- [x] `forest-survey-station` world art, currently using the animated `radio-station` asset copied under `squirrel_madness/graphics/entities/structures/forest-survey-station/`
+- [x] survey-station third-party attribution, currently credited to `Hurricane046` in `squirrel_madness/info.json` and `squirrel_madness/THIRD_PARTY.md`
+- [x] `forest-stash` world sprite, currently wired to the provisional stash art at `squirrel_madness/graphics/entities/structures/stash.png`
+- [x] `squirrel` icon
+- [x] `squirrel` run animation starter set
+
+Still placeholder, unresolved, or only partially solved:
+
+- [ ] `nut-sapling` icon
+- [ ] `forest-stash` icon
+- [ ] `nut-tree` icon
+- [ ] `nut-tree-harvested` icon
+- [ ] `nut-sapling` world sprite
+- [ ] `nut-tree` world sprite set
+- [ ] `nut-tree-harvested` world sprite set
+- [ ] custom technology icons for the squirrel research branch
+- [ ] final squirrel art pass that fully stops reading as a cat-derived stand-in
+
 ## Current Asset Checklist
 
 | Asset | Used by | Needed now | Hard size / format | Notes |
@@ -115,7 +147,7 @@ Decision for now:
 | `nut-sapling` icon | item `nut-sapling` | Yes | `64x64` `.png` | Should read as a plantable sapling item, not a full tree. |
 | `wooden-squirrel-feeder` icon | item + entity icon | Yes | `64x64` `.png` | Early feeder tier. Should read like a simple open wooden chest or trough with visible nuts. |
 | `steel-squirrel-feeder` icon | item + entity icon | Yes | `64x64` `.png` | Higher-capacity feeder tier. Should read like a sturdier steel bin upgrade, not a different machine family. |
-| `forest-survey-station` icon | item + entity icon | Yes | `64x64` `.png` | Should read clearly in inventory and crafting menus. |
+| `forest-survey-station` icon | item + entity icon | Yes | `64x64` `.png` | Integrated. Current shipped icon comes from the `radio-station` asset by Hurricane046 under CC BY. |
 | `forest-stash` icon | entity icon | Yes | `64x64` `.png` | Runtime-only entity, but still needs a custom identity. |
 | `squirrel` icon | entity icon | Yes | `64x64` `.png` | Used in entity prototype metadata. |
 | `nut-tree` icon | entity icon | Yes | `64x64` `.png` | Distinct from ordinary vanilla trees. |
@@ -123,11 +155,11 @@ Decision for now:
 | `nut-sapling` world sprite | placed sapling entity | Yes | `.png`, size defined by prototype | Current code clones a tree prototype. If we keep that clone layout, matching the base tree sprite layout is the cheapest path. |
 | `nut-tree` world sprite set | mature nut tree entity | Yes | `.png`, size defined by prototype | Prefer several visual variations for natural worldgen. If fully bespoke, tree prototype sprite fields must be updated. |
 | `nut-tree-harvested` world sprite set | picked nut tree entity | Yes | `.png`, size defined by prototype | Must visibly read as harvested but still living. |
-| `wooden-squirrel-feeder` world sprite | early feeder structure | Yes | `.png`, size defined by `picture :: Sprite` | Chest-like 1x1 structure. The cheapest path is a wooden-chest-derived base with visible nuts. |
-| `steel-squirrel-feeder` world sprite | upgraded feeder structure | Yes | `.png`, size defined by `picture :: Sprite` | Later 1x1 upgrade tier. Can reuse steel-chest visual language with an open nut bin or tray. |
-| `forest-survey-station` world sprite | survey station structure | Yes | `.png`, size defined by `picture :: Sprite` | Also currently cloned from a chest-like placeholder. |
-| `forest-stash` world sprite | stash structure | Yes | `.png`, size defined by `picture :: Sprite` | Needs to be readable as player-visible squirrel loot storage. |
-| `squirrel` run animation set | visible squirrel unit | Yes | `.png` sprite sheet(s), size defined by `run_animation :: RotatedAnimation` | This is the main custom character asset for Milestone 4 playtesting. If the sheet layout differs from vanilla biters, prototype edits are required. |
+| `wooden-squirrel-feeder` world sprite | early feeder structure | Yes | `.png`, size defined by `picture :: Sprite` | Integrated. Wooden and empty-fed variants are live in the mod. |
+| `steel-squirrel-feeder` world sprite | upgraded feeder structure | Yes | `.png`, size defined by `picture :: Sprite` | Integrated. Steel and empty-fed variants are live in the mod. |
+| `forest-survey-station` world sprite | survey station structure | Yes | `.png`, size defined by `picture :: Sprite` | Integrated. Uses the animated `radio-station` asset set by Hurricane046 instead of the older tinted-radar placeholder, with the live prototype shadow alignment tuned so the station reads as grounded in-world. |
+| `forest-stash` world sprite | stash structure | Yes | `.png`, size defined by `picture :: Sprite` | Integrated as a provisional dirt-and-nuts stash sprite. |
+| `squirrel` run animation set | visible squirrel unit | Yes | `.png` sprite sheet(s), size defined by `run_animation :: RotatedAnimation` | Integrated as a starter set for Milestone 4 playtesting, but still visually provisional. |
 | `arboriculture` technology icon | technology | Yes | `256x256` `.png` | Replaces automation placeholder. |
 | `wildlife-diversion` technology icon | technology | Yes | `256x256` `.png` | Replaces logistics placeholder. |
 | `forest-surveying` technology icon | technology | Yes | `256x256` `.png` | Replaces optics placeholder. |
@@ -144,6 +176,7 @@ These are not blockers for the current build, but should be planned early so lat
 | tree treatment kit icon | 2-6 | `64x64` `.png` | Needed once tree healing becomes a player-facing mechanic. Exact implementation may be a capsule, spray, repair pack, or forestry tool. |
 | forestry automation building or robot icon | 6+ | `64x64` `.png` | Needed if Robot Tree Farm-style planting or grove maintenance becomes player-facing automation. Exact shape depends on whether this is a station, drone, or network-only tool. |
 | relocation world sprite or drone animation | 5-6 | `.png`, size defined by prototype | Exact requirements depend on whether relocation is an item, projectile, unit, or effect entity. |
+| squirrel corpse / dead-squirrel sprite | 4-6 | `.png`, size defined by corpse prototype | Needed if squirrel deaths should have a proper visual instead of disappearing instantly. Should not reuse biter death art. |
 | squirrel death / grievance marker art | 5-6 | usually `64x64` `.png` for icons | May be needed for map markers, alerts, or tutorial/UI feedback. |
 | sanctuary / peace-zone markers | 7-8 | icon or sprite format depends on implementation | Could be map icons, GUI assets, or rendered overlays. |
 | coexistence victory art | 8 | likely `256x256` `.png` or GUI sprite | Depends on how the ending is presented. |
@@ -161,7 +194,7 @@ These are not blockers for the current build, but should be planned early so lat
   - inventory/entity icon
   - run animation sheet set for on-screen movement
 - Nice-to-have later:
-  - custom death graphics
+  - custom corpse / death graphics
   - custom idle/passive variants if we stop relying on the cloned biter visuals
 
 ### Trees And Saplings
