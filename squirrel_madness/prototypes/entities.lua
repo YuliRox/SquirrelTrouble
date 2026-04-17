@@ -94,22 +94,22 @@ end
 local function squirrel_sitting_animation()
   return {
     filenames = {
-      "__squirrel_madness__/graphics/entities/squirrel/rotations/north.png",
-      "__squirrel_madness__/graphics/entities/squirrel/rotations/north-east.png",
-      "__squirrel_madness__/graphics/entities/squirrel/rotations/east.png",
-      "__squirrel_madness__/graphics/entities/squirrel/rotations/south-east.png",
-      "__squirrel_madness__/graphics/entities/squirrel/rotations/south.png",
-      "__squirrel_madness__/graphics/entities/squirrel/rotations/south-west.png",
-      "__squirrel_madness__/graphics/entities/squirrel/rotations/west.png",
-      "__squirrel_madness__/graphics/entities/squirrel/rotations/north-west.png"
+      "__squirrel_madness__/graphics/entities/squirrel/sit-strips/north.png",
+      "__squirrel_madness__/graphics/entities/squirrel/sit-strips/north-east.png",
+      "__squirrel_madness__/graphics/entities/squirrel/sit-strips/east.png",
+      "__squirrel_madness__/graphics/entities/squirrel/sit-strips/south-east.png",
+      "__squirrel_madness__/graphics/entities/squirrel/sit-strips/south.png",
+      "__squirrel_madness__/graphics/entities/squirrel/sit-strips/south-west.png",
+      "__squirrel_madness__/graphics/entities/squirrel/sit-strips/west.png",
+      "__squirrel_madness__/graphics/entities/squirrel/sit-strips/north-west.png"
     },
     width = 48,
     height = 48,
-    frame_count = 1,
+    frame_count = 9,
     direction_count = 8,
-    line_length = 1,
+    line_length = 9,
     lines_per_file = 1,
-    animation_speed = 0.01,
+    animation_speed = 0.16,
     scale = 1.75
   }
 end
