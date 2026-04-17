@@ -508,12 +508,21 @@ local function refresh_squirrel_selection(player, tick)
     return squirrel
   end
 
+  local lock = get_squirrel_selection_locks()[player.index]
   if selected and selected.valid then
-    clear_squirrel_selection_lock(player.index)
-    return nil
+    if
+      lock
+      and player.opened
+      and player.opened.valid
+      and player.opened.unit_number
+      and selected.unit_number
+      and player.opened.unit_number == selected.unit_number
+    then
+      clear_squirrel_selection_lock(player.index)
+      return nil
+    end
   end
 
-  local lock = get_squirrel_selection_locks()[player.index]
   if not lock or tick > lock.expires_tick then
     clear_squirrel_selection_lock(player.index)
     return nil
@@ -538,12 +547,7 @@ end
 local function refresh_locked_squirrel_selections(tick)
   for player_index, lock in pairs(get_squirrel_selection_locks()) do
     local player = game.get_player(player_index)
-    if
-      player
-      and player.valid
-      and lock
-      and (not player.selected or not player.selected.valid)
-    then
+    if player and player.valid and lock then
       refresh_squirrel_selection(player, tick)
     end
   end

@@ -659,7 +659,7 @@ describe("milestone 4 squirrel nuisance runtime", function()
     assert.is_nil(remote.call(constants.mod_name, "debug_get_squirrel_overlay_state", player().index))
   end)
 
-  it("keeps a clicked squirrel selected for a short inspection window", function()
+  it("keeps a clicked squirrel selected when the cursor moves across nearby entities", function()
     spawn_forest(18, FOREST_ORIGIN)
     local belts = create_belt_line({x = FOREST_ORIGIN.x + 10, y = FOREST_ORIGIN.y + 6}, 4, "iron-plate", 0)
 
@@ -699,6 +699,26 @@ describe("milestone 4 squirrel nuisance runtime", function()
     else
       assert.is_true(restored.via_lock)
     end
+
+    local chest = surface().create_entity({
+      name = "wooden-chest",
+      position = {x = FOREST_ORIGIN.x + 14, y = FOREST_ORIGIN.y + 8},
+      force = game.forces.player
+    })
+
+    assert.is_not_nil(chest)
+
+    player().update_selected_entity(chest.position)
+    local hovered = remote.call(constants.mod_name, "debug_refresh_player_selection", player().index, game.tick + 2)
+
+    assert.is_table(hovered)
+    assert.equal(constants.names.squirrel_sitting, hovered.name)
+
+    player().update_selected_entity(chest.position)
+    local reaffirmed = remote.call(constants.mod_name, "debug_refresh_player_selection", player().index, game.tick + 3)
+
+    assert.is_table(reaffirmed)
+    assert.equal(constants.names.squirrel_sitting, reaffirmed.name)
   end)
 
   it("suppresses squirrel selection overlays when the debug flag is disabled", function()

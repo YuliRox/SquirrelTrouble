@@ -204,11 +204,29 @@ describe("milestone 0 scaffold", function()
   end)
 
   it("disables vanilla chest item overlays on forest stashes", function()
-    local spec = prototypes.entity[constants.names.stash].icon_draw_specification
+    local stash = prototypes.entity[constants.names.stash]
+    local spec = stash.icon_draw_specification
 
+    assert.is_not_nil(stash)
     assert.is_not_nil(spec)
     assert.equal(0, spec.scale)
     assert.equal(0, spec.scale_for_many)
+  end)
+
+  it("keeps forest stashes intact after heavy direct damage", function()
+    local stash = surface().create_entity({
+      name = constants.names.stash,
+      position = {x = 10, y = 10},
+      force = "neutral"
+    })
+
+    assert.is_not_nil(stash)
+    stash.damage(10000, game.forces.player)
+    assert.is_true(stash.valid)
+
+    if stash and stash.valid then
+      stash.destroy()
+    end
   end)
 
   it("places the survey station as a powered radar scaffold instead of a container", function()
@@ -238,5 +256,6 @@ describe("milestone 0 scaffold", function()
     assert.is_nil(squirrel.attack_parameters.sound)
     assert.is_not_nil(squirrel.collision_mask)
     assert.is_not_nil(squirrel.collision_mask.layers)
+    assert.is_not_nil(next(squirrel.collision_mask.layers))
   end)
 end)

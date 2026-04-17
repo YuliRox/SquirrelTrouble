@@ -105,11 +105,11 @@ local function squirrel_sitting_animation()
     },
     width = 48,
     height = 48,
-    frame_count = 9,
+    frame_count = 1,
     direction_count = 8,
-    line_length = 9,
+    line_length = 1,
     lines_per_file = 1,
-    animation_speed = 0.16,
+    animation_speed = 0.01,
     scale = 1.75
   }
 end
@@ -122,10 +122,10 @@ local function configure_squirrel(prototype, animation)
   prototype.factoriopedia_simulation = nil
   prototype.max_health = 30
   prototype.healing_per_tick = 0
+  prototype.show_health_bar = true
   prototype.vision_distance = 15
   prototype.movement_speed = 0.11
   prototype.distance_per_frame = 0.11
-  prototype.collision_mask = {layers = {}}
   prototype.collision_box = {{-0.34, -0.34}, {0.34, 0.34}}
   prototype.selection_box = {{-0.75, -0.95}, {0.75, 0.55}}
   prototype.sticker_box = {{-0.3, -0.55}, {0.3, 0.1}}
@@ -353,7 +353,20 @@ stash.icon_size = 64
 stash.inventory_size = 8
 stash.icon_draw_specification = {scale = 0, scale_for_many = 0}
 stash.minable = nil
-stash.destructible = false
+stash.max_health = 1000000
+stash.resistances = {
+  {type = "physical", percent = 100},
+  {type = "impact", percent = 100},
+  {type = "explosion", percent = 100},
+  {type = "fire", percent = 100},
+  {type = "laser", percent = 100},
+  {type = "acid", percent = 100},
+  {type = "poison", percent = 100},
+  {type = "electric", percent = 100}
+}
+stash.corpse = nil
+stash.dying_explosion = nil
+stash.dying_sound = nil
 stash.localised_description = {"entity-description.forest-stash"}
 stash.picture = stash_picture("__squirrel_madness__/graphics/entities/structures/stash.png")
 
