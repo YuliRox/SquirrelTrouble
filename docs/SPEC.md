@@ -11,16 +11,18 @@ The engineer lands on Nauvis under normal vanilla Factorio rules, but the forest
 The scenario is built around one ecological rule:
 
 - forests support squirrels
+- squirrels are part of Nauvis' food chain
 - squirrels tolerate respectful industry
 - destroyed forests create hungry, disruptive squirrels
-- violence against squirrels triggers retaliation from Nauvis itself
+- violence against squirrels teaches the ecosystem to retaliate harder
 
 The intended arc is:
 
 1. The player enjoys cute wildlife.
 2. Early over-clearing and pollution create squirrel trouble.
 3. The player learns to preserve and restore forests.
-4. Coexistence becomes more effective than domination.
+4. Violence creates a military escalation spiral that can be calmed, but not unlearned.
+5. Coexistence becomes more effective than domination.
 
 ## Design Goals
 
@@ -33,6 +35,7 @@ The intended arc is:
 - Reward forest preservation and restoration with practical ecological benefits.
 - Reward direct ecological care such as replanting and healing damaged groves.
 - Tie squirrel well-being to pollution and nearby biter aggression.
+- Make the biter-squirrel predator relationship visible enough that the ecosystem feels real in play.
 
 ## High-Level Pillars
 
@@ -42,19 +45,33 @@ Squirrels are cute, animated neutral units that roam forests first and only push
 
 ### 2. Disruptive Nuisance, Not Direct Destruction
 
-Squirrels do not chew buildings, breach walls, or behave like biters. Their pressure comes from blocking belts, stealing items, hiding loot, and shuffling chest contents.
+Squirrels are not direct building-destruction enemies by default. Their early and peaceful-path pressure comes from blocking belts, stealing items, hiding loot, infesting machinery, misplanting nuts, and later shuffling chest contents.
 
 Squirrels must not damage or consume trees. Habitat loss is caused by the player, pollution, fire, and industrial expansion, not by squirrels destroying the forest that sustains them.
+
+If the player takes the military route, squirrels can evolve into more destructive behavior. Destruction is therefore an escalation tier, not a baseline identity.
 
 ### 3. Ecology Over Violence
 
 The scenario should teach that preserving forests, feeding squirrels, and relocating them is better than shooting them.
 
-### 4. Managed Coexistence
+Violence remains possible, but it should permanently raise the long-term risk profile of the colony even if short-term calm is restored later.
+
+### 4. Visible Food Chain
+
+Nauvis should feel like a real ecosystem, not two unrelated systems sharing the same map.
+
+That means:
+
+- biters should sometimes visibly chase and eat squirrels when the player is nearby enough to witness it
+- squirrels eaten by biters should count as natural predation, not player-caused tragedy
+- natural predation should not trigger retaliation or mourning feedback
+- the player should understand that destroying forests is also destroying a food source inside Nauvis' ecology
+### 5. Managed Coexistence
 
 The player should be able to create stable, productive factory layouts with healthy forest corridors and well-managed squirrel colonies.
 
-### 5. Automating Coexistence
+### 6. Automating Coexistence
 
 The scenario should eventually become a classic Factorio problem:
 
@@ -65,11 +82,25 @@ The scenario should eventually become a classic Factorio problem:
 
 If squirrel management remains mostly manual for too long, the scenario will feel like chores rather than Factorio.
 
+### 7. Reversible Calm, Irreversible Adaptation
+
+The scenario uses two different escalation axes:
+
+- `Squirrel Unrest`: current, local or regional, and reversible through habitat recovery, feeders, and nonlethal management
+- `Squirrel Evolution`: long-term global adaptation of Nauvis' squirrel population, primarily raised by player violence, and not reversible
+
+This distinction is central to the intended arc:
+
+- habitat damage and hunger make squirrels currently aggressive
+- violence teaches squirrels smarter and more destructive counterplay
+- restoring forests can calm them again
+- but once a colony has adapted to war, later habitat damage can reactivate more severe behaviors faster
+
 ## Core Simulation Model
 
 The world is evaluated in forest regions, implemented as chunks or chunk clusters.
 
-Each forest region tracks three key values.
+Each forest region tracks four key values.
 
 ### Forest Health
 
@@ -130,9 +161,32 @@ Factors that decrease it:
 - repeatedly stepping on squirrels
 - prolonged local scarcity
 
+### Squirrel Evolution
+
+Represents how much Nauvis' squirrel population as a whole has permanently adapted to player hostility.
+
+Factors that increase it:
+
+- killing squirrels
+- repeated direct attacks on squirrels
+- repeated rough handling through player-owned violence sources such as trains, vehicles, turrets, or combat robots
+- choosing military tools that target squirrels directly
+
+Factors that do not reduce it:
+
+- reforestation
+- stocked feeders
+- relocation
+- time without conflict
+
+Design rule:
+
+- `Squirrel Evolution` is global and not reversible
+- peaceful recovery can calm current behavior, but it does not erase learned escalation potential
+
 ### Habitat Pressure
 
-Habitat pressure is a derived regional value that controls how disruptive squirrels become.
+Habitat pressure is a derived regional value that controls how disruptive squirrels become right now.
 
 Habitat pressure rises when:
 
@@ -155,7 +209,9 @@ Design rule:
 - the less habitat remains, the more severe squirrel actions become
 - light pressure causes belt nuisance
 - heavy pressure causes theft
-- extreme pressure can unlock chest reordering as a last escalation
+- light pressure can already produce rare nut misplanting
+- high pressure can unlock machine infestation and make misplanting much more common
+- extreme pressure can unlock chest reordering or destructive sabotage if squirrel evolution is also high
 
 ## Entity List
 
@@ -172,6 +228,7 @@ Rules:
 - not counted as an enemy
 - can be stepped on by the player
 - can be killed by direct player damage
+- becomes more dangerous over time if the player repeatedly chooses violence
 
 ### Nut Tree
 
@@ -182,6 +239,7 @@ Rules:
 - appears naturally in some forests
 - can be harvested for nuts
 - can be regrown slowly by planting nuts
+- can also spread slowly through squirrel nut-burying in healthy colonies
 - absorbs more pollution than ordinary trees
 - improves local squirrel food security
 
@@ -252,6 +310,21 @@ Rules:
 - may contain stolen shinies, edibles, wood, or mislaid factory components
 - may be claimed or emptied by the player
 
+### Squirrel Beacon
+
+Post-v1 candidate, not a committed v1 feature.
+
+Reasoning:
+
+- we need a relocation mechanism and this could be a solution
+- however, a squirrel beacon is prone to player abuse if it allows squirrels to be trapped or endlessly redirected
+- in particular, it must be tested carefully so players cannot catch squirrels in loops by placing beacons in a circle
+
+Current design stance:
+
+- do not treat squirrel beacons as a guaranteed implementation
+- if implemented later, they must complement ecology and relocation rather than trivializing squirrel behavior
+
 ### Relocation Drone
 
 A nonlethal squirrel-management tool unlocked in mid game.
@@ -292,6 +365,24 @@ Population declines when:
 - local pollution is too high
 - food is unavailable
 
+### Natural Predation
+
+Squirrels are also prey inside the Nauvis ecosystem.
+
+Rules:
+
+- when the player is nearby, biters should occasionally be able to visibly chase and eat a squirrel
+- this should happen often enough to teach the predator relationship, but not so often that squirrel populations collapse on their own
+- squirrels eaten by biters do not trigger mourning, retaliation, or trust penalties
+- natural predation should be compensated by forest-side population upkeep so the visible food chain does not destabilize the scenario
+- in practice, a squirrel lost to biter predation should be replaced by a later squirrel spawn or refill in valid forest habitat
+
+Design intent:
+
+- biters eating squirrels makes the food chain legible
+- the player is then clearly harming Nauvis by eliminating a prey species and damaging its habitat
+- retaliation reads as ecological consequence, not arbitrary faction logic
+
 ### Why Breedable Squirrels Matter
 
 Healthy colonies provide stronger ecological effects:
@@ -305,6 +396,7 @@ Neglected colonies also scale the downside:
 
 - more squirrels are available to cause nuisance events
 - retaliation pressure becomes more noticeable
+- higher squirrel populations make later military-route sabotage more materially disruptive once evolution is unlocked
 
 This makes breeding a meaningful systemic amplifier, not just a cosmetic detail.
 
@@ -343,6 +435,7 @@ Behavior:
 - steals repeated batches from belts until carrying a full stack or being interrupted
 - may scavenge chests only under high habitat pressure
 - retreats with loot to forest stashes or feeders after a successful haul
+- may bury nuts in factory fringe ground or paved areas, creating unwanted saplings or trees that the player must clear
 
 ### Agitated
 
@@ -354,6 +447,22 @@ Behavior:
 - throws nuts at the engineer
 - deals minor damage
 - may alert nearby squirrels
+
+### Infesting
+
+Triggered by high habitat pressure, limited access to food, and sufficient squirrel evolution.
+
+Behavior:
+
+- targets vulnerable machines at the forest edge or in poorly defended corridors
+- temporarily makes infested machines inoperable or less reliable until the infestation is cleared
+- prefers repeated annoyance and downtime over instant catastrophic destruction
+- can spread pressure to nearby machines if ignored
+
+Design rule:
+
+- infestation is nuisance level 2 and should become a real midgame and lategame management problem
+- infestation is not baseline squirrel behavior; it belongs to escalated or militarized colonies
 
 ### Content
 
@@ -375,6 +484,16 @@ Behavior:
 - reduces feeder preference for a while
 - increases nuisance chance
 - triggers biter retaliation
+
+### Militarized
+
+Triggered by high squirrel evolution combined with renewed unrest or habitat collapse.
+
+Behavior:
+
+- reactivates destructive or sabotage-capable behaviors that peaceful colonies would not use
+- coordinates more aggressively around high-value targets
+- returns to forest cover when calm is restored, but keeps the learned escalation potential
 
 ## Nuisance Actions
 
@@ -406,6 +525,20 @@ Squirrel disruption should be meaningful, readable, and rate-limited.
 - Under extreme habitat collapse, a squirrel may move items between nearby chests to create disorder.
 - Chest reordering is the final escalation tier and should be rare, local, and clearly linked to ecological collapse.
 - Squirrels should not delete large quantities or fully destroy the base state.
+
+### Machine Infestation
+
+- Under high pressure and elevated squirrel evolution, squirrels may infest machines near the forest edge or inside neglected factory corridors.
+- Infested machines should become temporarily inoperable, unreliable, or blocked until the player intervenes.
+- Infestation should read as sabotage-through-occupation rather than instantaneous demolition.
+- If ignored, infestation can spread to nearby eligible machines and become the main midgame/lategame squirrel headache.
+
+### Nut Misplanting
+
+- Squirrels may bury nuts in paved or built-up areas even at light pressure, but it should be rare at first.
+- Those buried nuts can sprout into unwanted saplings or trees inside the factory fringe.
+- The higher the habitat pressure, the more often this occurs.
+- This should remain a whole-game management problem even on peaceful runs.
 
 ### Ground Dropping
 
@@ -444,6 +577,7 @@ Squirrel actions should escalate with habitat pressure so the player can read th
 
 - visible roaming near forest edge
 - occasional belt sitting
+- rare nut misplanting in factory fringe areas
 - minor nut-throwing if stepped on
 
 ### Medium Pressure
@@ -451,26 +585,60 @@ Squirrel actions should escalate with habitat pressure so the player can read th
 - regular belt blocking
 - repeated belt theft that builds toward full carried stacks
 - more squirrels leave forest and patrol factory edge
+- nut misplanting becomes more noticeable and starts demanding cleanup
 
 ### High Pressure
 
 - repeated belt theft
 - full-stack chest stealing begins
 - more items are carried to visible forest stashes
+- nut misplanting becomes frequent
+- machine infestation begins
 
 ### Extreme Pressure
 
 - chest reordering unlocks as a rare late-stage nuisance
-- localized power-cable chewing on forest-edge poles is a late-v1 candidate if theft alone does not create enough meaningful disruption
+- machine infestation becomes common enough to threaten sustained throughput
+- localized power-cable chewing on forest-edge poles can unlock if squirrel evolution is high
 - squirrels strongly prefer high-value targets
 - grief and retaliation effects last longer after squirrel death
+- destruction-tier sabotage can appear only when both habitat pressure and squirrel evolution are high
 
 Design rule:
 
 - the player should be able to feel the worsening state of the forest just by observing squirrel behavior
 - pressure should widen outward squirrel wandering and deepen initial incursions before theft
 - successful theft should still resolve as retreat back toward forest habitat rather than further exploration into the base
-- if power-cable chewing is added later, it must stay local, visibly telegraphed, and easy to diagnose and repair
+- if sabotage or cable chewing is added, it must stay local, visibly telegraphed, and easy to diagnose and repair
+
+## Military Route And Evolution
+
+The player can take a military route against squirrels, but it is intentionally a trap-like escalation path rather than a clean alternate strategy.
+
+### Military Route Rules
+
+- players can attack squirrels directly after unlocking the relevant tools or choosing to use player-caused violence
+- squirrels are difficult targets and should remain a poor-efficiency use of violence
+- military success should solve an immediate annoyance while making future coexistence harder
+- anti-squirrel violence raises global `Squirrel Evolution`, which does not go back down
+
+### What Evolution Unlocks
+
+Higher `Squirrel Evolution` can unlock:
+
+- faster reactivation of hostility after new habitat damage
+- smarter target selection
+- more coordinated incursions
+- machine infestation as a stable sabotage layer
+- localized cable chewing or similar infrastructure sabotage
+- a stronger shift from recoverable nuisance into reversible-but-costly destruction
+
+### Calm Versus Forgetting
+
+- forests, feeders, and nonlethal management can return squirrel unrest to calm
+- calm colonies retreat back toward forest behavior
+- but they do not forget what they learned from war
+- if the player logs the forest again later, evolved colonies can return to destructive behavior much faster than untouched colonies
 
 ## Violence and Retaliation
 
@@ -479,6 +647,7 @@ If the player kills a squirrel:
 - display the message: `Mother Nauvis mourns its squirrels.`
 - apply an immediate unrest spike to nearby forest regions
 - apply a temporary trust penalty
+- apply a permanent global squirrel evolution increase
 - spawn a localized biter revenge wave from a nearby nest if one exists
 
 Design intent:
@@ -486,6 +655,11 @@ Design intent:
 - killing squirrels is possible
 - killing squirrels is almost always the wrong solution
 - one accidental death should hurt, but not end the run
+
+Important distinction:
+
+- squirrels killed by biters as part of natural predation do not trigger retaliation
+- only player-caused squirrel harm should feed the military escalation loop
 
 ## Player Interaction
 
@@ -515,11 +689,14 @@ The player must be able to understand why squirrels are behaving badly.
 Recommended feedback channels:
 
 - squirrel behavior itself serves as a visible ecological warning
+- occasional visible biter-on-squirrel predation should reinforce that squirrels are part of the local food chain
 - `Forest Survey Station` is the v1 primary tool for exposing forest health, unrest, trust, and habitat pressure
+- the survey station should eventually expose squirrel evolution as a distinct long-term danger signal
 - early broad-state feedback can appear through tooltip-style inspection before the player has full numeric visibility
 - richer map overlays can remain a later refinement
 - feeders should visibly show whether squirrels are using them successfully
 - squirrel death should produce an unmistakable warning and retaliation message
+- researched Tips and Tricks entries should explain squirrel ecology, biter predation, feeder use, relocation, and why violence escalates the system
 
 Design rule:
 
@@ -607,10 +784,12 @@ Purpose:
 Unlocks:
 
 - `Wooden Squirrel Feeder`
+- first squirrel-related Tips and Tricks entries
 
 Purpose:
 
 - introduces the first automatable peace mechanism
+- begins teaching the peaceful route in explicit in-game documentation
 
 ### Forest Surveying
 
@@ -625,6 +804,31 @@ Unlocks:
 Purpose:
 
 - turns ecology from guesswork into an observable system
+
+### Squirrel Facts And Tips
+
+Squirrel-related research should unlock Tips and Tricks entries over time.
+
+These entries should explain facts the player is unlikely to infer reliably from one play session.
+
+Early entries can cover:
+
+- squirrels are part of Nauvis' ecosystem
+- biters prey on squirrels
+- feeders calm and divert squirrels
+- deforestation and pollution increase squirrel unrest
+
+Later entries can cover:
+
+- relocation and habitat recovery
+- squirrel evolution through violence
+- why calm can be restored even though adaptation is not reversible
+- late-game sabotage and how to suppress it through ecology instead of force
+
+Design rule:
+
+- Tips and Tricks should function as in-world ecological field notes
+- they should support discovery without replacing the need to observe behavior directly
 
 ### Wildlife Relocation
 
@@ -663,6 +867,7 @@ Purpose:
 - player unlocks wooden squirrel feeders and nut restoration
 - forest stewardship becomes a real logistical consideration
 - research begins turning squirrel management into an automatable subsystem
+- if the player leans on violence, squirrel evolution starts unlocking infestation and smarter sabotage
 
 ### Mid/Late Game
 
@@ -670,6 +875,7 @@ Purpose:
 - iron squirrel feeders unlock as the larger-capacity coexistence tool for sustained hotspots
 - player can deliberately design forest corridors and sanctuary zones
 - cooperation starts outperforming brute-force expansion
+- machine infestation and factory misplanting should keep squirrel management relevant even after simple theft stops mattering economically
 
 ### Late Game
 
@@ -679,9 +885,9 @@ Purpose:
 
 ## Scenario End State
 
-This scenario does not need a hard victory condition yet. It should have a strong soft-win state.
+The scenario should end with a formal squirrel-specific outcome, not with an undefined soft-win state.
 
-Soft-win conditions:
+Before launch, the player's ecology may already feel stabilized in practice:
 
 - multiple forest regions are healthy
 - squirrel trust is high and unrest is low
@@ -690,7 +896,47 @@ Soft-win conditions:
 - local biter peace zones exist
 - squirrel disruption becomes rare and localized
 
-At that point, the player has effectively automated coexistence rather than merely suppressing a nuisance.
+But that practical stabilization is not the ending by itself. The actual scenario ending happens on rocket launch.
+
+## Scenario Scoring
+
+When the scenario ends on rocket launch, the game should summarize how responsibly the player industrialized.
+
+Candidate score inputs:
+
+- felled trees versus planted trees
+- number of squirrel deaths caused by the player
+- pollution trend over time, especially whether late-game mitigation improved the map state
+- land area sealed by machines, paving, or industrial sprawl
+- total machine footprint or density in key ecological areas
+- squirrel population health and persistence
+- number and stability of healthy sanctuary or peace-zone regions
+
+Design rule:
+
+- the final score should reward long-term stewardship, not just the final map snapshot
+- a player should not be able to clear-cut early, then barely replant at the end and receive a top ecological outcome
+
+## Scenario End Trigger
+
+The scenario ends when the player launches a rocket.
+
+Reasoning:
+
+- rocket launch is the clearest vanilla Factorio end trigger
+- the squirrel scenario should conclude on Nauvis rather than continue into space
+- there is currently no strong squirrel-specific design for post-Nauvis gameplay
+
+Required behavior:
+
+- launching a rocket ends the scenario
+- the ending evaluates both industrial success and ecological stewardship on Nauvis
+- the player receives a summary of how well they preserved the ecosystem while industrializing
+
+This should reinforce the central fantasy:
+
+- you did not merely industrialize Nauvis
+- you were judged by how you treated its living systems while reaching spaceflight
 
 Possible future formal objectives:
 
@@ -701,124 +947,20 @@ Possible future formal objectives:
 
 ## Scenario Endgame
 
-This scenario should have a true squirrel-specific victory condition rather than ending as "normal vanilla, but squirrels help with pollution."
+This scenario should have a true squirrel-specific end evaluation rather than ending as "normal vanilla, but squirrels help with pollution."
 
 Design rule:
 
 - squirrels should remain thematically central through late game
 - the player should not win by simply shutting industry down and rewilding the map
 - the ending should prove that advanced industry and thriving ecology can coexist
-- the scenario should support multiple endgame variants built on the same ecology systems
-- the current default should be implementable first, with a clean path toward more ambitious endings later
-
-### Current Default
-
-The current default ending is `Coexistence Victory`.
-
-Reasoning:
-
-- it is the most balanced blend of vanilla Factorio and squirrel-specific goals
-- it gives the scenario a clear identity without overcomplicating the first implementation
-- it establishes all systems needed for more advanced endings later
-
-### Endgame Variants
-
-The scenario should support three endgame variants:
-
-- `Coexistence Victory`
-- `Great Grove Victory`
-- `Nauvis Truce Victory`
-
-These variants should be designed as compatible evolutions of the same core systems rather than unrelated win conditions.
-
-### Coexistence Victory
-
-This is the primary intended ending for the first complete scenario version.
-
-To win, the player must satisfy both industrial and ecological proof at the same time.
-
-#### Industrial Proof
-
-The player must demonstrate a functioning advanced factory, for example by one or more of:
-
-- launching a rocket
-- sustaining a target science production rate
-- sustaining a target production output for a fixed duration
-
-#### Ecological Proof
-
-The player must demonstrate that squirrel habitat has been restored and stabilized, for example by:
-
-- maintaining a target number of healthy forest sanctuary regions
-- restoring a target number of nut trees or nut groves
-- keeping a target number of squirrel feeders stocked
-- maintaining high squirrel trust and low unrest across multiple regions
-
-#### Peace Proof
-
-The player must prove that coexistence is stable rather than temporary, for example by:
-
-- maintaining local biter peace zones in multiple regions
-- keeping squirrel disruption below a threshold for a fixed duration
-- avoiding squirrel deaths for a fixed duration during the final phase
-
-#### Concrete Thresholds
-
-Recommended initial thresholds:
-
-- launch `1` rocket
-- maintain `6` healthy sanctuary regions for `20` consecutive minutes
-- keep at least `12` stocked squirrel feeders active for `20` consecutive minutes
-- maintain at least `200` mature nut trees on the map
-- maintain at least `3` active peace zones for `20` consecutive minutes
-- cause `no squirrel deaths` during the final `20` minute validation window
-
-#### Pros
-
-- balanced and easy to understand
-- keeps vanilla factory progression relevant
-- gives squirrels a real scenario-ending role without replacing the base game
-- lowest implementation risk of the three variants
-
-#### Cons
-
-- can feel checklist-like if feedback and presentation are weak
-- less visually dramatic than the more specialized endings
-
-### Great Grove Victory
-
-This variant is the most squirrel-centric and map-shaping ending.
-
-The player wins by building and sustaining a major restored forest system that supports both ecology and industry.
-
-#### Concrete Thresholds
-
-Recommended initial thresholds:
-
-- maintain `1` contiguous Great Grove made of `8` connected healthy sanctuary regions
-- maintain at least `400` mature nut trees inside that grove
-- keep at least `16` stocked squirrel feeders inside or adjacent to the grove for `30` consecutive minutes
-- maintain a living squirrel population of at least `60` squirrels inside the grove network
-- sustain `250` science per minute for `15` consecutive minutes while the grove remains valid
-- cause `no squirrel deaths` during the final `30` minute validation window
-
-#### Pros
-
-- strongest squirrel theme and visual identity
-- gives the player a memorable large-scale ecological construction project
-- makes squirrels feel central in late game, not just managed
-
-#### Cons
-
-- more complex to explain and implement
-- contiguous grove logic and squirrel population tracking must be reliable
-- less grounded in standard vanilla victory expectations than Coexistence Victory
+- the ending should stay simple enough to explain and validate cleanly
 
 ### Nauvis Truce Victory
 
-This variant is the most ambitious and the most scenario-like.
+This is the only intended scenario ending.
 
-The player wins by proving that the factory, the forest, and nearby hostile life can exist in a sustained regional truce.
+On rocket launch, the scenario should award `Nauvis Truce Victory` only if the player proved that the factory, the forest, and nearby hostile life can exist in a sustained regional truce.
 
 #### Concrete Thresholds
 
@@ -834,19 +976,18 @@ Recommended initial thresholds:
 
 #### Pros
 
-- most distinctive and memorable ending
+- distinctive and memorable
 - gives the squirrel-biter relationship a true climax
 - strongly reinforces the fantasy of earning acceptance on Nauvis
 
 #### Cons
 
-- highest implementation and balancing risk
 - requires very clear definitions for peace zones, factory area, and successful attacks
-- most vulnerable to feeling unfair if biter behavior is not sufficiently readable
+- can feel unfair if biter behavior is not sufficiently readable
 
 ### Shared Definitions
 
-The endgame variants rely on common measurable definitions.
+The ending relies on these common measurable definitions.
 
 #### Healthy Sanctuary Region
 
@@ -885,7 +1026,7 @@ This creates the intended scenario arc:
 
 ### Endgame Presentation
 
-If the victory conditions are met, the scenario should present a distinct squirrel-themed ending moment.
+On rocket launch, the scenario should present a distinct squirrel-themed ending moment if `Nauvis Truce Victory` is achieved.
 
 Suggested presentation:
 
@@ -900,31 +1041,16 @@ Possible message tone:
 
 ### Development Path
 
-The endgame system should be planned so the scenario can ship first with `Coexistence Victory` and later grow into `Nauvis Truce Victory`.
-
 Recommended progression of implementation:
 
-1. Ship `Coexistence Victory` first.
-2. Build peace zones, sanctuary scoring, and trust/unrest tracking as reusable systems rather than one-off win-condition checks.
-3. Add global region summaries and stronger biter-peace interactions.
-4. Promote those systems into `Nauvis Truce Victory` once they are readable and stable.
+1. Build peace zones, sanctuary scoring, and trust/unrest tracking as reusable systems rather than one-off win-condition checks.
+2. Add global region summaries and stronger biter-peace interactions.
+3. Make the rocket-launch end screen evaluate those systems directly for `Nauvis Truce Victory`.
 
 Design rule:
 
-- `Coexistence Victory` is the current default
-- `Nauvis Truce Victory` is the aspirational advanced ending
-- no system added for Coexistence should block future evolution toward Nauvis Truce
-
-### Post-Victory Freeplay
-
-After Coexistence Victory, the scenario should continue in freeplay.
-
-Post-victory expectations:
-
-- squirrels remain active and visible
-- healthy forests continue reducing pollution and calming local biters
-- the player can keep expanding while preserving coexistence
-- squirrel systems remain part of the world instead of disappearing after the ending
+- `Nauvis Truce Victory` is the intended ending
+- endgame systems should be built directly toward that result rather than through temporary placeholder endings
 
 ## Balancing Targets
 
@@ -948,6 +1074,7 @@ First playable version should include:
 - visible forest stashes
 - squirrel feeders
 - nut trees and nuts
+- squirrel-planted nut spread or misplanting in a minimal form
 - squirrel nut-throw retaliation when stepped on
 - squirrel death message and biter revenge wave
 - unrest/trust logic tied to deforestation and feeding
@@ -960,7 +1087,9 @@ The following can wait until a later version:
 - breeding and colony scaling
 - chest reordering as an extreme-pressure escalation
 - advanced item desirability tuning
-- natural nut tree propagation by squirrels
+- machine infestation
+- squirrel evolution-aware sabotage and destruction behaviors
+- scenario scoring and leave-Nauvis ending presentation
 
 ## Open Questions
 
@@ -968,6 +1097,8 @@ The following can wait until a later version:
 - How visible should region health be to the player: explicit UI, map overlays, or inferred from behavior?
 - Should forest stashes respawn naturally, or only be created by squirrel actions?
 - How strong should biter peace zones be before they feel exploitable?
+- Which destructive sabotage behaviors should ship first once the military route is implemented: machine infestation, cable chewing, or both?
+- How should the final ecological score be weighted so cleanup at the end cannot erase a bad industrial history?
 
 ## Tone and Presentation
 
@@ -978,6 +1109,7 @@ Desired player emotions:
 - delight on first seeing squirrels
 - annoyance when they block key logistics
 - guilt when violence backfires
+- dread when a previously militarized colony wakes back up after fresh habitat damage
 - satisfaction when the factory and forest finally coexist
 
 This spec is the baseline document for future extension.
