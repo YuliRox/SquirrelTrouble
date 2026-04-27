@@ -30,6 +30,7 @@ The mod theme is scarcity, salvage, and ruined infrastructure. Prefer changes th
 - For each milestone, create a manual playtest document for ingame testing.
 - When updating manual playtests, reset any new or modified checklist items to `[ ]`. Do not leave touched items marked `[X]`; revalidation must be explicit.
 - When planning milestones, explicitly note whether a playtest is a hard stop before further milestone work and summarize what that playtest must validate.
+- If the user asks to implement a roadmap milestone, first check that milestone in [docs/planned.md](docs/planned.md) for any `Open questions to settle during implementation` note. If unresolved design questions are listed, do not guess silently. Stop, surface those questions to the user, and resolve them before implementing the affected part of the milestone.
 - In markdown and repo documentation, keep paths and links repo-relative unless an absolute path is genuinely necessary.
 - If an assistant response would exceed roughly 30 lines, do not send it as chat prose. Write it to a markdown file in the repo and point the user to that file instead.
 

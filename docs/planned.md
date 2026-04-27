@@ -17,8 +17,11 @@ Use these settled decisions as the implementation baseline:
 - major events cause immediate metric spikes, then decay happens gradually
 - squirrel simulation uses a hybrid model: full local simulation near players, simplified regional scoring elsewhere
 - v1 keeps squirrels on belts and chests; trains and chest reordering stay out of scope
-- `Coexistence Victory` is the first shipped ending
-- `Wildlife Relocation` moved from post-MVP in the spec to a late-v1 milestone in the answered questions
+- `Squirrel Evolution` is global and irreversible; `Squirrel Unrest` remains local and reversible
+- the scenario ends on rocket launch
+- current MVP scope includes machine infestation, squirrel-evolution-driven sabotage, and final rocket-launch scoring presentation
+- current MVP scope does not require relocation drones or peace zones
+- `Nauvis Truce Victory` remains the intended long-term ending, but it no longer defines the MVP boundary
 
 ## Delivery Principles
 
@@ -59,6 +62,10 @@ Use these settled decisions as the implementation baseline:
 
 ### 0. Scaffold And Harness
 
+Status:
+
+- implemented
+
 Deliverables:
 
 - create the base mod structure
@@ -73,6 +80,10 @@ Exit criteria:
 - one smoke test passes against the scaffold
 
 ### 1. Region Ecology Foundation
+
+Status:
+
+- implemented
 
 Validation:
 
@@ -97,6 +108,10 @@ Exit criteria:
 
 ### 2. Nut Economy And Habitat Recovery
 
+Status:
+
+- implemented
+
 Deliverables:
 
 - implement nut tree prototype and natural worldgen placement
@@ -119,6 +134,10 @@ Exit criteria:
 
 ### 3. Squirrel Runtime Foundation
 
+Status:
+
+- implemented
+
 Deliverables:
 
 - add squirrel unit prototype and local spawn manager
@@ -139,6 +158,10 @@ Exit criteria:
 - the runtime foundation is stable enough to support visible nuisance behavior without broad rewrites
 
 ### 4. Visible Squirrels And Nuisance Loop
+
+Status:
+
+- implemented
 
 Hard stop before Milestone 5: mandatory in-game playtest.
 
@@ -174,6 +197,11 @@ Exit criteria:
 
 ### 5. Retaliation And Relocation Foundation
 
+Status:
+
+- implemented
+- manual playtest still required
+
 Deliverables:
 
 - implement relocation targeting, healthy-destination selection, and trust effects
@@ -189,6 +217,11 @@ Exit criteria:
 - the systems are stable enough for in-game readability and fairness tuning
 
 ### 6. Mitigation, Feedback, And Nonlethal Control
+
+Status:
+
+- implemented
+- manual playtest still required
 
 Hard stop before Milestone 7: mandatory in-game playtest.
 
@@ -217,59 +250,125 @@ Exit criteria:
 - one accidental squirrel death is painful but survivable
 - the reason for every escalation is readable in-world or through the survey station
 
-### 7. Sanctuary Scoring And Peace-Zone Foundation
+### 7. Food Chain And Scenario Feedback
 
-Deliverables:
+Hard stop before Milestone 8: mandatory in-game playtest.
 
-- score sanctuary regions from health, trust, unrest, trees, nut trees, and feeder state
-- implement first-pass peace-zone suppression near healthy sanctuaries
-- add global sanctuary summaries and reusable endgame metric aggregation
-- implement deterministic `Coexistence Victory` precondition tracking and timed-window bookkeeping
-- keep the backend reusable so `Nauvis Truce Victory` can layer on later
+Open questions to settle during implementation:
 
-Exit criteria:
-
-- sanctuary and peace-zone status derive from normal region metrics under automated tests
-- victory preconditions and timers are inspectable and stable without one-off special cases
-- the backend is ready for scenario-level playtesting and balance tuning
-
-### 8. Coexistence Victory And Late-V1 Ecology Validation
-
-Hard stop before Milestone 9: mandatory endgame playtest.
+- visible predation frequency
+- natural-predation refill timing and placement
+- player-facing signal for squirrel-respawn viability after colony collapse
+- homeless squirrel behavior and home-colony reassignment rules
+See [docs/QUESTIONS.md](QUESTIONS.md), section `22. Open Design Gaps From The Roadmap`.
 
 Playtest focus:
 
-- confirm sanctuary regions and peace zones are understandable in normal scenario play
-- confirm the timed `Coexistence Victory` window feels fair and readable
-- confirm post-victory freeplay continues cleanly without breaking squirrel systems
+- confirm biters visibly chase and eat squirrels often enough to communicate the food chain without collapsing squirrel populations
+- confirm biter-eaten squirrels do not trigger mourning or retaliation
+- confirm researched squirrel facts in Tips and Tricks actually help players understand escalation, feeding, and predation
 
 Deliverables:
 
-- tune sanctuary thresholds, peace-zone strength, and the final validation window through in-game playtests
-- validate `Coexistence Victory` as the first shipped ending in normal scenario play
-- keep the scenario running in freeplay after victory
-- create and use the milestone manual playtest to validate sanctuary readability and endgame flow
-- collect endgame metrics in reusable systems so `Nauvis Truce Victory` can layer on later
+- implement visible biter-on-squirrel predation when players are near enough to witness it
+- ensure natural squirrel predation does not count as player-caused harm and does not trigger retaliation
+- compensate natural predation through normal forest-side squirrel refill so the food chain remains readable without destabilizing the scenario
+- add researched squirrel facts and Tips and Tricks entries for ecology, predation, feeders, relocation, and violence escalation
+- add reusable endgame metric aggregation for the later rocket-launch ecological summary
 
 Exit criteria:
 
-- the player must prove both rocket-scale industry and ecological stability
-- endgame checks reuse normal region metrics instead of special-case code
-- post-victory freeplay still runs squirrel systems
+- natural predation is clearly distinguishable from player-caused squirrel harm
+- squirrel facts teach the intended ecology instead of leaving players to guess at the food chain
+- the backend is ready for military escalation and rocket-launch summary work
 
-### 9. Post-V1 Extensions
+### 8. Global Squirrel Evolution And Destructive Escalation
+
+Hard stop before Milestone 9: mandatory in-game playtest.
+
+Open questions to settle during implementation:
+
+- whether machine infestation alone is enough for MVP sabotage or whether at least one more sabotage behavior is required
+- how `Squirrel Evolution` should be exposed to the player
+See [docs/QUESTIONS.md](QUESTIONS.md), section `22. Open Design Gaps From The Roadmap`.
+
+Playtest focus:
+
+- confirm peaceful runs still stay mostly in nuisance territory
+- confirm military escalation raises global squirrel evolution in a way the player can understand
+- confirm restoring forests and feeders calms current destruction without resetting learned escalation
+- confirm machine infestation and factory misplanting keep squirrels relevant through midgame and lategame
+
+Deliverables:
+
+- implement global `Squirrel Evolution` tracking and expose it through debug and later survey feedback
+- tie player-caused squirrel violence to permanent global evolution increases
+- make rising evolution unlock smarter and more destructive squirrel behavior without replacing local unrest as the trigger for current flareups
+- implement pressure-scaled nut misplanting so it starts rarely at light pressure and becomes common under heavier pressure
+- implement machine infestation as nuisance level 2 and the first true destruction-adjacent military-route escalation
+- implement the first squirrel-evolution-driven sabotage behaviors needed for MVP, beyond infestation if playtests show infestation alone is insufficient
+- ensure infestation can be calmed or suppressed through ecology recovery even though evolution itself does not reverse
+- keep any added sabotage local, telegraphed, and diagnosable
+
+Exit criteria:
+
+- peaceful and militarized runs feel meaningfully different
+- the player can de-escalate active destruction through recovery tools without erasing global squirrel evolution
+- infestation, misplanting, and any included sabotage are disruptive enough to matter in larger factories without feeling arbitrary or impossible to diagnose
+
+### 9. Rocket-Launch Ending And Ecological Summary
+
+Hard stop before ship: mandatory endgame playtest.
+
+Open questions to settle during implementation:
+
+- what outcome bands the ending summary should use besides full success
+- exact ecological score categories and weights
+See [docs/QUESTIONS.md](QUESTIONS.md), section `22. Open Design Gaps From The Roadmap`.
+
+Playtest focus:
+
+- confirm the player understands that rocket launch ends the scenario
+- confirm the final ecological summary reflects long-term stewardship rather than just the final map snapshot
+- confirm the ending summary makes ecological failure legible even without peace-zone systems
+
+Deliverables:
+
+- trigger the scenario ending on rocket launch
+- evaluate industrial success and ecological stewardship at rocket launch
+- present a squirrel-specific ending summary with stewardship scoring and outcome messaging
+- create and use the milestone manual playtest to validate endgame readability and ending flow
+
+Non-coding design TODO:
+
+- shape the final ecological scoring model before implementation is locked:
+  - decide score categories and weights
+  - decide how strongly long-term damage outweighs last-minute cleanup
+  - decide how much squirrel deaths, pollution trend, habitat loss, and recovery each matter
+  - decide what score output the player actually sees at the ending screen
+
+Exit criteria:
+
+- rocket launch ends the scenario cleanly
+- the ecological summary reflects long-term stewardship rather than a final-map snapshot exploit
+- the MVP ending reads clearly even without peace-zone-based truce logic
+
+### 10. Post-V1 Extensions
 
 Potential later upgrades:
 
+- peace zones and sanctuary-region scoring
+- `Nauvis Truce Victory` as the formal peace-zone-based best ending
+- relocation drones as a non-MVP mitigation system, even though the implementation already exists and can be retained
 - optional survey-station range upgrades through custom tuning or module-driven mechanics, with explicit extra power cost, only after v1 baseline survey UX is stable
-- localized power-cable chewing on forest-edge poles as a late-v1 candidate, only if belt theft still lacks enough gameplay impact after Milestone 4/6 playtests
+- localized power-cable chewing on forest-edge poles, only if machine infestation alone does not provide enough evolved destruction pressure
+- squirrel beacons as a possible relocation mechanism, but only if anti-abuse testing proves they cannot trap squirrels in loops
+
 Hold until v1 is readable and stable:
 
-- natural nut tree propagation by healthy colonies
-- colony growth and breeding pressure
+- natural nut tree propagation by healthy colonies beyond the minimal v1 baseline
+- population growth and colony scaling
 - stronger biter passivity inside peace zones
-- `Great Grove Victory`
-- `Nauvis Truce Victory`
 - multiplayer-specific hardening
 - train-adjacent squirrel hazards
 - chest reordering at extreme collapse
@@ -284,8 +383,9 @@ Hold until v1 is readable and stable:
 6. Introduce visible squirrel nuisance only after the spawn, state, and targeting systems are trustworthy, then stop for the first mandatory in-game playtest before Milestone 5.
 7. Land retaliation and relocation foundations before tuning feedback, tree care readability, iron-feeder scaling, and forestry automation.
 8. Finalize mitigation, feedback, nonlethal control, the steel feeder upgrade path, and Robot Tree Farm-gated forestry automation, then stop for the second mandatory in-game playtest before Milestone 7.
-9. Land sanctuary scoring and peace-zone foundations before tuning the endgame.
-10. Ship `Coexistence Victory` only after sanctuary behavior, peace zones, and the final validation window pass a dedicated endgame playtest before Milestone 9.
+9. Land food-chain visibility and squirrel facts before destructive military escalation so players first understand the ecosystem they are about to destabilize.
+10. Land global squirrel evolution, misplanting scaling, machine infestation, and any needed sabotage before the rocket-launch ending so militarized late-game play has enough weight.
+11. Ship the rocket-launch ending and ecological summary only after late-game escalation and the final endgame presentation pass a dedicated playtest before ship.
 
 ## Main Risks
 

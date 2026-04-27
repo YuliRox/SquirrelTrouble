@@ -131,7 +131,7 @@ How to use it:
   Why this matters: placement rules affect readability and exploit prevention.
 
 - [x] Are forest stashes created only by squirrel actions, or can they also appear naturally?
-  Answer: created only by squirrel actions in v1.
+  Answer: created only by squirrel actions.
   Why this matters: stash creation logic affects both immersion and implementation scope.
 
 - [x] Should forest stashes decay, despawn, or persist until emptied?
@@ -571,3 +571,43 @@ How to use it:
 - [x] Should squirrels be able to target the same belt line or chest network indefinitely if habitat stays bad, or should there be escalating target diversification?
   Answer: some diversification, while still preferring nearby high-value nuisance targets.
   Why this matters: repeated targeting can feel unfair, but total randomness feels arbitrary.
+
+---
+
+## 22. Open Design Gaps From The Roadmap
+
+- [ ] How often should visible biter-on-squirrel predation happen when the player is nearby?
+  Answer:
+  Why this matters: Milestone 7 depends on the food chain being visible enough to teach the ecology, but not so common that squirrel presence feels unstable or slapstick.
+
+- [ ] How quickly should squirrels lost to natural predation be replaced, and does replacement need to happen in the same region or just any viable nearby forest?
+  Answer:
+  Why this matters: the roadmap assumes natural predation will not destabilize the scenario, but the refill rule is not actually pinned down.
+
+- [ ] What exact player-facing signal should indicate that a region has fallen below squirrel-respawn viability?
+  Answer:
+  Why this matters: the spec now depends on “minimum viable forest” and colony collapse, but the player needs to understand when a forest stopped being able to support squirrels.
+
+- [ ] How should homeless squirrels behave before they successfully join a new colony?
+  Answer:
+  Why this matters: colony collapse, stash behavior, retreat logic, and infrastructure aggression all depend on whether homeless squirrels become feral, temporary raiders, or something in between.
+
+- [ ] What are the exact rules for home-colony reassignment after habitat collapse or restoration?
+  Answer:
+  Why this matters: relocation, restored forests, and late-game ecosystem recovery all depend on predictable rules for when squirrels adopt a new home.
+
+- [ ] Should MVP ship only machine infestation as the evolved sabotage layer, or must at least one additional sabotage behavior ship as well?
+  Answer:
+  Why this matters: Milestone 8 currently allows “additional sabotage if infestation is insufficient,” but that threshold is still a design judgment rather than a settled requirement.
+
+- [ ] How should `Squirrel Evolution` be shown to the player: exact number, broad warning band, or only through late-game survey messaging?
+  Answer:
+  Why this matters: the roadmap expects military escalation to be understandable, but the feedback surface for global evolution is not yet decided.
+
+- [ ] What outcome bands should the rocket-launch ecological summary use besides full success?
+  Answer:
+  Why this matters: Milestone 9 needs ending messaging that explains more than just perfect victory; otherwise ecological failure will not read clearly.
+
+- [ ] What exact score categories and weights should the rocket-launch ecological summary use?
+  Answer:
+  Why this matters: the roadmap already calls this out as a non-coding TODO, but it should also exist as an explicit unanswered design question so it does not get lost.

@@ -7,6 +7,7 @@ yarn-error.log*
 
 # Local environment and workspace files
 .env.local
+.codex
 *.code-workspace
 art-files/
 debug/
