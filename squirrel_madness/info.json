@@ -6,7 +6,8 @@
   "factorio_version": "2.0",
   "thumbnail": "thumbnail.png",
   "dependencies": [
-    "base >= 2.0.0"
+    "base >= 2.0.0",
+    "? robot_tree_farm_update"
   ],
   "description": "Scenario-first scaffold for squirrel-driven industrial ecology on Nauvis. Includes the forest survey station sprite by Hurricane046 under CC BY."
 }

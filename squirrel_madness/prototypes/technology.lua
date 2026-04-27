@@ -1,3 +1,40 @@
+local function add_recipe_unlock(effect_list, recipe_name)
+  effect_list[#effect_list + 1] = {
+    type = "unlock-recipe",
+    recipe = recipe_name
+  }
+end
+
+local function ecological_stabilization_effects()
+  local effects = {}
+
+  add_recipe_unlock(effects, "steel-squirrel-feeder")
+
+  if not mods["robot_tree_farm_update"] then
+    return effects
+  end
+
+  local matched = {}
+  for recipe_name in pairs(data.raw.recipe or {}) do
+    local lower_name = string.lower(recipe_name)
+    if string.find(lower_name, "treefarm", 1, true)
+      or string.find(lower_name, "tree-farm", 1, true)
+      or string.find(lower_name, "tree_farm", 1, true)
+      or string.find(lower_name, "robot-tree-farm", 1, true)
+      or string.find(lower_name, "robot_tree_farm", 1, true)
+    then
+      matched[#matched + 1] = recipe_name
+    end
+  end
+
+  table.sort(matched)
+  for _, recipe_name in ipairs(matched) do
+    add_recipe_unlock(effects, recipe_name)
+  end
+
+  return effects
+end
+
 data:extend({
   {
     type = "technology",
@@ -87,12 +124,7 @@ data:extend({
     icon = "__base__/graphics/technology/solar-energy.png",
     icon_size = 256,
     prerequisites = {"wildlife-relocation", "solar-energy"},
-    effects = {
-      {
-        type = "unlock-recipe",
-        recipe = "steel-squirrel-feeder"
-      }
-    },
+    effects = ecological_stabilization_effects(),
     unit = {
       count = 150,
       time = 30,
