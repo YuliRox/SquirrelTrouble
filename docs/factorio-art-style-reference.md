@@ -4,8 +4,8 @@ Status: working visual reference
 
 Purpose:
 - give agents and artists a short shared description of the Factorio visual language
-- provide a reusable basis for PixelLab prompting and asset review
-- keep generated assets aligned with the game's actual look instead of drifting into cute or generic pixel-art styles
+- provide a reusable basis for asset review and art-direction decisions
+- keep assets aligned with the game's actual look instead of drifting into cute or generic pixel-art styles
 
 ## Short Description
 
@@ -137,7 +137,6 @@ Approve an asset only if it still feels plausible when mentally placed:
 
 Use this document when:
 
-- writing PixelLab prompts
-- reviewing generated drafts
+- reviewing asset drafts
 - deciding whether an asset belongs in `squirrel_madness`
 - correcting assets that drift too far toward cute or generic pixel-art styles

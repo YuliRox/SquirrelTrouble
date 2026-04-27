@@ -32,7 +32,6 @@ Source basis:
 - Keep icons on transparent backgrounds with readable silhouettes at Factorio UI scale.
 - For 1x1 placeable structures, prefer a base export around `128x128` for the world sprite, with an optional `2x` HR export if we decide to use high-resolution sprite definitions later.
 - For animated squirrels, keep one consistent frame box for the whole sheet. A practical starting convention is `128x128` or `192x192` per frame, then adjust prototype metadata to match.
-- For PixelLab-specific generation guidance, use [pixellab-prompt-templates.md](/mnt/c/Code/SquirrelTrouble/docs/pixellab-prompt-templates.md) and [pixellab-mcp-asset-matrix.md](/mnt/c/Code/SquirrelTrouble/docs/pixellab-mcp-asset-matrix.md).
 - For feeder art direction, prefer open wooden or iron chest/bin silhouettes with visible nuts over sack-only imagery. The feeder should read as placed infrastructure, not loose cargo.
 
 ## Asset Sourcing And Licensing Strategy

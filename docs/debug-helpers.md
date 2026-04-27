@@ -14,8 +14,8 @@ When a powered `Forest Survey Station` is selected:
 - a side panel shows the exact local survey data for that footprint
 
 Relevant files:
-- [runtime.lua](/mnt/c/Code/SquirrelTrouble/squirrel_madness/scripts/runtime.lua)
-- [constants.lua](/mnt/c/Code/SquirrelTrouble/squirrel_madness/scripts/constants.lua)
+- [runtime.lua](../squirrel_madness/scripts/runtime.lua)
+- [constants.lua](../squirrel_madness/scripts/constants.lua)
 
 ### Squirrel Selection Overlay
 
@@ -31,9 +31,9 @@ This is the direct answer to the “what does the red ring mean?” question:
 - red ring = how far that squirrel is willing to range outward while looking for belt trouble
 
 Relevant files:
-- [constants.lua](/mnt/c/Code/SquirrelTrouble/squirrel_madness/scripts/constants.lua)
-- [runtime.lua](/mnt/c/Code/SquirrelTrouble/squirrel_madness/scripts/runtime.lua)
-- [squirrels.lua](/mnt/c/Code/SquirrelTrouble/squirrel_madness/scripts/squirrels.lua)
+- [constants.lua](../squirrel_madness/scripts/constants.lua)
+- [runtime.lua](../squirrel_madness/scripts/runtime.lua)
+- [squirrels.lua](../squirrel_madness/scripts/squirrels.lua)
 
 ## Remote Debug Interface
 
@@ -105,4 +105,4 @@ All of these are exposed on:
 ## Manual Test Equipment
 
 The current ad-hoc manual testing equipment kit lives in:
-- [debug-equipement.md](/mnt/c/Code/SquirrelTrouble/manual%20testing/debug-equipement.md)
+- [debug-equipment.md](../manual%20testing/debug-equipment.md)

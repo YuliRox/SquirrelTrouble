@@ -2,8 +2,8 @@
 
 Status: actionable v1 roadmap
 
-Primary source: [docs/SPEC.md](/mnt/c/Code/SquirrelTrouble/docs/SPEC.md)
-Resolved design answers: [docs/QUESTIONS.md](/mnt/c/Code/SquirrelTrouble/docs/QUESTIONS.md)
+Primary source: [docs/SPEC.md](SPEC.md)
+Resolved design answers: [docs/QUESTIONS.md](QUESTIONS.md)
 
 ## Scope Baseline
 
