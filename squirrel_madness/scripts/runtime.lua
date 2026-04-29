@@ -520,6 +520,20 @@ local function clear_squirrel_selection_lock(player_index)
   get_squirrel_selection_locks()[player_index] = nil
 end
 
+local function clear_player_squirrel_selection(player)
+  if not (player and player.valid) then
+    return
+  end
+
+  clear_squirrel_selection_lock(player.index)
+  clear_squirrel_overlay(player.index)
+  clear_squirrel_panel(player.index)
+
+  if squirrels.is_squirrel_entity(player.selected) then
+    player.selected = nil
+  end
+end
+
 local function refresh_squirrel_selection(player, tick)
   if not (player and player.valid) then
     return nil
@@ -2135,6 +2149,7 @@ local function handle_squirrel_rough_handling(entity, player, tick)
   regions.note_rough_handling(entity.surface.index, entity.position, 1, tick)
   enqueue_region_refresh_at_position(entity.surface, entity.position, tick)
   local active_entity = squirrels.on_stepped(entity, tick, player) or entity
+  clear_player_squirrel_selection(player)
   player.play_sound({
     path = SQUIRREL_STEP_SOUND,
     volume_modifier = 0.85

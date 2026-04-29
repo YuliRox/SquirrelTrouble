@@ -1679,6 +1679,15 @@ local function set_squirrel_fear(record, player, tick)
   return record.fear_until_tick
 end
 
+local function reset_flee_progress(record, entity, tick)
+  if not record then
+    return
+  end
+
+  record.flee_last_progress_tick = tick
+  record.flee_last_progress_position = entity and entity.valid and clone_position(entity.position) or nil
+end
+
 local function flee_destination(record, entity, avoid_position)
   local origin = (entity and entity.valid and entity.position) or record.home_position
   local dx = origin.x - avoid_position.x
@@ -1713,62 +1722,23 @@ local function flee_destination(record, entity, avoid_position)
   return candidate
 end
 
-local function set_entity_flee_orientation(record, entity, avoid_position)
-  if not (record and entity and entity.valid and avoid_position) then
-    return
+local function flee_is_stuck(record, entity, tick)
+  if not (record and entity and entity.valid and record.mode == "flee") then
+    return false
   end
 
-  local origin = entity.position
-  local dx = origin.x - avoid_position.x
-  local dy = origin.y - avoid_position.y
-  local angle
-
-  if math.abs(dx) < 0.01 and math.abs(dy) < 0.01 then
-    angle = ((((record.squirrel_id or 1) * 67) + ((record.roam_step or 0) * 31)) % 360) * (math.pi / 180)
-  else
-    angle = math.atan(dy, dx)
+  local last_position = record.flee_last_progress_position
+  if not last_position then
+    reset_flee_progress(record, entity, tick)
+    return false
   end
 
-  entity.orientation = (((angle / (math.pi * 2)) + 0.25) % 1)
-end
-
-local function advance_flee_motion(record, entity, tick)
-  if not (record and entity and entity.valid and record.mode == "flee" and record.destination) then
-    return
+  if distance_squared(entity.position, last_position) >= (constants.squirrel_flee_progress_distance ^ 2) then
+    reset_flee_progress(record, entity, tick)
+    return false
   end
 
-  local fear_position = current_fear_position(record, tick)
-  if not fear_position then
-    return
-  end
-
-  local origin = entity.position
-  local delta_x = record.destination.x - origin.x
-  local delta_y = record.destination.y - origin.y
-  local remaining_distance = math.sqrt((delta_x * delta_x) + (delta_y * delta_y))
-
-  if remaining_distance < 0.12 then
-    return
-  end
-
-  local step_distance = math.min(constants.squirrel_flee_boost_distance_per_tick, remaining_distance)
-  local candidate = {
-    x = origin.x + ((delta_x / remaining_distance) * step_distance),
-    y = origin.y + ((delta_y / remaining_distance) * step_distance)
-  }
-  local surface = entity.surface
-  local resolved = surface.find_non_colliding_position(entity.name, candidate, 0.35, 0.1, true)
-
-  if not resolved then
-    return
-  end
-
-  if distance_squared(resolved, fear_position) <= distance_squared(origin, fear_position) then
-    return
-  end
-
-  entity.teleport(resolved)
-  entity.orientation = (((math.atan(resolved.y - origin.y, resolved.x - origin.x) / (math.pi * 2)) + 0.25) % 1)
+  return tick >= ((record.flee_last_progress_tick or tick) + constants.squirrel_flee_stuck_ticks)
 end
 
 local function start_flee(record, entity, tick, avoid_position)
@@ -1788,7 +1758,7 @@ local function start_flee(record, entity, tick, avoid_position)
     record.fear_until_tick or (tick + constants.squirrel_flee_repath_interval)
   )
   record.next_decision_tick = record.action_due_tick
-  set_entity_flee_orientation(record, entity, avoid_position)
+  reset_flee_progress(record, entity, tick)
   move_entity(entity, record.destination)
   sync_render(record, entity)
 end
@@ -2828,13 +2798,6 @@ function squirrels.on_tick(tick)
   advance_active_belt_riders(tick)
   cleanup_invalid_squirrels(tick)
 
-  for _, record in pairs(get_squirrel_store()) do
-    local entity = resolve_entity_reference(record.entity)
-    if entity and entity.valid and record.mode == "flee" then
-      advance_flee_motion(record, entity, tick)
-    end
-  end
-
   if tick % constants.squirrel_update_interval == 0 then
     local active_coords = active_region_coords()
     local active_lookup = {}
@@ -2863,6 +2826,8 @@ function squirrels.on_tick(tick)
           if not fear_position then
             process_idle_decision(record, entity, tick)
           elseif
+            flee_is_stuck(record, entity, tick)
+            or
             (record.destination and reached_position(entity, record.destination, record.arrival_distance))
             or tick >= record.action_due_tick
           then
