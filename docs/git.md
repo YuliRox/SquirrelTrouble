@@ -9,8 +9,6 @@ type: short imperative summary (≤72 chars)
 
 - bullet list of meaningful details
 - one line per logical change
-
-Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
 ```
 
 Valid types: `feat`, `fix`, `refactor`, `chore`, `docs`, `test`.
@@ -18,7 +16,7 @@ Valid types: `feat`, `fix`, `refactor`, `chore`, `docs`, `test`.
 Write the commit message to a temp file, then commit with `-F`:
 
 ```bash
-printf 'type: short summary\n\n- bullet detail\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>\n' > /tmp/commit_msg.txt
+printf 'type: short summary\n\n- bullet detail\n' > /tmp/commit_msg.txt
 git commit -F /tmp/commit_msg.txt
 ```
 
