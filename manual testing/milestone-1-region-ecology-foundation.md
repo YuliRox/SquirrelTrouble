@@ -63,15 +63,15 @@ Checklist:
 - [X] Place the `Solar Panel` and a `Small Electric Pole` so the survey station is powered.
 - [X] If it is night, wait for daylight before continuing.
 - [X] Click the powered survey station.
-- [ ] Confirm the game shows a local station-centered survey reach around the station, instead of hidden green cell boxes or a huge hard-to-read biome-wide area.
-- [ ] Confirm the game also shows a visible station range ring so the exact survey reach is clear in-world.
+- [X] Confirm the game shows a local station-centered survey reach around the station, instead of hidden green cell boxes or a huge hard-to-read biome-wide area.
+- [X] Confirm the game also shows a visible station range ring so the exact survey reach is clear in-world.
 - [X] Confirm a survey information panel appears while the station is selected.
 - [X] Confirm the panel reports exact forest health, unrest, trust, pressure, tree counts, and feeder counts for the outlined footprint.
 - [X] Stand beside the powered survey station and press `ALT+S`.
-- [ ] Confirm the report switches to exact numeric values for the outlined forest footprint within station range, not just your current standing tile.
+- [X] Confirm the report switches to exact numeric values for the outlined forest footprint within station range, not just your current standing tile.
 - [X] Walk a short distance away but keep the station selected.
 - [X] Press `ALT+S` again.
-- [ ] Confirm the exact report still feels anchored to the same outlined forest footprint rather than your current tile.
+- [X] Confirm the exact report still feels anchored to the same outlined forest footprint rather than your current tile.
 
 Pass condition:
 - The powered station-based inspection flow is spatially coherent, visibly shows what it is surveying, and is clearly more precise than broad survey mode.

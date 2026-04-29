@@ -104,6 +104,33 @@ Important:
 - this repo already points the WSL-wrapper entry at `scripts/factorio-debug-wrapper.sh`, but the normal contributor path is still to launch VS Code from Windows
 - if your repo is not at `C:\Code\SquirrelTrouble`, update `.vscode/settings.json` accordingly
 
+### How Debug Launches Use The Mod
+
+The checked-in VS Code debug setup does **not** use your normal `%AppData%\Factorio` profile.
+
+It uses the repo-local test/debug profile instead:
+
+- `.vscode/settings.json` points `configPath` at `C:\Code\SquirrelTrouble\.factorio-test\config.ini`
+- that config sets Factorio `write-data` to `C:\Code\SquirrelTrouble\.factorio-test`
+- the active debug mod directory is therefore `C:\Code\SquirrelTrouble\.factorio-test\mods`
+
+That means:
+
+- the debugger will not load `squirrel_madness` from `%AppData%\Factorio\mods`
+- seeing no `squirrel_madness` in `%AppData%\Factorio\mods` is expected during this workflow
+- the live debug copy of the mod is the folder at `.factorio-test/mods/squirrel_madness`
+
+Why that works:
+
+- `.vscode/launch.json` uses `manageMod: true`
+- the `factoriomod-debug` extension copies or manages the repo mod into `.factorio-test/mods`
+- launching the checked-in debug configs runs Factorio against that isolated profile
+
+Practical consequence:
+
+- if you are debugging and want to verify what the game is actually loading, inspect `.factorio-test/mods/squirrel_madness`
+- if behavior in the debug game does not match the repo, compare the repo files to the copy in `.factorio-test/mods/squirrel_madness`
+
 ### Repository Paths
 
 Most repo documentation assumes this layout:

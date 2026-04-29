@@ -91,6 +91,11 @@ constants.squirrel_excursion_step_max_distance = 6
 constants.squirrel_transport_line_scan_limit = 8
 constants.squirrel_move_timeout = 60 * 6
 constants.squirrel_decision_interval = 60
+constants.squirrel_fear_duration = 60 * 30
+constants.squirrel_flee_repath_interval = 15
+constants.squirrel_flee_step_distance = 14
+constants.squirrel_flee_min_distance_from_player = 18
+constants.squirrel_flee_boost_distance_per_tick = 0.07
 constants.squirrel_belt_block_duration = 60 * 6
 constants.squirrel_belt_inspect_duration = 60 * 5
 constants.squirrel_belt_grab_interval = 10
@@ -104,7 +109,7 @@ constants.squirrel_feeder_peace_radius = 12
 constants.squirrel_feeder_target_bonus = 18
 constants.squirrel_feeder_visit_duration = 60 * 6
 constants.squirrel_feeder_nibble_interval = 45
-constants.debug_squirrel_selection_overlay = true
+constants.debug_squirrel_selection_overlay = false
 constants.squirrel_step_trigger_radius = 0.65
 constants.squirrel_selection_hold_ticks = 60 * 60
 constants.squirrel_action_cooldown = 60 * 20
@@ -147,6 +152,7 @@ constants.names = {
   nut_tree = "nut-tree",
   nut_tree_harvested = "nut-tree-harvested",
   squirrel = "squirrel",
+  squirrel_panicked = "squirrel-panicked",
   squirrel_sitting = "squirrel-sitting",
   feeder = "squirrel-feeder",
   feeder_empty = "squirrel-feeder-empty",
@@ -160,11 +166,13 @@ constants.names = {
 
 constants.squirrel_entity_name_list = {
   constants.names.squirrel,
+  constants.names.squirrel_panicked,
   constants.names.squirrel_sitting
 }
 
 constants.squirrel_entity_names = {
   [constants.names.squirrel] = true,
+  [constants.names.squirrel_panicked] = true,
   [constants.names.squirrel_sitting] = true
 }
 

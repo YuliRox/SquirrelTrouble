@@ -65,7 +65,7 @@ Preconditions:
 Checklist:
 - [X] Place items on the belt and watch the line for a short while.
 - [X] Confirm at least one squirrel visibly moves onto a belt tile, stays on the belt for at least 5 seconds, and rides with the belt instead of just hovering beside it.
-- [ ] Confirm this can happen even before the forest is badly damaged.
+- [X] Confirm this can happen even before the forest is badly damaged.
 - [X] Place a stocked feeder near the same belt and confirm nearby squirrels prefer the feeder and the passive belt-sitting stops.
 - [X] Confirm the squirrel actually blocks that belt space while sitting there, rather than merely standing near the belt.
 - [X] Confirm the belt blockage is short-lived and readable.
@@ -121,7 +121,7 @@ Checklist:
 - [X] Observe the damaged edge next.
 - [X] Confirm the damaged edge produces more disruptive squirrel behavior.
 - [X] Confirm the behavior shift is local and tied to the damaged area.
-- [ ] Confirm squirrels now sit still for noticeable 5-10 second pauses instead of constantly sprinting.
+- [X] Confirm squirrels now sit still for noticeable 5-10 second pauses instead of constantly sprinting.
 - [X] If a squirrel is stepped on or killed accidentally, confirm the reaction is clearly noticeable and not easy to miss.
 - [X] Walk over a squirrel on purpose and confirm it immediately flees and raises a noticeable rough-handling warning.
 

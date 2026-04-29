@@ -453,6 +453,18 @@ local function clear_squirrel_overlay(player_index)
   return true
 end
 
+local function clear_all_squirrel_overlays()
+  local player_indices = {}
+
+  for player_index in pairs(storage.squirrel_selection_overlays or {}) do
+    player_indices[#player_indices + 1] = player_index
+  end
+
+  for _, player_index in ipairs(player_indices) do
+    clear_squirrel_overlay(player_index)
+  end
+end
+
 local function clear_squirrel_panel(player_index)
   local player = game.get_player(player_index)
   if player and player.valid then
@@ -1554,7 +1566,10 @@ local function notify_retaliation(surface, position, force, player_index, incide
     local message = incident.kind == "death"
       and {incident.message_key, incident.retaliation_level or incident.severity}
       or {incident.message_key}
-    player.print(message)
+
+    if incident.kind ~= "rough-handling" then
+      player.print(message)
+    end
 
     if death_site_tag then
       local feedback = get_squirrel_retaliation_feedback()
@@ -1813,6 +1828,7 @@ end
 
 local function on_configuration_changed()
   storage_lib.ensure()
+  clear_all_squirrel_overlays()
   feeder_selection_overlays = {}
   storage.squirrel_step_feedback = nil
   storage.squirrel_selection_locks = {}
@@ -1821,6 +1837,7 @@ local function on_configuration_changed()
   storage.squirrel_selection_overlays = {}
   storage.squirrel_selection_panels = {}
   feeders.rebuild_tracking()
+  squirrels.normalize_entity_variants()
   feeders.sync_registered()
   refresh_active_regions(true)
 end
@@ -1841,6 +1858,10 @@ local function on_tick(event)
   refresh_active_regions(false)
   process_region_refresh_queue(constants.region_refresh_batch_size, event.tick)
   refresh_locked_squirrel_selections(event.tick)
+
+  if not constants.debug_squirrel_selection_overlay then
+    clear_all_squirrel_overlays()
+  end
 
   if event.tick % constants.feeder_visual_update_interval == 0 then
     feeders.sync_registered()
@@ -2113,22 +2134,26 @@ local function handle_squirrel_rough_handling(entity, player, tick)
   attribution[cooldown_key] = tick
   regions.note_rough_handling(entity.surface.index, entity.position, 1, tick)
   enqueue_region_refresh_at_position(entity.surface, entity.position, tick)
-  squirrels.on_stepped(entity, tick)
-  entity.surface.play_sound({
+  local active_entity = squirrels.on_stepped(entity, tick, player) or entity
+  player.play_sound({
     path = SQUIRREL_STEP_SOUND,
-    position = entity.position,
-    volume_modifier = 0.45
+    volume_modifier = 0.85
+  })
+  active_entity.surface.play_sound({
+    path = SQUIRREL_STEP_SOUND,
+    position = active_entity.position,
+    volume_modifier = 0.65
   })
   storage.squirrel_step_feedback = {
     player_index = player.index,
-    surface_index = entity.surface.index,
-    position = {x = entity.position.x, y = entity.position.y},
+    surface_index = active_entity.surface.index,
+    position = {x = active_entity.position.x, y = active_entity.position.y},
     tick = tick,
     path = SQUIRREL_STEP_SOUND
   }
 
-  local incident = record_squirrel_incident(entity.surface, entity.position, player.force, player_index, "rough-handling", tick, {})
-  notify_retaliation(entity.surface, entity.position, player.force, player_index, incident)
+  local incident = record_squirrel_incident(active_entity.surface, active_entity.position, player.force, player_index, "rough-handling", tick, {})
+  notify_retaliation(active_entity.surface, active_entity.position, player.force, player_index, incident)
   return incident
 end
 

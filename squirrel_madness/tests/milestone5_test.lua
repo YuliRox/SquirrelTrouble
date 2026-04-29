@@ -102,7 +102,7 @@ local function find_squirrel_entity(squirrel_id)
 
   local entity = surface().find_entities_filtered({
     position = squirrel.position,
-    name = constants.names.squirrel,
+    name = constants.squirrel_entity_name_list,
     limit = 1
   })[1]
 
@@ -254,9 +254,13 @@ describe("milestone 5 retaliation and relocation foundation", function()
 
     local before_health = squirrel_entity.health
     local dealt = squirrel_entity.damage(1, player().force, nil, player().character, player().character)
+    local after_snapshot = remote.call(constants.mod_name, "debug_get_squirrel_snapshot", squirrel_id)
+    local active_entity = select(1, find_squirrel_entity(squirrel_id))
 
     assert.is_true(dealt > 0)
-    assert.is_true(squirrel_entity.health < before_health)
+    assert.is_table(after_snapshot)
+    assert.is_not_nil(active_entity)
+    assert.is_true(active_entity.health < before_health)
   end)
 
   it("relocates squirrels into healthier forest and improves local trust", function()
@@ -299,11 +303,13 @@ describe("milestone 5 retaliation and relocation foundation", function()
     local squirrel_id = remote.call(constants.mod_name, "debug_spawn_squirrel", surface().index, ORIGIN.x + 6, ORIGIN.y)
     local squirrel_entity, squirrel = find_squirrel_entity(squirrel_id)
     local before = remote.call(constants.mod_name, "force_recompute_at_position", surface().index, squirrel.position.x, squirrel.position.y)
+    local before_snapshot = remote.call(constants.mod_name, "debug_get_squirrel_snapshot", squirrel_id)
 
     assert.is_not_nil(squirrel_entity)
     assert.is_true(squirrel_entity.damage(1, player().force, nil, player().character, player().character) > 0)
 
     local after = remote.call(constants.mod_name, "force_recompute_at_position", surface().index, squirrel.position.x, squirrel.position.y)
+    local after_snapshot = remote.call(constants.mod_name, "debug_get_squirrel_snapshot", squirrel_id)
     local incidents = remote.call(constants.mod_name, "debug_get_squirrel_incidents", surface().index)
     local state = remote.call(constants.mod_name, "debug_get_retaliation_state", surface().index, player().index)
     local feedback = remote.call(constants.mod_name, "debug_get_retaliation_feedback", player().index)
@@ -317,8 +323,93 @@ describe("milestone 5 retaliation and relocation foundation", function()
     assert.is_nil(state.pending_wave)
     assert.equal(0, #feedback)
     assert.equal(0, launched.launched)
+    assert.equal("flee", after_snapshot.mode)
+    assert.equal(player().index, after_snapshot.feared_player_index)
+    assert.is_not_nil(after_snapshot.destination)
+    assert.is_true(after_snapshot.destination.x > before_snapshot.position.x)
     assert.is_true(after.rough_handling_penalty > before.rough_handling_penalty)
     assert.is_true(after.squirrel_trust < before.squirrel_trust)
+  end)
+
+  it("repaths fleeing squirrels away from the player for thirty seconds after rough handling", function()
+    spawn_forest(18, ORIGIN)
+    player().teleport(ORIGIN, surface())
+    local squirrel_id = remote.call(constants.mod_name, "debug_spawn_squirrel", surface().index, ORIGIN.x + 6, ORIGIN.y)
+    local squirrel_entity = select(1, find_squirrel_entity(squirrel_id))
+    local initial = remote.call(constants.mod_name, "debug_get_squirrel_snapshot", squirrel_id)
+
+    assert.is_not_nil(squirrel_entity)
+    assert.is_table(initial)
+    assert.is_true(squirrel_entity.damage(1, player().force, nil, player().character, player().character) > 0)
+
+    local fleeing = remote.call(constants.mod_name, "debug_get_squirrel_snapshot", squirrel_id)
+
+    assert.equal("flee", fleeing.mode)
+    assert.equal(constants.names.squirrel, fleeing.entity_name)
+    assert.equal(player().index, fleeing.feared_player_index)
+    assert.is_not_nil(fleeing.destination)
+    assert.is_true(fleeing.destination.x > initial.position.x)
+
+    remote.call(constants.mod_name, "debug_advance_squirrel_runtime", constants.squirrel_flee_repath_interval)
+    player().teleport({x = ORIGIN.x + 24, y = ORIGIN.y}, surface())
+    remote.call(constants.mod_name, "debug_advance_squirrel_runtime", constants.squirrel_flee_repath_interval)
+
+    local redirected = remote.call(constants.mod_name, "debug_get_squirrel_snapshot", squirrel_id)
+    local player_position = player().position
+
+    assert.equal("flee", redirected.mode)
+    assert.equal(player_position.x, redirected.fear_position.x)
+    assert.equal(player_position.y, redirected.fear_position.y)
+
+    remote.call(
+      constants.mod_name,
+      "debug_advance_squirrel_runtime",
+      constants.squirrel_fear_duration - (constants.squirrel_flee_repath_interval * 2) - 30
+    )
+
+    local almost_expired = remote.call(constants.mod_name, "debug_get_squirrel_snapshot", squirrel_id)
+
+    assert.equal("flee", almost_expired.mode)
+    assert.equal(fleeing.fear_until_tick, almost_expired.fear_until_tick)
+  end)
+
+  it("keeps the same squirrel entity variant while entering flee after rough handling", function()
+    spawn_forest(18, ORIGIN)
+    player().teleport(ORIGIN, surface())
+    local squirrel_id = remote.call(constants.mod_name, "debug_spawn_squirrel", surface().index, ORIGIN.x + 6, ORIGIN.y)
+    local squirrel_entity = select(1, find_squirrel_entity(squirrel_id))
+    local before = remote.call(constants.mod_name, "debug_get_squirrel_snapshot", squirrel_id)
+
+    assert.is_not_nil(squirrel_entity)
+    assert.is_true(squirrel_entity.damage(1, player().force, nil, player().character, player().character) > 0)
+
+    local after = remote.call(constants.mod_name, "debug_get_squirrel_snapshot", squirrel_id)
+
+    assert.equal("flee", after.mode)
+    assert.equal(constants.names.squirrel, after.entity_name)
+    assert.is_not_nil(after.destination)
+    assert.is_true(after.destination.x > before.position.x)
+  end)
+
+  it("moves fleeing squirrels farther from the player within a few ticks", function()
+    spawn_forest(18, ORIGIN)
+    player().teleport(ORIGIN, surface())
+    local squirrel_id = remote.call(constants.mod_name, "debug_spawn_squirrel", surface().index, ORIGIN.x + 6, ORIGIN.y)
+    local squirrel_entity = select(1, find_squirrel_entity(squirrel_id))
+    local before = remote.call(constants.mod_name, "debug_get_squirrel_snapshot", squirrel_id)
+
+    assert.is_not_nil(squirrel_entity)
+    assert.is_true(squirrel_entity.damage(1, player().force, nil, player().character, player().character) > 0)
+
+    remote.call(constants.mod_name, "debug_advance_squirrel_runtime", 5)
+
+    local after = remote.call(constants.mod_name, "debug_get_squirrel_snapshot", squirrel_id)
+    local player_position = player().position
+    local before_distance = ((before.position.x - player_position.x) ^ 2) + ((before.position.y - player_position.y) ^ 2)
+    local after_distance = ((after.position.x - player_position.x) ^ 2) + ((after.position.y - player_position.y) ^ 2)
+
+    assert.equal("flee", after.mode)
+    assert.is_true(after_distance > before_distance)
   end)
 
   it("attributes squirrel deaths and escalates revenge-wave selection", function()

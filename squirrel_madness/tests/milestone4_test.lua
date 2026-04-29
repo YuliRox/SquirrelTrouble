@@ -633,9 +633,12 @@ describe("milestone 4 squirrel nuisance runtime", function()
 
     local squirrel_id = remote.call(constants.mod_name, "debug_spawn_squirrel", surface().index, FOREST_ORIGIN.x + 4, FOREST_ORIGIN.y + 4)
     local snapshot = remote.call(constants.mod_name, "debug_get_squirrel_snapshot", squirrel_id)
+    local original = constants.debug_squirrel_selection_overlay
 
     assert.is_number(squirrel_id)
     assert.is_table(snapshot)
+
+    constants.debug_squirrel_selection_overlay = true
 
     local shown = remote.call(
       constants.mod_name,
@@ -657,6 +660,8 @@ describe("milestone 4 squirrel nuisance runtime", function()
 
     assert.is_true(remote.call(constants.mod_name, "debug_clear_squirrel_overlay", player().index))
     assert.is_nil(remote.call(constants.mod_name, "debug_get_squirrel_overlay_state", player().index))
+
+    constants.debug_squirrel_selection_overlay = original
   end)
 
   it("keeps a clicked squirrel selected when the cursor moves across nearby entities", function()
@@ -1231,7 +1236,10 @@ describe("milestone 4 squirrel nuisance runtime", function()
     assert.equal(player().index, step_feedback.player_index)
     assert.equal(surface().index, step_feedback.surface_index)
     assert.equal("squirrel-madness-angry-squeak", step_feedback.path)
-    assert.equal("roam", snapshot_after.mode)
+    assert.equal("flee", snapshot_after.mode)
+    assert.equal(player().index, snapshot_after.feared_player_index)
+    assert.is_not_nil(snapshot_after.destination)
+    assert.is_true(snapshot_after.destination.x > snapshot_before.position.x)
     assert.is_true(after.rough_handling_penalty > before.rough_handling_penalty)
   end)
 

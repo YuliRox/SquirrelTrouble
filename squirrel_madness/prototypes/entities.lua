@@ -371,7 +371,13 @@ stash.localised_description = {"entity-description.forest-stash"}
 stash.picture = stash_picture("__squirrel_madness__/graphics/entities/structures/stash.png")
 
 local squirrel = configure_squirrel(clone_unit("small-biter", "squirrel"), squirrel_run_animation())
+local panicked_squirrel = configure_squirrel(clone_unit("small-biter", "squirrel-panicked"), squirrel_run_animation())
 local sitting_squirrel = configure_squirrel(clone_unit("small-biter", "squirrel-sitting"), squirrel_sitting_animation())
+panicked_squirrel.movement_speed = 0.22
+panicked_squirrel.distance_per_frame = 0.22
+panicked_squirrel.localised_name = {"entity-name.squirrel"}
+panicked_squirrel.localised_description = {"entity-description.squirrel"}
+panicked_squirrel.hidden = true
 sitting_squirrel.movement_speed = 0.01
 sitting_squirrel.distance_per_frame = 0.01
 sitting_squirrel.localised_name = {"entity-name.squirrel"}
@@ -415,6 +421,7 @@ nut_sapling.localised_description = {"entity-description.nut-sapling"}
 
 data:extend({
   squirrel,
+  panicked_squirrel,
   sitting_squirrel,
   nut_tree,
   harvested_nut_tree,
