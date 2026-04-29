@@ -86,6 +86,20 @@ describe("milestone 0 scaffold", function()
     assert.equal(moving.selection_box.right_bottom.x, sitting.selection_box.right_bottom.x)
     assert.is_true((moving.selection_box.right_bottom.x - moving.selection_box.left_top.x) >= 1.4)
     assert.is_true((moving.collision_box.right_bottom.x - moving.collision_box.left_top.x) >= 0.6)
+    assert.is_true(((moving.selection_box.left_top.x + moving.selection_box.right_bottom.x) / 2) > 0.3)
+  end)
+
+  it("keeps both squirrel variants registered for movement and belt sitting", function()
+    local moving = prototypes.entity[constants.names.squirrel]
+    local sitting = prototypes.entity[constants.names.squirrel_sitting]
+
+    assert.is_not_nil(moving)
+    assert.is_not_nil(sitting)
+    assert.equal(moving.type, sitting.type)
+    assert.equal(moving.collision_box.left_top.x, sitting.collision_box.left_top.x)
+    assert.equal(moving.collision_box.right_bottom.x, sitting.collision_box.right_bottom.x)
+    assert.equal(moving.selection_box.left_top.y, sitting.selection_box.left_top.y)
+    assert.equal(moving.selection_box.right_bottom.y, sitting.selection_box.right_bottom.y)
   end)
 
   it("unlocks restoration recipes in the intended order", function()

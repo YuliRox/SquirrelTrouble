@@ -89,6 +89,23 @@ function windowsPathToPosix(candidate) {
   );
 }
 
+function factorioPathCandidates(rawCandidate) {
+  const candidates = [];
+
+  if (typeof rawCandidate !== 'string' || rawCandidate.length === 0) {
+    return candidates;
+  }
+
+  candidates.push(rawCandidate);
+
+  const posixCandidate = windowsPathToPosix(rawCandidate);
+  if (posixCandidate && posixCandidate !== rawCandidate) {
+    candidates.push(posixCandidate);
+  }
+
+  return candidates;
+}
+
 function findFactorioRoot() {
   const envValues = parseEnvFile(path.join(rootDir, '.env.local'));
   const localConfigPath = path.join(rootDir, '.factorio-test.local.json');
@@ -112,30 +129,27 @@ function findFactorioRoot() {
   candidates.push('/mnt/c/Program Files/Factorio/bin/x64/factorio.exe');
 
   for (const rawCandidate of candidates) {
-    const candidate = windowsPathToPosix(rawCandidate);
-    if (!candidate) {
-      continue;
-    }
-
-    let current = fs.existsSync(candidate) ? candidate : path.dirname(candidate);
-    if (!fs.existsSync(current)) {
-      continue;
-    }
-
-    if (fs.statSync(current).isFile()) {
-      current = path.dirname(current);
-    }
-
-    while (true) {
-      if (fs.existsSync(path.join(current, 'data', 'base'))) {
-        return current;
+    for (const candidate of factorioPathCandidates(rawCandidate)) {
+      let current = fs.existsSync(candidate) ? candidate : path.dirname(candidate);
+      if (!fs.existsSync(current)) {
+        continue;
       }
 
-      const parent = path.dirname(current);
-      if (parent === current) {
-        break;
+      if (fs.statSync(current).isFile()) {
+        current = path.dirname(current);
       }
-      current = parent;
+
+      while (true) {
+        if (fs.existsSync(path.join(current, 'data', 'base'))) {
+          return current;
+        }
+
+        const parent = path.dirname(current);
+        if (parent === current) {
+          break;
+        }
+        current = parent;
+      }
     }
   }
 
