@@ -68,55 +68,55 @@ local function stash_picture(filename)
   }
 end
 
-local function squirrel_run_animation()
+local squirrel_scale = 0.581818
+local squirrel_shadow_tint = {r = 0, g = 0, b = 0, a = 1}
+
+local function squirrel_animation_layer(filename, animation_speed, draw_as_shadow)
+  local layer = {
+    width = 132,
+    height = 78,
+    frame_count = 5,
+    direction_count = 16,
+    animation_speed = animation_speed,
+    shift = {squirrel_scale * 0.714844, squirrel_scale * -0.246094},
+    scale = squirrel_scale,
+    stripes = {
+      {
+        filename = filename,
+        width_in_frames = 8,
+        height_in_frames = 10
+      }
+    }
+  }
+
+  if draw_as_shadow then
+    layer.draw_as_shadow = true
+    layer.tint = squirrel_shadow_tint
+  end
+
+  return layer
+end
+
+local function squirrel_animation(animation_speed)
   return {
-    filenames = {
-      "__squirrel_madness__/graphics/entities/squirrel/run-strips/north.png",
-      "__squirrel_madness__/graphics/entities/squirrel/run-strips/north-east.png",
-      "__squirrel_madness__/graphics/entities/squirrel/run-strips/east.png",
-      "__squirrel_madness__/graphics/entities/squirrel/run-strips/south-east.png",
-      "__squirrel_madness__/graphics/entities/squirrel/run-strips/south.png",
-      "__squirrel_madness__/graphics/entities/squirrel/run-strips/south-west.png",
-      "__squirrel_madness__/graphics/entities/squirrel/run-strips/west.png",
-      "__squirrel_madness__/graphics/entities/squirrel/run-strips/north-west.png"
-    },
-    width = 48,
-    height = 48,
-    frame_count = 6,
-    direction_count = 8,
-    line_length = 6,
-    lines_per_file = 1,
-    animation_speed = 0.42,
-    scale = 1.75
+    layers = {
+      squirrel_animation_layer("__squirrel_madness__/graphics/entities/squirrel/sq.png", animation_speed, false),
+      squirrel_animation_layer("__squirrel_madness__/graphics/entities/squirrel/sq_shadow.png", animation_speed, true)
+    }
   }
 end
 
+local function squirrel_run_animation()
+  return squirrel_animation(0.3)
+end
+
 local function squirrel_sitting_animation()
-  return {
-    filenames = {
-      "__squirrel_madness__/graphics/entities/squirrel/rotations/north.png",
-      "__squirrel_madness__/graphics/entities/squirrel/rotations/north-east.png",
-      "__squirrel_madness__/graphics/entities/squirrel/rotations/east.png",
-      "__squirrel_madness__/graphics/entities/squirrel/rotations/south-east.png",
-      "__squirrel_madness__/graphics/entities/squirrel/rotations/south.png",
-      "__squirrel_madness__/graphics/entities/squirrel/rotations/south-west.png",
-      "__squirrel_madness__/graphics/entities/squirrel/rotations/west.png",
-      "__squirrel_madness__/graphics/entities/squirrel/rotations/north-west.png"
-    },
-    width = 48,
-    height = 48,
-    frame_count = 1,
-    direction_count = 8,
-    line_length = 1,
-    lines_per_file = 1,
-    animation_speed = 0.01,
-    scale = 1.75
-  }
+  return squirrel_animation(0.01)
 end
 
 local function configure_squirrel(prototype, animation)
   prototype.icon = "__squirrel_madness__/graphics/icons/squirrel.png"
-  prototype.icon_size = 48
+  prototype.icon_size = 64
   prototype.flags = {"placeable-player", "placeable-off-grid", "not-repairable", "breaths-air"}
   prototype.subgroup = "capsule"
   prototype.factoriopedia_simulation = nil
@@ -127,8 +127,9 @@ local function configure_squirrel(prototype, animation)
   prototype.distance_per_frame = 0.11
   prototype.collision_mask = {layers = {}}
   prototype.collision_box = {{-0.34, -0.34}, {0.34, 0.34}}
-  prototype.selection_box = {{-0.75, -0.95}, {0.75, 0.55}}
-  prototype.sticker_box = {{-0.3, -0.55}, {0.3, 0.1}}
+  prototype.selection_box = {{-0.35, -0.95}, {1.15, 0.55}}
+  prototype.hit_visualization_box = {{0.05, -0.34}, {0.75, 0.34}}
+  prototype.sticker_box = {{-0.1, -0.55}, {0.5, 0.1}}
   prototype.selectable_in_game = true
   prototype.distraction_cooldown = 30
   prototype.damaged_trigger_effect = nil

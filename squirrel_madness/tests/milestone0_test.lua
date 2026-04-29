@@ -84,8 +84,41 @@ describe("milestone 0 scaffold", function()
     assert.is_true(moving.selectable_in_game)
     assert.equal(moving.selection_box.left_top.x, sitting.selection_box.left_top.x)
     assert.equal(moving.selection_box.right_bottom.x, sitting.selection_box.right_bottom.x)
+    assert.equal(moving.hit_visualization_box.left_top.x, sitting.hit_visualization_box.left_top.x)
+    assert.equal(moving.hit_visualization_box.right_bottom.x, sitting.hit_visualization_box.right_bottom.x)
     assert.is_true((moving.selection_box.right_bottom.x - moving.selection_box.left_top.x) >= 1.4)
     assert.is_true((moving.collision_box.right_bottom.x - moving.collision_box.left_top.x) >= 0.6)
+    assert.is_true(((moving.selection_box.left_top.x + moving.selection_box.right_bottom.x) / 2) > 0.3)
+    assert.is_true(((moving.hit_visualization_box.left_top.x + moving.hit_visualization_box.right_bottom.x) / 2) > 0.3)
+  end)
+
+  it("uses paired squirrel body and shadow sheets for movement and belt-pose variants", function()
+    local moving = prototypes.entity[constants.names.squirrel]
+    local sitting = prototypes.entity[constants.names.squirrel_sitting]
+    local moving_layer = moving.run_animation.layers[1]
+    local moving_shadow = moving.run_animation.layers[2]
+    local sitting_layer = sitting.run_animation.layers[1]
+    local sitting_shadow = sitting.run_animation.layers[2]
+
+    assert.is_not_nil(moving_layer)
+    assert.is_not_nil(moving_shadow)
+    assert.is_not_nil(sitting_layer)
+    assert.is_not_nil(sitting_shadow)
+    assert.equal("__squirrel_madness__/graphics/entities/squirrel/sq.png", moving_layer.stripes[1].filename)
+    assert.equal("__squirrel_madness__/graphics/entities/squirrel/sq_shadow.png", moving_shadow.stripes[1].filename)
+    assert.equal("__squirrel_madness__/graphics/entities/squirrel/sq.png", sitting_layer.stripes[1].filename)
+    assert.equal("__squirrel_madness__/graphics/entities/squirrel/sq_shadow.png", sitting_shadow.stripes[1].filename)
+    assert.equal(5, moving_layer.frame_count)
+    assert.equal(16, moving_layer.direction_count)
+    assert.equal(132, moving_layer.width)
+    assert.equal(78, moving_layer.height)
+    assert.equal(8, moving_layer.stripes[1].width_in_frames)
+    assert.equal(10, moving_layer.stripes[1].height_in_frames)
+    assert.is_true(moving_shadow.draw_as_shadow)
+    assert.is_true(sitting_shadow.draw_as_shadow)
+    assert.equal(1, moving_shadow.tint.a)
+    assert.equal(1, sitting_shadow.tint.a)
+    assert.is_true(moving_layer.animation_speed > sitting_layer.animation_speed)
   end)
 
   it("unlocks restoration recipes in the intended order", function()
