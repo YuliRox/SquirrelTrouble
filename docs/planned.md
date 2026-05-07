@@ -202,6 +202,12 @@ Status:
 - implemented
 - manual playtest still required
 
+Known design issue from playtest:
+
+- the current click-to-relocate interaction is technically functional but not acceptable as final game design
+- it reads too much like low-friction squirrel deletion instead of cumbersome wildlife control
+- relocation needs a new design decision before it should be treated as finished player-facing UX
+
 Deliverables:
 
 - implement relocation targeting, healthy-destination selection, and trust effects
@@ -228,6 +234,7 @@ Hard stop before Milestone 7: mandatory in-game playtest.
 Playtest focus:
 
 - confirm players can understand relocation targeting and destination outcomes
+- evaluate whether relocation feels like real wildlife management rather than trivial squirrel removal
 - confirm stepping retaliation, death messaging, and revenge-wave escalation are readable and attributable
 - confirm hotspot stabilization feels possible without killing squirrels
 - confirm the progression from wooden to steel feeders is readable and worth the upgrade in live play
@@ -236,6 +243,7 @@ Deliverables:
 
 - finish survey station UX and remaining broad-state feedback polish
 - put the relocation tool in the player's hands with readable affordances
+- revisit relocation interaction design before calling the mechanic complete as player-facing mitigation
 - add the `Steel Squirrel Feeder` as the higher-capacity factory-edge feeder tier without introducing a separate squirrel ruleset
 - declare `robot_tree_farm_update` as a dependency and gate its automation through a later ecology technology
 - integrate Robot Tree Farm-style forestry automation so planted and healed groves can scale into normal logistics play
@@ -246,6 +254,7 @@ Deliverables:
 Exit criteria:
 
 - the player can intentionally stabilize hotspots without killing squirrels
+- relocation no longer reads like instant squirrel deletion
 - steel feeders and late-game forestry automation plug into the ecology branch instead of bypassing it
 - one accidental squirrel death is painful but survivable
 - the reason for every escalation is readable in-world or through the survey station

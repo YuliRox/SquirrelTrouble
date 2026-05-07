@@ -596,6 +596,10 @@ How to use it:
   Answer:
   Why this matters: relocation, restored forests, and late-game ecosystem recovery all depend on predictable rules for when squirrels adopt a new home.
 
+- [ ] What should the relocation interaction actually be: instant click relocation, lure-based diversion, engineer capture and release, or something else?
+  Answer:
+  Why this matters: current relocation is technically functional but failed playtest as a game mechanic. It reads like low-friction squirrel deletion rather than cumbersome wildlife control, and the final interaction needs to preserve nuisance and readability.
+
 - [ ] Should MVP ship only machine infestation as the evolved sabotage layer, or must at least one additional sabotage behavior ship as well?
   Answer:
   Why this matters: Milestone 8 currently allows “additional sabotage if infestation is insufficient,” but that threshold is still a design judgment rather than a settled requirement.

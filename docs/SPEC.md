@@ -766,7 +766,7 @@ Deferred from MVP:
 
 Later design candidates, not fully settled:
 
-- relocation drones
+- relocation interaction and tooling
 - peace zones
 - chest reordering
 
@@ -778,6 +778,7 @@ Later design candidates, not fully settled:
 - How should the player be told that squirrel collapse is increasing nearby biter pressure?
 - How should homeless squirrels behave before they successfully join a new colony?
 - What are the exact rules for home-colony reassignment after habitat collapse or restoration?
+- What should the relocation interaction actually be: instant click relocation, lure-based diversion, engineer capture and release, or something else harder and more diegetic?
 - How strong can peace zones become before they feel exploitable?
 - Which deeper sabotage should ship first after infestation, if any?
 - How should the final ecological score be weighted so late cleanup cannot erase bad history?

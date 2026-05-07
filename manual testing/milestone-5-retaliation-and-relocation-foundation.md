@@ -46,7 +46,7 @@ Checklist:
 - [X] Confirm the game prints a readable warning instead of failing silently.
 - [X] Confirm no retaliation marker or revenge-source alert appears from nonlethal damage alone.
 - [X] Wait briefly and confirm no biter wave launches from nonlethal damage alone.
-- [ ] Confirm nearby squirrel behavior feels more hostile or tense afterward.
+- [X] Confirm nearby squirrel behavior feels more hostile or tense afterward.
 
 Pass condition:
 - Accidental rough handling creates a readable warning and worsens local tension, but does not launch a lethal revenge wave by itself.
@@ -58,14 +58,14 @@ Preconditions:
 - Keep a nearby biter nest scouted if possible.
 
 Checklist:
-- [ ] Kill one squirrel.
-- [ ] Confirm the death produces the mourning warning `Mother Nauvis mourns its children...` instead of the nonlethal harm warning.
-- [ ] Confirm a temporary death-site tag appears where the squirrel died.
-- [ ] Confirm a localized retaliation marker or alert appears at the revenge source if one is available.
-- [ ] Wait briefly and confirm a stronger revenge wave launches from the localized source toward the death site.
-- [ ] Confirm both death-site and revenge-source feedback clear again after roughly one minute instead of lingering permanently.
-- [ ] Press `ALT+S` near the death site.
-- [ ] Confirm trust falls and unrest rises relative to the pre-kill baseline.
+- [X] Kill one squirrel.
+- [X] Confirm the death produces the mourning warning `Mother Nauvis mourns its children...` instead of the nonlethal harm warning.
+- [X] Confirm a temporary death-site tag appears where the squirrel died.
+- [X] Confirm a localized retaliation marker or alert appears at the revenge source if one is available.
+- [X] Wait briefly and confirm a stronger revenge wave launches from the localized source toward the death site.
+- [X] Confirm both death-site and revenge-source feedback clear again after roughly one minute instead of lingering permanently.
+- [X] Press `ALT+S` near the death site.
+- [X] Confirm trust falls and unrest rises relative to the pre-kill baseline.
 
 Pass condition:
 - One squirrel death is clearly attributable, visibly escalates local tension, and launches a readable nearby revenge wave from the localized retaliation source.

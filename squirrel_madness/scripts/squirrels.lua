@@ -1652,6 +1652,7 @@ local function clear_squirrel_fear(record)
   record.feared_player_index = nil
   record.fear_until_tick = nil
   record.fear_position = nil
+  record.flee_goal_position = nil
 end
 
 local function current_fear_position(record, tick)
@@ -1688,38 +1689,109 @@ local function reset_flee_progress(record, entity, tick)
   record.flee_last_progress_position = entity and entity.valid and clone_position(entity.position) or nil
 end
 
+local function normalized_direction(from_position, to_position)
+  local dx = to_position.x - from_position.x
+  local dy = to_position.y - from_position.y
+  local length = math.sqrt((dx * dx) + (dy * dy))
+
+  if length < 0.01 then
+    return nil
+  end
+
+  return {
+    x = dx / length,
+    y = dy / length
+  }
+end
+
+local function compute_flee_goal_position(record, entity, avoid_position)
+  local origin = (entity and entity.valid and entity.position) or record.home_position
+  local home_direction = normalized_direction(origin, record.home_position)
+  local player_away_direction = normalized_direction(avoid_position, origin)
+  local preferred_direction = home_direction or player_away_direction
+  local goal_distance = constants.squirrel_flee_goal_distance
+
+  if not preferred_direction then
+    local angle = ((((record.squirrel_id or 1) * 67) + ((record.roam_step or 0) * 31)) % 360) * (math.pi / 180)
+    preferred_direction = {
+      x = math.cos(angle),
+      y = math.sin(angle)
+    }
+  end
+
+  local goal = {
+    x = origin.x + (preferred_direction.x * goal_distance),
+    y = origin.y + (preferred_direction.y * goal_distance)
+  }
+
+  if distance_squared(goal, avoid_position) < (constants.squirrel_flee_min_distance_from_player ^ 2) then
+    local away_direction = player_away_direction or preferred_direction
+    goal = {
+      x = avoid_position.x + (away_direction.x * constants.squirrel_flee_min_distance_from_player),
+      y = avoid_position.y + (away_direction.y * constants.squirrel_flee_min_distance_from_player)
+    }
+  end
+
+  return goal
+end
+
+local function flee_goal_position(record, entity, avoid_position)
+  if not record then
+    return nil
+  end
+
+  local current_goal = record.flee_goal_position
+  if current_goal and avoid_position then
+    if distance_squared(current_goal, avoid_position) >= (constants.squirrel_flee_min_distance_from_player ^ 2) then
+      return clone_position(current_goal)
+    end
+  elseif current_goal then
+    return clone_position(current_goal)
+  end
+
+  local computed_goal = compute_flee_goal_position(record, entity, avoid_position)
+  record.flee_goal_position = computed_goal and clone_position(computed_goal) or nil
+  return computed_goal
+end
+
 local function flee_destination(record, entity, avoid_position)
   local origin = (entity and entity.valid and entity.position) or record.home_position
-  local dx = origin.x - avoid_position.x
-  local dy = origin.y - avoid_position.y
-  local current_distance = math.sqrt((dx * dx) + (dy * dy))
-  local direction_x
-  local direction_y
+  local goal = flee_goal_position(record, entity, avoid_position)
+  local goal_direction = normalized_direction(origin, goal)
 
-  if current_distance < 0.01 then
-    local angle = ((((record.squirrel_id or 1) * 67) + ((record.roam_step or 0) * 31)) % 360) * (math.pi / 180)
-    direction_x = math.cos(angle)
-    direction_y = math.sin(angle)
-  else
-    direction_x = dx / current_distance
-    direction_y = dy / current_distance
+  if not goal_direction then
+    return nil
   end
 
-  local target_distance = math.max(
-    current_distance + constants.squirrel_flee_step_distance,
-    constants.squirrel_flee_min_distance_from_player
-  )
-  local candidate = {
-    x = avoid_position.x + (direction_x * target_distance),
-    y = avoid_position.y + (direction_y * target_distance)
-  }
+  local base_angle = math.atan(goal_direction.y, goal_direction.x)
   local surface = game.surfaces[record.surface_index]
+  local candidate_offsets = {0, 0.35, -0.35, 0.7, -0.7, 1.05, -1.05, 1.4, -1.4}
+  local best_candidate
+  local best_score
 
-  if surface then
-    candidate = surface.find_non_colliding_position(constants.names.squirrel, candidate, 10, 0.5, true) or candidate
+  for _, angle_offset in ipairs(candidate_offsets) do
+    local angle = base_angle + angle_offset
+    local candidate = position_with_offset(origin, angle, constants.squirrel_flee_step_distance)
+
+    if surface then
+      local resolved = surface.find_non_colliding_position(constants.names.squirrel, candidate, 1.5, 0.25, true)
+      if
+        resolved
+        and distance_squared(resolved, avoid_position) > distance_squared(origin, avoid_position)
+        and distance_squared(resolved, origin) >= (constants.squirrel_flee_min_step_distance ^ 2)
+      then
+        local score = distance_squared(resolved, goal)
+        if not best_candidate or score < best_score then
+          best_candidate = resolved
+          best_score = score
+        end
+      end
+    else
+      return candidate
+    end
   end
 
-  return candidate
+  return best_candidate
 end
 
 local function flee_is_stuck(record, entity, tick)
@@ -1751,7 +1823,7 @@ local function start_flee(record, entity, tick, avoid_position)
   set_excursion_focus(record, nil, nil)
   record.feeder_nibbles_remaining = nil
   record.destination = flee_destination(record, entity, avoid_position)
-  record.arrival_distance = 0.8
+  record.arrival_distance = 0.6
   record.blocking_until_tick = nil
   record.action_due_tick = math.min(
     tick + constants.squirrel_flee_repath_interval,
@@ -1759,6 +1831,12 @@ local function start_flee(record, entity, tick, avoid_position)
   )
   record.next_decision_tick = record.action_due_tick
   reset_flee_progress(record, entity, tick)
+  if not record.destination then
+    stop_entity(entity)
+    sync_render(record, entity)
+    return
+  end
+
   move_entity(entity, record.destination)
   sync_render(record, entity)
 end
@@ -2752,7 +2830,13 @@ local function cull_inactive_squirrels(active_lookup)
             if entity and entity.valid then
               if record.carrying then
                 if not deposit_or_spill(record, entity) then
-                  entity.surface.spill_item_stack(entity.position, record.carrying, true, nil, false)
+                  entity.surface.spill_item_stack({
+                    position = entity.position,
+                    stack = record.carrying,
+                    enable_looted = true,
+                    force = nil,
+                    allow_belts = false
+                  })
                   clear_carrying(record, entity)
                 end
               end
@@ -2798,6 +2882,24 @@ function squirrels.on_tick(tick)
   advance_active_belt_riders(tick)
   cleanup_invalid_squirrels(tick)
 
+  for _, record in pairs(get_squirrel_store()) do
+    local entity = resolve_entity_reference(record.entity)
+    if entity and entity.valid and record.mode == "flee" then
+      local fear_position = current_fear_position(record, tick)
+
+      if not fear_position then
+        process_idle_decision(record, entity, tick)
+      elseif
+        flee_is_stuck(record, entity, tick)
+        or
+        (record.destination and reached_position(entity, record.destination, record.arrival_distance))
+        or tick >= record.action_due_tick
+      then
+        start_flee(record, entity, tick, fear_position)
+      end
+    end
+  end
+
   if tick % constants.squirrel_update_interval == 0 then
     local active_coords = active_region_coords()
     local active_lookup = {}
@@ -2820,20 +2922,7 @@ function squirrels.on_tick(tick)
     for _, record in pairs(get_squirrel_store()) do
       local entity = resolve_entity_reference(record.entity)
       if entity and entity.valid then
-        if record.mode == "flee" then
-          local fear_position = current_fear_position(record, tick)
-
-          if not fear_position then
-            process_idle_decision(record, entity, tick)
-          elseif
-            flee_is_stuck(record, entity, tick)
-            or
-            (record.destination and reached_position(entity, record.destination, record.arrival_distance))
-            or tick >= record.action_due_tick
-          then
-            start_flee(record, entity, tick, fear_position)
-          end
-        elseif record.mode == "idle" and tick >= record.next_decision_tick then
+        if record.mode == "idle" and tick >= record.next_decision_tick then
           process_idle_decision(record, entity, tick)
         elseif record.mode == "roam" and maybe_commit_roam_target(record, entity, tick) then
           -- Roaming excursions commit to real targets once the squirrel reaches them.
@@ -2868,7 +2957,13 @@ function squirrels.on_squirrel_removed(entity, tick)
   local record = squirrel_id and get_squirrel_store()[squirrel_id] or nil
 
   if record and record.carrying then
-    entity.surface.spill_item_stack(entity.position, record.carrying, true, nil, false)
+    entity.surface.spill_item_stack({
+      position = entity.position,
+      stack = record.carrying,
+      enable_looted = true,
+      force = nil,
+      allow_belts = false
+    })
   end
 
   local coord = regions.position_to_region_coord(entity.position)
@@ -2916,7 +3011,13 @@ end
 
 local function note_squirrel_loss(record, entity, tick)
   if record and record.carrying then
-    entity.surface.spill_item_stack(entity.position, record.carrying, true, nil, false)
+    entity.surface.spill_item_stack({
+      position = entity.position,
+      stack = record.carrying,
+      enable_looted = true,
+      force = nil,
+      allow_belts = false
+    })
   end
 
   local coord = regions.position_to_region_coord(entity.position)
@@ -2939,7 +3040,13 @@ function squirrels.relocate_squirrel(squirrel_id, region_x, region_y, tick)
   end
 
   if record.carrying then
-    surface.spill_item_stack(entity.position, record.carrying, true, nil, false)
+    surface.spill_item_stack({
+      position = entity.position,
+      stack = record.carrying,
+      enable_looted = true,
+      force = nil,
+      allow_belts = false
+    })
     clear_carrying(record, entity)
   end
 

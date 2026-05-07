@@ -3,9 +3,10 @@ local regions = require("scripts.regions")
 
 local TEST_POSITION = {x = 192, y = 192}
 local TREE_NAME = "tree-01"
+local test_surface
 
 local function surface()
-  return game.surfaces["nauvis"] or game.surfaces[1]
+  return test_surface or game.surfaces["nauvis"] or game.surfaces[1]
 end
 
 local function player_force()
@@ -31,6 +32,14 @@ local function clear_inventory(player)
   end
 end
 
+local function clear_area(area)
+  for _, entity in ipairs(surface().find_entities_filtered({area = area})) do
+    if entity.valid and entity.name ~= "character" then
+      entity.destroy()
+    end
+  end
+end
+
 local function spawn_trees(count, origin)
   local trees = {}
 
@@ -46,21 +55,27 @@ local function spawn_trees(count, origin)
   return trees
 end
 
-before_each(function()
-  reset_progression()
-  clear_inventory(game.players[1])
-end)
-
-after_each(function()
-  reset_progression()
-  clear_inventory(game.players[1])
-end)
-
 describe("milestone 1 survey flow", function()
   local station
   local trees = {}
 
+  before_each(function()
+    test_surface = game.create_surface("milestone-1-test-" .. game.tick)
+    test_surface.request_to_generate_chunks(TEST_POSITION, 3)
+    test_surface.force_generate_chunk_requests()
+    clear_area({
+      left_top = {x = TEST_POSITION.x - 256, y = TEST_POSITION.y - 256},
+      right_bottom = {x = TEST_POSITION.x + 256, y = TEST_POSITION.y + 256}
+    })
+    reset_progression()
+    clear_inventory(game.players[1])
+    game.players[1].teleport(TEST_POSITION, test_surface)
+  end)
+
   after_each(function()
+    reset_progression()
+    clear_inventory(game.players[1])
+
     if station and station.valid then
       station.destroy()
     end
@@ -72,6 +87,14 @@ describe("milestone 1 survey flow", function()
     end
 
     trees = {}
+
+    local nauvis = game.surfaces["nauvis"] or game.surfaces[1]
+    if nauvis and test_surface and test_surface.valid then
+      game.players[1].teleport({x = 0, y = 0}, nauvis)
+      game.delete_surface(test_surface)
+    end
+
+    test_surface = nil
   end)
 
   it("uses broad survey mode before any station is available", function()
