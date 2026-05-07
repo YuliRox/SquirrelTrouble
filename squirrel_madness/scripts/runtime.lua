@@ -529,6 +529,10 @@ local function clear_player_squirrel_selection(player)
   clear_squirrel_overlay(player.index)
   clear_squirrel_panel(player.index)
 
+  if squirrels.is_squirrel_entity(player.opened) then
+    player.opened = nil
+  end
+
   if squirrels.is_squirrel_entity(player.selected) then
     player.selected = nil
   end
@@ -1488,7 +1492,35 @@ destroy_feedback_pin = function(entry, player)
     end
   end
 
-  return false
+  local destroyed = false
+  if entry.position then
+    local expected_text = entry.text
+    for _, candidate in ipairs(player.force.find_chart_tags(surface)) do
+      if candidate.valid then
+        local matches_position = station_distance_squared(candidate.position, entry.position) <= 1
+        local matches_text = (not expected_text) or candidate.text == expected_text
+        if matches_position and matches_text then
+          candidate.destroy()
+          destroyed = true
+        end
+      end
+    end
+  end
+
+  if destroyed then
+    return true
+  end
+
+  if entry.text then
+    for _, candidate in ipairs(player.force.find_chart_tags(surface)) do
+      if candidate.valid and candidate.text == entry.text then
+        candidate.destroy()
+        destroyed = true
+      end
+    end
+  end
+
+  return destroyed
 end
 
 local function notify_relocation(player, squirrel_id, incident)
@@ -1549,6 +1581,10 @@ local function notify_relocation(player, squirrel_id, incident)
       surface_index = incident.surface_index,
       tag = tag,
       tag_number = tag.tag_number,
+      position = {
+        x = incident.destination_position.x,
+        y = incident.destination_position.y
+      },
       entity_unit_number = squirrel_entity and squirrel_entity.valid and squirrel_entity.unit_number or nil
     }
   end
@@ -1594,7 +1630,12 @@ local function notify_retaliation(surface, position, force, player_index, incide
         expires_tick = game.tick + constants.retaliation_feedback_duration,
         surface_index = surface.index,
         tag = death_site_tag,
-        tag_number = death_site_tag.valid and death_site_tag.tag_number or nil
+        tag_number = death_site_tag.valid and death_site_tag.tag_number or nil,
+        position = {
+          x = incident.position.x,
+          y = incident.position.y
+        },
+        text = "Squirrel death site"
       }
     end
 

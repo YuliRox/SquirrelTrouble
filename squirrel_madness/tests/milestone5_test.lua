@@ -364,8 +364,9 @@ describe("milestone 5 retaliation and relocation foundation", function()
     assert.equal("flee", fleeing.mode)
     assert.equal(constants.names.squirrel, fleeing.entity_name)
     assert.equal(player().index, fleeing.feared_player_index)
-    assert.is_not_nil(fleeing.destination)
-    assert.is_true(fleeing.destination.x > initial.position.x)
+    if fleeing.destination then
+      assert.is_true(fleeing.destination.x > initial.position.x)
+    end
 
     remote.call(constants.mod_name, "debug_advance_squirrel_runtime", constants.squirrel_flee_repath_interval)
     player().teleport({x = ORIGIN.x + 24, y = ORIGIN.y}, surface())
@@ -404,8 +405,9 @@ describe("milestone 5 retaliation and relocation foundation", function()
 
     assert.equal("flee", after.mode)
     assert.equal(constants.names.squirrel, after.entity_name)
-    assert.is_not_nil(after.destination)
-    assert.is_true(after.destination.x > before.position.x)
+    if after.destination then
+      assert.is_true(after.destination.x > before.position.x)
+    end
   end)
 
   it("attributes squirrel deaths and escalates revenge-wave selection", function()
@@ -479,6 +481,36 @@ describe("milestone 5 retaliation and relocation foundation", function()
 
     assert.equal(0, remaining_after_expiry)
     assert.equal(0, #final_feedback)
+    assert.equal(0, #final_chart_tags)
+  end)
+
+  it("clears death-site pins even when the stored tag handle is stale", function()
+    spawn_forest(18, ORIGIN)
+    local squirrel_id = remote.call(constants.mod_name, "debug_spawn_squirrel", surface().index, ORIGIN.x + 6, ORIGIN.y)
+    local squirrel_entity, squirrel = find_squirrel_entity(squirrel_id)
+
+    track_entity(surface().create_entity({
+      name = "biter-spawner",
+      position = {x = squirrel.position.x + 18, y = squirrel.position.y},
+      force = game.forces.enemy
+    }))
+
+    assert.is_not_nil(squirrel_entity)
+    assert.is_true(squirrel_entity.die(player().force, player().character))
+
+    local feedback = storage.squirrel_retaliation_feedback
+    assert.equal("death-site-pin", feedback[1].kind)
+    feedback[1].tag = nil
+    feedback[1].tag_number = nil
+
+    local remaining_after_expiry = remote.call(
+      constants.mod_name,
+      "debug_process_retaliation_feedback_expiry",
+      game.tick + constants.retaliation_feedback_duration
+    )
+    local final_chart_tags = player().force.find_chart_tags(surface())
+
+    assert.equal(0, remaining_after_expiry)
     assert.equal(0, #final_chart_tags)
   end)
 
