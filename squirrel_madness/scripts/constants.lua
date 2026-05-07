@@ -147,6 +147,7 @@ constants.names = {
   nut_tree = "nut-tree",
   nut_tree_harvested = "nut-tree-harvested",
   squirrel = "squirrel",
+  squirrel_corpse = "squirrel-corpse",
   squirrel_sitting = "squirrel-sitting",
   feeder = "squirrel-feeder",
   feeder_empty = "squirrel-feeder-empty",

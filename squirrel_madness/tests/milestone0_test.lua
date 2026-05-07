@@ -141,6 +141,68 @@ describe("milestone 0 scaffold", function()
     assert.is_true(moving_layer.animation_speed > sitting_layer.animation_speed)
   end)
 
+  it("leaves a custom dead squirrel corpse with matching body and shadow graphics", function()
+    local moving = prototypes.entity[constants.names.squirrel]
+    local sitting = prototypes.entity[constants.names.squirrel_sitting]
+    local corpse = prototypes.entity[constants.names.squirrel_corpse]
+    local position = {x = 28, y = 28}
+
+    assert.is_not_nil(corpse)
+    assert.is_not_nil(corpse.animation)
+    assert.is_not_nil(corpse.animation.layers)
+
+    local corpse_layer = corpse.animation.layers[1]
+    local corpse_shadow = corpse.animation.layers[2]
+
+    assert.is_not_nil(corpse_layer)
+    assert.is_not_nil(corpse_shadow)
+    assert.equal(constants.names.squirrel_corpse, moving.corpse)
+    assert.equal(constants.names.squirrel_corpse, sitting.corpse)
+    assert.equal("__squirrel_madness__/graphics/entities/squirrel/sq_dead.png", corpse_layer.filename)
+    assert.equal("__squirrel_madness__/graphics/entities/squirrel/sq_dead_shadow.png", corpse_shadow.filename)
+    assert.equal(137, corpse_layer.width)
+    assert.equal(78, corpse_layer.height)
+    assert.equal(119, corpse_shadow.width)
+    assert.equal(74, corpse_shadow.height)
+    assert.equal(1, corpse_layer.frame_count)
+    assert.equal(1, corpse_layer.direction_count)
+    assert.equal(1, corpse_shadow.frame_count)
+    assert.equal(1, corpse_shadow.direction_count)
+    assert.equal(0.290909, corpse_layer.scale)
+    assert.equal(0.290909, corpse_shadow.scale)
+    assert.is_true(corpse_shadow.draw_as_shadow)
+    assert.equal(1, corpse_shadow.tint.a)
+    assert.is_nil(corpse.decay_animation)
+    assert.is_nil(corpse.direction_shuffle)
+
+    for _, entity in ipairs(surface().find_entities_filtered({
+      name = constants.names.squirrel_corpse,
+      position = position,
+      radius = 2
+    })) do
+      entity.destroy()
+    end
+
+    local squirrel = surface().create_entity({
+      name = constants.names.squirrel,
+      position = position,
+      force = player_force()
+    })
+
+    assert.is_not_nil(squirrel)
+    assert.is_true(squirrel.die(player_force()))
+
+    local corpses = surface().find_entities_filtered({
+      name = constants.names.squirrel_corpse,
+      position = position,
+      radius = 2
+    })
+
+    assert.equal(1, #corpses)
+
+    corpses[1].destroy()
+  end)
+
   it("unlocks restoration recipes in the intended order", function()
     local force = player_force()
 
