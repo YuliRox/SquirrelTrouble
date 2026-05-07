@@ -251,6 +251,18 @@ local function clone_tree(source_name, new_name)
   return prototype
 end
 
+local function clone_corpse(source_name, new_name)
+  local source = data.raw.corpse and data.raw.corpse[source_name]
+  if not source then
+    error("Expected base corpse prototype " .. source_name .. " to exist")
+  end
+
+  local prototype = table.deepcopy(source)
+  prototype.name = new_name
+  prototype.order = "d[remnants]-a[tree]-z[" .. new_name .. "]"
+  return prototype
+end
+
 local function clone_unit(source_name, new_name)
   local source = data.raw.unit and data.raw.unit[source_name]
   if not source then
@@ -366,9 +378,80 @@ sitting_squirrel.localised_name = {"entity-name.squirrel"}
 sitting_squirrel.localised_description = {"entity-description.squirrel"}
 sitting_squirrel.hidden = true
 
-local nut_tree = clone_tree("tree-04", "nut-tree")
-nut_tree.icon = "__base__/graphics/icons/tree-04.png"
+local nut_tree_asset_path = "__squirrel_madness__/graphics/entities/tree/nut-tree/"
+local nut_tree_visual_scale = 1.5
+
+local function scale_sprite(sprite, multiplier)
+  if sprite then
+    sprite.scale = (sprite.scale or 1) * multiplier
+  end
+end
+
+local function scale_box(box, multiplier)
+  if not box then
+    return nil
+  end
+
+  local left_top = box[1]
+  local right_bottom = box[2]
+  local center_x = (left_top[1] + right_bottom[1]) / 2
+  local center_y = (left_top[2] + right_bottom[2]) / 2
+  local half_width = ((right_bottom[1] - left_top[1]) * multiplier) / 2
+  local half_height = ((right_bottom[2] - left_top[2]) * multiplier) / 2
+
+  return {
+    {center_x - half_width, center_y - half_height},
+    {center_x + half_width, center_y + half_height}
+  }
+end
+
+local function nut_tree_variation()
+  local source_tree = data.raw.tree and data.raw.tree["tree-05"]
+  if not source_tree or not source_tree.variations or not source_tree.variations[10] then
+    error("Expected base tree-05 variation j to exist")
+  end
+
+  local variation = table.deepcopy(source_tree.variations[10])
+  variation.trunk.filename = nut_tree_asset_path .. "nut-tree-trunk.png"
+  variation.leaves.filename = nut_tree_asset_path .. "nut-tree-leaves_2.png"
+
+  if variation.normal then
+    variation.normal.filename = nut_tree_asset_path .. "nut-tree-normal.png"
+  end
+
+  if variation.shadow then
+    variation.shadow.filename = nut_tree_asset_path .. "nut-tree-shadow.png"
+  end
+
+  scale_sprite(variation.trunk, nut_tree_visual_scale)
+  scale_sprite(variation.leaves, nut_tree_visual_scale)
+  scale_sprite(variation.normal, nut_tree_visual_scale)
+  scale_sprite(variation.shadow, nut_tree_visual_scale)
+
+  return variation
+end
+
+local nut_tree_stump = clone_corpse("tree-01-stump", "nut-tree-stump")
+nut_tree_stump.animation = {
+  {
+    filename = nut_tree_asset_path .. "nut-tree-stump.png",
+    width = 56,
+    height = 62,
+    direction_count = 1,
+    shift = util.by_pixel(1, -4),
+    scale = 0.5
+  }
+}
+
+local nut_tree = clone_tree("tree-05", "nut-tree")
+nut_tree.icon = "__base__/graphics/icons/tree-05.png"
 nut_tree.icon_size = 64
+nut_tree.corpse = "nut-tree-stump"
+nut_tree.remains_when_mined = "nut-tree-stump"
+nut_tree.variations = {nut_tree_variation()}
+nut_tree.variation_weights = {1}
+nut_tree.collision_box = scale_box(nut_tree.collision_box, nut_tree_visual_scale)
+nut_tree.selection_box = scale_box(nut_tree.selection_box, nut_tree_visual_scale)
 nut_tree.emissions_per_second = {pollution = -0.003}
 nut_tree.minable = {
   mining_particle = "wooden-particle",
@@ -404,6 +487,7 @@ nut_sapling.localised_description = {"entity-description.nut-sapling"}
 data:extend({
   squirrel,
   sitting_squirrel,
+  nut_tree_stump,
   nut_tree,
   harvested_nut_tree,
   nut_sapling,

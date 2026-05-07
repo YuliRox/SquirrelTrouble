@@ -8,6 +8,14 @@ local function player_force()
   return game.forces.player
 end
 
+local function box_width(box)
+  return box.right_bottom.x - box.left_top.x
+end
+
+local function box_height(box)
+  return box.right_bottom.y - box.left_top.y
+end
+
 local function reset_progression()
   local force = player_force()
 
@@ -90,6 +98,18 @@ describe("milestone 0 scaffold", function()
     assert.is_true((moving.collision_box.right_bottom.x - moving.collision_box.left_top.x) >= 0.6)
     assert.is_true(((moving.selection_box.left_top.x + moving.selection_box.right_bottom.x) / 2) > 0.3)
     assert.is_true(((moving.hit_visualization_box.left_top.x + moving.hit_visualization_box.right_bottom.x) / 2) > 0.3)
+  end)
+
+  it("makes mature nut trees visibly larger than their vanilla source footprint", function()
+    local nut_tree = prototypes.entity[constants.names.nut_tree]
+    local source_tree = prototypes.entity["tree-05"]
+
+    assert.is_not_nil(nut_tree)
+    assert.is_not_nil(source_tree)
+    assert.is_true(box_width(nut_tree.selection_box) > box_width(source_tree.selection_box))
+    assert.is_true(box_height(nut_tree.selection_box) > box_height(source_tree.selection_box))
+    assert.is_true(box_width(nut_tree.collision_box) > box_width(source_tree.collision_box))
+    assert.is_true(box_height(nut_tree.collision_box) > box_height(source_tree.collision_box))
   end)
 
   it("uses paired squirrel body and shadow sheets for movement and belt-pose variants", function()
