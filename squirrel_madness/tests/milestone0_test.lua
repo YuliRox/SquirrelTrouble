@@ -272,4 +272,5 @@ describe("milestone 0 scaffold", function()
     assert.is_not_nil(squirrel.collision_mask.layers)
     assert.is_not_nil(next(squirrel.collision_mask.layers))
   end)
+
 end)

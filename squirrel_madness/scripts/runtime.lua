@@ -577,7 +577,13 @@ local function refresh_squirrel_selection(player, tick)
   end
 
   local locked = squirrels.entity_for_squirrel_id(lock.squirrel_id)
-  if not (squirrels.is_squirrel_entity(locked) and locked.surface.index == lock.surface_index) then
+  if not (locked and locked.valid and squirrels.is_squirrel_entity(locked)) then
+    clear_squirrel_selection_lock(player.index)
+    return nil
+  end
+
+  local locked_surface = locked.surface
+  if not (locked_surface and locked_surface.index == lock.surface_index) then
     clear_squirrel_selection_lock(player.index)
     return nil
   end

@@ -1176,9 +1176,13 @@ local function build_squirrel_target(record, opportunity, origin_position, tick,
   end
 
   local candidate = serialize_target(entity, opportunity.target_type, opportunity.item_name, opportunity.count)
+  if not candidate then
+    return nil
+  end
+
   candidate.score = opportunity.base_score or 0
 
-  if record.last_loot_name and record.last_loot_name == candidate.item_name then
+  if candidate.item_name and record.last_loot_name and record.last_loot_name == candidate.item_name then
     candidate.score = candidate.score + constants.squirrel_repeat_item_bonus
   end
 
@@ -1592,7 +1596,7 @@ local function bounded_roam_destination(record, entity, max_home_distance, prefe
   local step_distance = roam_step_distance(record)
 
   if preferred_target_position then
-    angle = math.atan(
+    angle = math.atan2(
       preferred_target_position.y - origin.y,
       preferred_target_position.x - origin.x
     )
@@ -1606,7 +1610,7 @@ local function bounded_roam_destination(record, entity, max_home_distance, prefe
   local home_distance = math.sqrt(distance_squared(candidate, record.home_position))
 
   if home_distance > allowed_distance then
-    local clamp_angle = math.atan(
+    local clamp_angle = math.atan2(
       candidate.y - record.home_position.y,
       candidate.x - record.home_position.x
     )
@@ -1763,7 +1767,7 @@ local function flee_destination(record, entity, avoid_position)
     return nil
   end
 
-  local base_angle = math.atan(goal_direction.y, goal_direction.x)
+  local base_angle = math.atan2(goal_direction.y, goal_direction.x)
   local surface = game.surfaces[record.surface_index]
   local candidate_offsets = {0, 0.35, -0.35, 0.7, -0.7, 1.05, -1.05, 1.4, -1.4}
   local best_candidate
