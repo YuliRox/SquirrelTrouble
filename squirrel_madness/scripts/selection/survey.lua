@@ -1,5 +1,7 @@
 local constants = require("scripts.constants")
 local regions = require("scripts.regions")
+local position_util = require("scripts.util.position")
+local technologies = require("scripts.util.technologies")
 
 local survey = {}
 
@@ -85,20 +87,6 @@ local function print_cluster_report(player, cluster)
   })
 end
 
-local function force_has_technology(force, technology_name)
-  if not (force and force.valid and force.technologies) then
-    return false
-  end
-
-  local technology = force.technologies[technology_name]
-  return technology and technology.valid and technology.researched
-end
-
-local function station_distance_squared(position_a, position_b)
-  local dx = position_a.x - position_b.x
-  local dy = position_a.y - position_b.y
-  return (dx * dx) + (dy * dy)
-end
 
 local function survey_panel_driver_labels(cluster)
   local labels = {}
@@ -132,7 +120,7 @@ function survey.find_nearest_station(surface, position, radius)
 
   for _, station in ipairs(stations) do
     if station.valid then
-      local distance = station_distance_squared(position, station.position)
+      local distance = position_util.distance_squared(position, station.position)
       if not nearest or distance < nearest_distance then
         nearest = station
         nearest_distance = distance
@@ -390,7 +378,7 @@ function survey.update_for_player(player, selected_entity, tick)
 end
 
 function survey.resolve_request(force, surface, position, selected_entity)
-  if not force_has_technology(force, constants.technologies.forest_surveying) then
+  if not technologies.force_has_technology(force, constants.technologies.forest_surveying) then
     return {
       mode = "research-required",
       anchor_position = position

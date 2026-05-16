@@ -5,6 +5,8 @@ local relocation = require("scripts.relocation")
 local selection = require("scripts.selection.module")
 local squirrels = require("scripts.squirrels")
 local retaliation = require("scripts.retaliation.module")
+local position_util = require("scripts.util.position")
+local technologies = require("scripts.util.technologies")
 
 local module = {}
 
@@ -20,26 +22,6 @@ local function next_squirrel_incident_id()
   return incident_id
 end
 
-local function serialize_position(position)
-  if not position then
-    return nil
-  end
-
-  return {
-    x = position.x,
-    y = position.y
-  }
-end
-
-local function force_has_technology(force, technology_name)
-  if not (force and force.valid and force.technologies) then
-    return false
-  end
-
-  local technology = force.technologies[technology_name]
-  return technology and technology.valid and technology.researched
-end
-
 function module.record(surface, position, force, player_index, kind, tick, extra)
   local incident_id = next_squirrel_incident_id()
   local coord = regions.position_to_region_coord(position)
@@ -51,15 +33,15 @@ function module.record(surface, position, force, player_index, kind, tick, extra
     tick = tick,
     region_x = coord.x,
     region_y = coord.y,
-    position = serialize_position(position),
-    marker_position = serialize_position(position)
+    position = position_util.serialize(position),
+    marker_position = position_util.serialize(position)
   }
 
   if kind == "relocation" then
     incident.message_key = "message.squirrel-madness-relocation-success"
     incident.destination_region_x = extra.destination_region_x
     incident.destination_region_y = extra.destination_region_y
-    incident.destination_position = serialize_position(extra.destination_position)
+    incident.destination_position = position_util.serialize(extra.destination_position)
     incident.destination_forest_health = extra.destination_forest_health
     incident.destination_squirrel_trust = extra.destination_squirrel_trust
     incident.destination_habitat_pressure = extra.destination_habitat_pressure
@@ -89,8 +71,8 @@ function module.record(surface, position, force, player_index, kind, tick, extra
         tick = tick,
         severity = incident.severity,
         retaliation_level = state.total_severity,
-        target_position = serialize_position(position),
-        source_position = serialize_position(spawner and spawner.position or position),
+        target_position = position_util.serialize(position),
+        source_position = position_util.serialize(spawner and spawner.position or position),
         source_unit_number = spawner and spawner.unit_number or nil
       }
 
@@ -98,7 +80,7 @@ function module.record(surface, position, force, player_index, kind, tick, extra
       incident.revenge_source = spawner and {
         unit_number = spawner.unit_number,
         name = spawner.name,
-        position = serialize_position(spawner.position)
+        position = position_util.serialize(spawner.position)
       } or nil
       incident.marker_position = incident.revenge_source and incident.revenge_source.position or incident.marker_position
     end
@@ -109,7 +91,7 @@ function module.record(surface, position, force, player_index, kind, tick, extra
 end
 
 function module.relocate_selected_squirrel(player, tick)
-  if not force_has_technology(player.force, constants.technologies.wildlife_relocation) then
+  if not technologies.force_has_technology(player.force, constants.technologies.wildlife_relocation) then
     player.print({"message.squirrel-madness-relocation-required"})
     return nil
   end

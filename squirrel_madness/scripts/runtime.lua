@@ -11,17 +11,12 @@ local retaliation = require("scripts.retaliation.module")
 local selection = require("scripts.selection.module")
 local squirrels = require("scripts.squirrels")
 local storage_lib = require("scripts.storage")
+local position_util = require("scripts.util.position")
 
 local runtime = {}
 
 local function get_created_entity(event)
   return event.entity or event.created_entity or event.destination
-end
-
-local function station_distance_squared(position_a, position_b)
-  local dx = position_a.x - position_b.x
-  local dy = position_a.y - position_b.y
-  return (dx * dx) + (dy * dy)
 end
 
 local function on_selected_entity_changed(event)
@@ -249,7 +244,7 @@ local function find_squirrel_at_position(surface, position)
     name = constants.squirrel_entity_name_list
   })) do
     if entity.valid then
-      local distance = station_distance_squared(position, entity.position)
+      local distance = position_util.distance_squared(position, entity.position)
       if distance <= (constants.squirrel_step_trigger_radius * constants.squirrel_step_trigger_radius)
         and (not nearest or distance < nearest_distance)
       then

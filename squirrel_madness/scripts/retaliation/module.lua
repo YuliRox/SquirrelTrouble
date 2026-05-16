@@ -1,5 +1,6 @@
 local constants = require("scripts.constants")
 local squirrels = require("scripts.squirrels")
+local position_util = require("scripts.util.position")
 
 local module = {}
 
@@ -11,34 +12,6 @@ end
 local function get_squirrel_retaliation_feedback()
   storage.squirrel_retaliation_feedback = storage.squirrel_retaliation_feedback or {}
   return storage.squirrel_retaliation_feedback
-end
-
-local function serialize_position(position)
-  if not position then
-    return nil
-  end
-
-  return {
-    x = position.x,
-    y = position.y
-  }
-end
-
-local function deserialize_position(position)
-  if not position then
-    return nil
-  end
-
-  return {
-    x = position.x,
-    y = position.y
-  }
-end
-
-local function station_distance_squared(position_a, position_b)
-  local dx = position_a.x - position_b.x
-  local dy = position_a.y - position_b.y
-  return (dx * dx) + (dy * dy)
 end
 
 local function retaliation_state_key(surface_index, player_index)
@@ -113,7 +86,7 @@ function module.find_revenge_spawner(surface, position)
     force = "enemy"
   })) do
     if spawner.valid then
-      local distance = station_distance_squared(position, spawner.position)
+      local distance = position_util.distance_squared(position, spawner.position)
       if not nearest or distance < nearest_distance then
         nearest = spawner
         nearest_distance = distance
@@ -191,7 +164,7 @@ local function resolve_retaliation_spawner(surface, wave)
     end
   end
 
-  local source_position = deserialize_position(wave.source_position) or deserialize_position(wave.target_position)
+  local source_position = position_util.deserialize(wave.source_position) or position_util.deserialize(wave.target_position)
   if not source_position then
     return nil
   end
@@ -215,7 +188,7 @@ local function launch_retaliation_wave(state, tick)
   end
 
   local surface = game.surfaces[state.surface_index]
-  local target_position = deserialize_position(wave.target_position)
+  local target_position = position_util.deserialize(wave.target_position)
   local spawner = surface and resolve_retaliation_spawner(surface, wave) or nil
 
   local launched_wave = {
@@ -225,9 +198,9 @@ local function launch_retaliation_wave(state, tick)
     launched_tick = tick,
     severity = wave.severity,
     retaliation_level = wave.retaliation_level,
-    target_position = serialize_position(target_position),
+    target_position = position_util.serialize(target_position),
     source_unit_number = spawner and spawner.unit_number or wave.source_unit_number,
-    source_position = serialize_position(spawner and spawner.position or deserialize_position(wave.source_position)),
+    source_position = position_util.serialize(spawner and spawner.position or position_util.deserialize(wave.source_position)),
     unit_name = nil,
     unit_count = 0,
     unit_positions = {},
@@ -280,7 +253,7 @@ local function launch_retaliation_wave(state, tick)
       if unit and unit.valid and unit.commandable then
         unit.commandable.set_command(create_retaliation_command(target_position))
         launched_wave.unit_count = launched_wave.unit_count + 1
-        launched_wave.unit_positions[#launched_wave.unit_positions + 1] = serialize_position(unit.position)
+        launched_wave.unit_positions[#launched_wave.unit_positions + 1] = position_util.serialize(unit.position)
       elseif unit and unit.valid then
         unit.destroy()
       end

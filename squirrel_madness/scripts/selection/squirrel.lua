@@ -2,6 +2,7 @@ local constants = require("scripts.constants")
 local relocation = require("scripts.relocation")
 local regions = require("scripts.regions")
 local squirrels = require("scripts.squirrels")
+local technologies = require("scripts.util.technologies")
 
 local squirrel_selection = {}
 
@@ -22,15 +23,6 @@ end
 local function get_locks()
   storage.squirrel_selection_locks = storage.squirrel_selection_locks or {}
   return storage.squirrel_selection_locks
-end
-
-local function force_has_technology(force, technology_name)
-  if not (force and force.valid and force.technologies) then
-    return false
-  end
-
-  local technology = force.technologies[technology_name]
-  return technology and technology.valid and technology.researched
 end
 
 local function localized_squirrel_state(state)
@@ -282,7 +274,7 @@ function squirrel_selection.render_panel(player, squirrel, tick)
     overlay_state.region_y,
     tick or game.tick
   )
-  local can_relocate = force_has_technology(player.force, constants.technologies.wildlife_relocation)
+  local can_relocate = technologies.force_has_technology(player.force, constants.technologies.wildlife_relocation)
   local destination, candidates
 
   if can_relocate then
