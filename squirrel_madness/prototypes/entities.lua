@@ -69,7 +69,9 @@ local function stash_picture(filename)
 end
 
 local squirrel_scale = 0.581818
+local squirrel_corpse_scale = squirrel_scale * 0.5
 local squirrel_shadow_tint = {r = 0, g = 0, b = 0, a = 1}
+local squirrel_corpse_name = "squirrel-corpse"
 
 local function squirrel_animation_layer(filename, animation_speed, draw_as_shadow)
   local layer = {
@@ -112,6 +114,35 @@ end
 
 local function squirrel_sitting_animation()
   return squirrel_animation(0.01)
+end
+
+local function squirrel_corpse_animation()
+  return {
+    layers = {
+      {
+        filename = "__squirrel_madness__/graphics/entities/squirrel/sq_dead.png",
+        priority = "extra-high",
+        width = 137,
+        height = 78,
+        frame_count = 1,
+        direction_count = 1,
+        shift = {squirrel_scale * 0.714844, squirrel_scale * -0.246094},
+        scale = squirrel_corpse_scale
+      },
+      {
+        filename = "__squirrel_madness__/graphics/entities/squirrel/sq_dead_shadow.png",
+        priority = "extra-high",
+        width = 119,
+        height = 74,
+        frame_count = 1,
+        direction_count = 1,
+        shift = {squirrel_scale * 0.714844, squirrel_scale * -0.246094},
+        draw_as_shadow = true,
+        tint = squirrel_shadow_tint,
+        scale = squirrel_corpse_scale
+      }
+    }
+  }
 end
 
 local function configure_squirrel(prototype, animation)
@@ -384,9 +415,21 @@ stash.dying_sound = nil
 stash.localised_description = {"entity-description.forest-stash"}
 stash.picture = stash_picture("__squirrel_madness__/graphics/entities/structures/stash.png")
 
+local squirrel_corpse = clone_corpse("small-biter-corpse", squirrel_corpse_name)
+squirrel_corpse.icon = "__squirrel_madness__/graphics/icons/squirrel.png"
+squirrel_corpse.icon_size = 64
+squirrel_corpse.localised_name = {"entity-name.squirrel"}
+squirrel_corpse.localised_description = {"entity-description.squirrel"}
+squirrel_corpse.animation = squirrel_corpse_animation()
+squirrel_corpse.decay_animation = nil
+squirrel_corpse.direction_shuffle = nil
+
 local squirrel = configure_squirrel(clone_unit("small-biter", "squirrel"), squirrel_run_animation())
+squirrel.corpse = squirrel_corpse_name
 local panicked_squirrel = configure_squirrel(clone_unit("small-biter", "squirrel-panicked"), squirrel_run_animation())
+panicked_squirrel.corpse = squirrel_corpse_name
 local sitting_squirrel = configure_squirrel(clone_unit("small-biter", "squirrel-sitting"), squirrel_sitting_animation())
+sitting_squirrel.corpse = squirrel_corpse_name
 panicked_squirrel.movement_speed = 0.22
 panicked_squirrel.distance_per_frame = 0.22
 panicked_squirrel.localised_name = {"entity-name.squirrel"}
@@ -505,6 +548,7 @@ nut_sapling.minable = {
 nut_sapling.localised_description = {"entity-description.nut-sapling"}
 
 data:extend({
+  squirrel_corpse,
   squirrel,
   panicked_squirrel,
   sitting_squirrel,
