@@ -13,24 +13,9 @@ local squirrels = require("scripts.squirrels")
 local storage_lib = require("scripts.storage")
 
 local runtime = {}
-local SQUIRREL_STEP_SOUND = "squirrel-madness-angry-squeak"
 
 local function get_created_entity(event)
   return event.entity or event.created_entity or event.destination
-end
-
-local function get_squirrel_damage_attribution()
-  storage.squirrel_damage_attribution = storage.squirrel_damage_attribution or {}
-  return storage.squirrel_damage_attribution
-end
-
-local function force_has_technology(force, technology_name)
-  if not (force and force.valid and force.technologies) then
-    return false
-  end
-
-  local technology = force.technologies[technology_name]
-  return technology and technology.valid and technology.researched
 end
 
 local function station_distance_squared(position_a, position_b)
