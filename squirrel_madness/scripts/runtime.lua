@@ -1,16 +1,15 @@
 local constants = require("scripts.constants")
 local feeders = require("scripts.feeders")
 local habitat = require("scripts.habitat")
+local relocation = require("scripts.relocation")
 local regions = require("scripts.regions")
+local selection = require("scripts.selection.module")
 local squirrels = require("scripts.squirrels")
 local storage_lib = require("scripts.storage")
 
 local runtime = {}
-local feeder_selection_overlays = {}
 local SQUIRREL_STEP_SOUND = "squirrel-madness-angry-squeak"
-local SQUIRREL_SELECTION_HOLD_TICKS = constants.squirrel_selection_hold_ticks
 local destroy_feedback_pin
-local find_relocation_destination
 
 local function get_created_entity(event)
   return event.entity or event.created_entity or event.destination
@@ -35,35 +34,6 @@ end
 local function get_player_region_centers()
   storage.player_region_centers = storage.player_region_centers or {}
   return storage.player_region_centers
-end
-
-local function get_survey_station_overlays()
-  storage.survey_station_overlays = storage.survey_station_overlays or {}
-  return storage.survey_station_overlays
-end
-
-local function get_survey_station_panels()
-  storage.survey_station_panels = storage.survey_station_panels or {}
-  return storage.survey_station_panels
-end
-
-local function get_squirrel_selection_overlays()
-  storage.squirrel_selection_overlays = storage.squirrel_selection_overlays or {}
-  return storage.squirrel_selection_overlays
-end
-
-local function get_squirrel_selection_panels()
-  storage.squirrel_selection_panels = storage.squirrel_selection_panels or {}
-  return storage.squirrel_selection_panels
-end
-
-local function get_squirrel_selection_locks()
-  storage.squirrel_selection_locks = storage.squirrel_selection_locks or {}
-  return storage.squirrel_selection_locks
-end
-
-local function get_feeder_selection_overlays()
-  return feeder_selection_overlays
 end
 
 local function get_squirrel_damage_attribution()
@@ -247,114 +217,6 @@ local function refresh_active_regions(force)
   return enqueued
 end
 
-local function localized_driver(driver)
-  return {"message.squirrel-madness-driver-" .. driver}
-end
-
-local function join_localized_labels(labels)
-  if #labels == 0 then
-    return {"message.squirrel-madness-no-dominant-forces"}
-  end
-
-  local joined = labels[1]
-
-  for index = 2, #labels do
-    joined = {"", joined, ", ", labels[index]}
-  end
-
-  return joined
-end
-
-local function print_broad_region_report(player, region)
-  local driver_labels = {}
-
-  for _, driver in ipairs(region.drivers or {}) do
-    driver_labels[#driver_labels + 1] = localized_driver(driver)
-  end
-
-  player.print({
-    "message.squirrel-madness-region-broad-report",
-    {"message.squirrel-madness-band-" .. region.forest_health_band},
-    {"message.squirrel-madness-band-" .. region.squirrel_unrest_band},
-    {"message.squirrel-madness-band-" .. region.squirrel_trust_band},
-    {"message.squirrel-madness-band-" .. region.habitat_pressure_band}
-  })
-  player.print({
-    "message.squirrel-madness-region-broad-forces",
-    join_localized_labels(driver_labels)
-  })
-end
-
-local function print_region_report(player, region)
-  player.print({
-    "message.squirrel-madness-region-report",
-    region.region_x,
-    region.region_y,
-    region.forest_health,
-    {"message.squirrel-madness-band-" .. region.forest_health_band},
-    region.squirrel_unrest,
-    {"message.squirrel-madness-band-" .. region.squirrel_unrest_band},
-    region.squirrel_trust,
-    {"message.squirrel-madness-band-" .. region.squirrel_trust_band},
-    region.habitat_pressure,
-    {"message.squirrel-madness-band-" .. region.habitat_pressure_band}
-  })
-  player.print({
-    "message.squirrel-madness-region-factors",
-    region.tree_count,
-    region.sapling_count,
-    region.nut_tree_count,
-    region.stocked_feeders,
-    region.feeder_count,
-    region.recent_tree_loss,
-    region.rolling_pollution
-  })
-  player.print({
-    "message.squirrel-madness-region-forces",
-    region.canopy_score,
-    region.nut_tree_bonus,
-    region.stocked_feeder_bonus,
-    region.reforestation_bonus,
-    region.empty_feeder_penalty,
-    region.recent_tree_loss_penalty,
-    region.rolling_pollution_penalty
-  })
-end
-
-local function print_cluster_report(player, cluster)
-  player.print({
-    "message.squirrel-madness-cluster-report",
-    cluster.forest_health,
-    {"message.squirrel-madness-band-" .. cluster.forest_health_band},
-    cluster.squirrel_unrest,
-    {"message.squirrel-madness-band-" .. cluster.squirrel_unrest_band},
-    cluster.squirrel_trust,
-    {"message.squirrel-madness-band-" .. cluster.squirrel_trust_band},
-    cluster.habitat_pressure,
-    {"message.squirrel-madness-band-" .. cluster.habitat_pressure_band}
-  })
-  player.print({
-    "message.squirrel-madness-region-factors",
-    cluster.tree_count,
-    cluster.sapling_count,
-    cluster.nut_tree_count,
-    cluster.stocked_feeders,
-    cluster.feeder_count,
-    cluster.recent_tree_loss,
-    cluster.rolling_pollution
-  })
-  player.print({
-    "message.squirrel-madness-region-forces",
-    cluster.canopy_score,
-    cluster.nut_tree_bonus,
-    cluster.stocked_feeder_bonus,
-    cluster.reforestation_bonus,
-    cluster.empty_feeder_penalty,
-    cluster.recent_tree_loss_penalty,
-    cluster.rolling_pollution_penalty
-  })
-end
-
 local function force_has_technology(force, technology_name)
   if not (force and force.valid and force.technologies) then
     return false
@@ -370,768 +232,17 @@ local function station_distance_squared(position_a, position_b)
   return (dx * dx) + (dy * dy)
 end
 
-local function is_powered_survey_station(entity)
-  return entity
-    and entity.valid
-    and entity.name == constants.names.survey_station
-    and entity.energy
-    and entity.energy > 0
-end
-
-local function find_nearest_survey_station(surface, position, radius)
-  local stations = surface.find_entities_filtered({
-    area = {
-      {position.x - radius, position.y - radius},
-      {position.x + radius, position.y + radius}
-    },
-    name = constants.names.survey_station
-  })
-
-  local nearest
-  local nearest_distance
-
-  for _, station in ipairs(stations) do
-    if station.valid then
-      local distance = station_distance_squared(position, station.position)
-      if not nearest or distance < nearest_distance then
-        nearest = station
-        nearest_distance = distance
-      end
-    end
-  end
-
-  return nearest
-end
-
-local function clear_survey_overlay(player_index)
-  local overlays = get_survey_station_overlays()
-  local overlay = overlays[player_index]
-
-  if not overlay then
-    return false
-  end
-
-  for _, render_id in ipairs(overlay.render_ids or {}) do
-    local render_object = rendering.get_object_by_id(render_id)
-    if render_object and render_object.valid then
-      render_object.destroy()
-    end
-  end
-
-  overlays[player_index] = nil
-  return true
-end
-
-local function clear_survey_panel(player_index)
-  local player = game.get_player(player_index)
-  if player and player.valid then
-    local panel = player.gui.left["squirrel_madness_survey_station_panel"]
-    if panel and panel.valid then
-      panel.destroy()
-    end
-  end
-
-  get_survey_station_panels()[player_index] = nil
-end
-
-local function clear_squirrel_overlay(player_index)
-  local overlays = get_squirrel_selection_overlays()
-  local overlay = overlays[player_index]
-
-  if not overlay then
-    return false
-  end
-
-  for _, render_id in ipairs(overlay.render_ids or {}) do
-    local render_object = rendering.get_object_by_id(render_id)
-    if render_object and render_object.valid then
-      render_object.destroy()
-    end
-  end
-
-  overlays[player_index] = nil
-  return true
-end
-
-local function clear_all_squirrel_overlays()
-  local player_indices = {}
-
-  for player_index in pairs(storage.squirrel_selection_overlays or {}) do
-    player_indices[#player_indices + 1] = player_index
-  end
-
-  for _, player_index in ipairs(player_indices) do
-    clear_squirrel_overlay(player_index)
-  end
-end
-
-local function clear_squirrel_panel(player_index)
-  local player = game.get_player(player_index)
-  if player and player.valid then
-    local panel = player.gui.left["squirrel_madness_selected_squirrel_panel"]
-    if panel and panel.valid then
-      panel.destroy()
-    end
-  end
-
-  get_squirrel_selection_panels()[player_index] = nil
-end
-
-local function clear_feeder_overlay(player_index)
-  local overlays = get_feeder_selection_overlays()
-  local overlay = overlays[player_index]
-
-  if not overlay then
-    return false
-  end
-
-  for _, render_id in ipairs(overlay.render_ids or {}) do
-    local render_object = rendering.get_object_by_id(render_id)
-    if render_object and render_object.valid then
-      render_object.destroy()
-    end
-  end
-
-  overlays[player_index] = nil
-  return true
-end
-
-local function current_selected_survey_station(player)
-  local selected = player and player.valid and player.selected or nil
-
-  if selected and selected.valid and selected.name == constants.names.survey_station then
-    return selected
-  end
-
-  return nil
-end
-
-local function current_selected_squirrel(player)
-  local selected = player and player.valid and player.selected or nil
-
-  if squirrels.is_squirrel_entity(selected) then
-    return selected
-  end
-
-  return nil
-end
-
-local function clear_squirrel_selection_lock(player_index)
-  get_squirrel_selection_locks()[player_index] = nil
-end
-
-local function clear_player_squirrel_selection(player)
-  if not (player and player.valid) then
-    return
-  end
-
-  clear_squirrel_selection_lock(player.index)
-  clear_squirrel_overlay(player.index)
-  clear_squirrel_panel(player.index)
-
-  if squirrels.is_squirrel_entity(player.opened) then
-    player.opened = nil
-  end
-
-  if squirrels.is_squirrel_entity(player.selected) then
-    player.selected = nil
-  end
-end
-
-local function refresh_squirrel_selection(player, tick)
-  if not (player and player.valid) then
-    return nil
-  end
-
-  local selected = player.selected
-  local squirrel = current_selected_squirrel(player)
-
-  if squirrel then
-    get_squirrel_selection_locks()[player.index] = {
-      squirrel_id = squirrels.squirrel_id_for_entity(squirrel),
-      squirrel_unit_number = squirrel.unit_number,
-      surface_index = squirrel.surface.index,
-      expires_tick = tick + SQUIRREL_SELECTION_HOLD_TICKS
-    }
-    return squirrel
-  end
-
-  local lock = get_squirrel_selection_locks()[player.index]
-  if selected and selected.valid then
-    if
-      lock
-      and player.opened
-      and player.opened.valid
-      and player.opened.unit_number
-      and selected.unit_number
-      and player.opened.unit_number == selected.unit_number
-    then
-      clear_squirrel_selection_lock(player.index)
-      return nil
-    end
-  end
-
-  if not lock or tick > lock.expires_tick then
-    clear_squirrel_selection_lock(player.index)
-    return nil
-  end
-
-  local locked = squirrels.entity_for_squirrel_id(lock.squirrel_id)
-  if not (locked and locked.valid and squirrels.is_squirrel_entity(locked)) then
-    clear_squirrel_selection_lock(player.index)
-    return nil
-  end
-
-  local locked_surface = locked.surface
-  if not (locked_surface and locked_surface.index == lock.surface_index) then
-    clear_squirrel_selection_lock(player.index)
-    return nil
-  end
-
-  player.update_selected_entity(locked.position)
-
-  local refreshed = current_selected_squirrel(player)
-  if not (refreshed and refreshed.valid and refreshed.unit_number == locked.unit_number) then
-    return nil
-  end
-
-  return refreshed
-end
-
-local function refresh_locked_squirrel_selections(tick)
-  for player_index, lock in pairs(get_squirrel_selection_locks()) do
-    local player = game.get_player(player_index)
-    if player and player.valid and lock then
-      refresh_squirrel_selection(player, tick)
-    end
-  end
-end
-
-local function current_selected_feeder(player)
-  local selected = player and player.valid and player.selected or nil
-
-  if selected and selected.valid and feeders.is_feeder_entity(selected) then
-    return selected
-  end
-
-  return nil
-end
-
-local function localized_squirrel_state(state)
-  return {"gui.squirrel-madness-squirrel-state-" .. (state or "unknown")}
-end
-
-local function render_squirrel_panel(player, squirrel, tick)
-  clear_squirrel_panel(player.index)
-
-  if not (player and player.valid and squirrel and squirrel.valid) then
-    return nil
-  end
-
-  local overlay_state = squirrels.selection_overlay_state(squirrel, tick)
-  if not overlay_state then
-    return nil
-  end
-
-  local report = regions.get_region_report_by_coord(
-    squirrel.surface,
-    overlay_state.region_x,
-    overlay_state.region_y,
-    tick or game.tick
-  )
-  local can_relocate = force_has_technology(player.force, constants.technologies.wildlife_relocation)
-  local destination, candidates
-
-  if can_relocate then
-    destination, candidates = find_relocation_destination(squirrel.surface, squirrel.position, tick or game.tick)
-  end
-
-  local frame = player.gui.left.add({
-    type = "frame",
-    name = "squirrel_madness_selected_squirrel_panel",
-    direction = "vertical",
-    caption = {"entity-name.squirrel"}
-  })
-  frame.style.minimal_width = 300
-
-  local content = frame.add({
-    type = "flow",
-    direction = "vertical"
-  })
-  content.style.vertical_spacing = 2
-
-  content.add({
-    type = "label",
-    caption = {"gui.squirrel-madness-squirrel-panel-state", localized_squirrel_state(overlay_state.state)}
-  })
-  content.add({
-    type = "label",
-    caption = {"gui.squirrel-madness-squirrel-panel-home", overlay_state.region_x, overlay_state.region_y}
-  })
-  content.add({
-    type = "label",
-    caption = {
-      "gui.squirrel-madness-squirrel-panel-pressure",
-      report.habitat_pressure,
-      {"message.squirrel-madness-band-" .. report.habitat_pressure_band}
-    }
-  })
-
-  if not can_relocate then
-    content.add({
-      type = "label",
-      caption = {"gui.squirrel-madness-squirrel-panel-relocation-locked"}
-    })
-  elseif not destination then
-    content.add({
-      type = "label",
-      caption = {"gui.squirrel-madness-squirrel-panel-relocation-none"}
-    })
-  else
-    content.add({
-      type = "label",
-      caption = {"gui.squirrel-madness-squirrel-panel-relocation-ready", destination.region_x, destination.region_y}
-    })
-    content.add({
-      type = "label",
-      caption = {
-        "gui.squirrel-madness-squirrel-panel-relocation-destination",
-        destination.forest_health,
-        destination.squirrel_trust,
-        destination.habitat_pressure,
-        destination.tree_mass
-      }
-    })
-    content.add({
-      type = "label",
-      caption = {"gui.squirrel-madness-squirrel-panel-relocation-candidates", #candidates}
-    })
-  end
-
-  get_squirrel_selection_panels()[player.index] = {
-    squirrel_unit_number = squirrel.unit_number,
-    surface_index = squirrel.surface.index,
-    region_x = overlay_state.region_x,
-    region_y = overlay_state.region_y,
-    state = overlay_state.state,
-    habitat_pressure = report.habitat_pressure,
-    habitat_pressure_band = report.habitat_pressure_band,
-    relocation_available = can_relocate and destination ~= nil or false,
-    relocation_locked = not can_relocate,
-    relocation_region_x = destination and destination.region_x or nil,
-    relocation_region_y = destination and destination.region_y or nil,
-    relocation_forest_health = destination and destination.forest_health or nil,
-    relocation_squirrel_trust = destination and destination.squirrel_trust or nil,
-    relocation_habitat_pressure = destination and destination.habitat_pressure or nil,
-    relocation_tree_mass = destination and destination.tree_mass or nil,
-    relocation_candidate_count = candidates and #candidates or 0
-  }
-
-  return get_squirrel_selection_panels()[player.index]
-end
-
-local function survey_panel_driver_labels(cluster)
-  local labels = {}
-
-  for _, driver in ipairs(cluster.drivers or {}) do
-    labels[#labels + 1] = localized_driver(driver)
-  end
-
-  return join_localized_labels(labels)
-end
-
-local function render_survey_panel(player, station, cluster)
-  clear_survey_panel(player.index)
-
-  if not (player and player.valid and station and station.valid) then
-    return nil
-  end
-
-  local powered = is_powered_survey_station(station)
-  local frame = player.gui.left.add({
-    type = "frame",
-    name = "squirrel_madness_survey_station_panel",
-    direction = "vertical",
-    caption = {"entity-name.forest-survey-station"}
-  })
-  frame.style.minimal_width = 280
-
-  local content = frame.add({
-    type = "flow",
-    direction = "vertical"
-  })
-  content.style.vertical_spacing = 2
-
-  content.add({
-    type = "label",
-    caption = powered
-      and {"gui.squirrel-madness-survey-panel-status-working"}
-      or {"gui.squirrel-madness-survey-panel-status-unpowered"}
-  })
-
-  if not cluster then
-    content.add({
-      type = "label",
-      caption = {"gui.squirrel-madness-survey-panel-no-data"}
-    })
-  else
-    content.add({
-      type = "label",
-      caption = {"gui.squirrel-madness-survey-panel-footprint"}
-    })
-    content.add({
-      type = "label",
-      caption = {"gui.squirrel-madness-survey-panel-health", cluster.forest_health, {"message.squirrel-madness-band-" .. cluster.forest_health_band}}
-    })
-    content.add({
-      type = "label",
-      caption = {"gui.squirrel-madness-survey-panel-unrest", cluster.squirrel_unrest, {"message.squirrel-madness-band-" .. cluster.squirrel_unrest_band}}
-    })
-    content.add({
-      type = "label",
-      caption = {"gui.squirrel-madness-survey-panel-trust", cluster.squirrel_trust, {"message.squirrel-madness-band-" .. cluster.squirrel_trust_band}}
-    })
-    content.add({
-      type = "label",
-      caption = {"gui.squirrel-madness-survey-panel-pressure", cluster.habitat_pressure, {"message.squirrel-madness-band-" .. cluster.habitat_pressure_band}}
-    })
-    content.add({
-      type = "label",
-      caption = {"gui.squirrel-madness-survey-panel-observed", cluster.tree_count, cluster.nut_tree_count, cluster.sapling_count}
-    })
-    content.add({
-      type = "label",
-      caption = {"gui.squirrel-madness-survey-panel-feeders", cluster.stocked_feeders, cluster.feeder_count}
-    })
-    content.add({
-      type = "label",
-      caption = {"gui.squirrel-madness-survey-panel-forces", survey_panel_driver_labels(cluster)}
-    })
-  end
-
-  get_survey_station_panels()[player.index] = {
-    station_unit_number = station.unit_number,
-    surface_index = station.surface.index,
-    powered = powered,
-    region_count = cluster and cluster.region_count or 0,
-    tree_count = cluster and cluster.tree_count or 0,
-    forest_health = cluster and cluster.forest_health or nil,
-    squirrel_unrest = cluster and cluster.squirrel_unrest or nil,
-    squirrel_trust = cluster and cluster.squirrel_trust or nil,
-    habitat_pressure = cluster and cluster.habitat_pressure or nil
-  }
-
-  return frame
-end
-
-local function render_survey_overlay(player, station, tick)
-  clear_survey_overlay(player.index)
-
-  if not (player and player.valid and station and station.valid) then
-    return nil
-  end
-
-  local cluster = regions.get_forest_cluster_report_at_position(station.surface, station.position, tick)
-  local render_ids = {}
-
-  local footprint = rendering.draw_circle({
-    color = {r = 0.18, g = 0.42, b = 0.22, a = 0.14},
-    radius = constants.survey_station_exact_radius,
-    filled = true,
-    target = station,
-    surface = station.surface,
-    players = {player.index},
-    draw_on_ground = true
-  })
-  render_ids[#render_ids + 1] = footprint.id
-
-  local station_marker = rendering.draw_circle({
-    color = {r = 0.82, g = 0.94, b = 0.28, a = 0.95},
-    radius = 1.2,
-    width = 2,
-    filled = false,
-    target = station,
-    surface = station.surface,
-    players = {player.index},
-    draw_on_ground = true
-  })
-  render_ids[#render_ids + 1] = station_marker.id
-
-  local station_range = rendering.draw_circle({
-    color = {r = 0.52, g = 0.86, b = 0.68, a = 0.9},
-    radius = constants.survey_station_exact_radius,
-    width = 2,
-    filled = false,
-    target = station,
-    surface = station.surface,
-    players = {player.index},
-    draw_on_ground = true
-  })
-  render_ids[#render_ids + 1] = station_range.id
-
-  get_survey_station_overlays()[player.index] = {
-    station_unit_number = station.unit_number,
-    surface_index = station.surface.index,
-    render_ids = render_ids,
-    region_count = cluster.region_count,
-    member_regions = cluster.member_regions,
-    exact_radius = constants.survey_station_exact_radius,
-    last_refresh_tick = tick or game.tick
-  }
-
-  return cluster
-end
-
-local function update_survey_overlay_for_player(player, selected_entity, tick)
-  if not (player and player.valid) then
-    return nil
-  end
-
-  local station = selected_entity
-  if not station or not station.valid then
-    station = current_selected_survey_station(player)
-  end
-
-  if station then
-    local cluster = render_survey_overlay(player, station, tick)
-    render_survey_panel(player, station, cluster)
-    return cluster
-  end
-
-  clear_survey_overlay(player.index)
-  clear_survey_panel(player.index)
-  return nil
-end
-
-local function render_feeder_overlay(player, feeder)
-  clear_feeder_overlay(player.index)
-
-  if not (player and player.valid and feeder and feeder.valid and feeders.is_feeder_entity(feeder)) then
-    return nil
-  end
-
-  local state = feeders.debug_state(feeder.surface.index, feeder.position)
-  if not state then
-    return nil
-  end
-
-  local stocked = state.stocked
-  local fill_color = stocked
-      and {r = 0.34, g = 0.74, b = 0.22, a = 0.11}
-    or {r = 0.72, g = 0.44, b = 0.16, a = 0.09}
-  local outline_color = stocked
-      and {r = 0.64, g = 0.92, b = 0.28, a = 0.95}
-    or {r = 0.92, g = 0.62, b = 0.24, a = 0.95}
-
-  local render_ids = {}
-
-  local fill_circle = rendering.draw_circle({
-    color = fill_color,
-    radius = constants.squirrel_feeder_peace_radius,
-    filled = true,
-    target = feeder,
-    surface = feeder.surface,
-    players = {player.index},
-    draw_on_ground = true
-  })
-  render_ids[#render_ids + 1] = fill_circle.id
-
-  local range_circle = rendering.draw_circle({
-    color = outline_color,
-    radius = constants.squirrel_feeder_peace_radius,
-    width = 2,
-    filled = false,
-    target = feeder,
-    surface = feeder.surface,
-    players = {player.index},
-    draw_on_ground = true
-  })
-  render_ids[#render_ids + 1] = range_circle.id
-
-  get_feeder_selection_overlays()[player.index] = {
-    feeder_unit_number = feeder.unit_number,
-    surface_index = feeder.surface.index,
-    stocked = stocked,
-    radius = constants.squirrel_feeder_peace_radius,
-    render_ids = render_ids
-  }
-
-  return state
-end
-
-local function render_squirrel_overlay(player, squirrel, tick)
-  clear_squirrel_overlay(player.index)
-
-  if not constants.debug_squirrel_selection_overlay then
-    return nil
-  end
-
-  if not (player and player.valid and squirrel and squirrel.valid) then
-    return nil
-  end
-
-  local overlay_state = squirrels.selection_overlay_state(squirrel, tick)
-  if not overlay_state then
-    return nil
-  end
-
-  local render_ids = {}
-
-  local fill_circle = rendering.draw_circle({
-    color = {r = 0.95, g = 0.49, b = 0.12, a = 0.11},
-    radius = overlay_state.local_radius,
-    filled = true,
-    target = squirrel,
-    surface = squirrel.surface,
-    players = {player.index},
-    draw_on_ground = true
-  })
-  render_ids[#render_ids + 1] = fill_circle.id
-
-  local belt_interest_circle = rendering.draw_circle({
-    color = {r = 0.95, g = 0.18, b = 0.12, a = 0.95},
-    radius = overlay_state.belt_interest_radius,
-    width = 2,
-    filled = false,
-    target = squirrel,
-    surface = squirrel.surface,
-    players = {player.index},
-    draw_on_ground = true
-  })
-  render_ids[#render_ids + 1] = belt_interest_circle.id
-
-  get_squirrel_selection_overlays()[player.index] = {
-    squirrel_unit_number = squirrel.unit_number,
-    surface_index = squirrel.surface.index,
-    render_ids = render_ids,
-    local_radius = overlay_state.local_radius,
-    belt_interest_radius = overlay_state.belt_interest_radius,
-    state = overlay_state.state,
-    last_refresh_tick = tick or game.tick
-  }
-
-  return overlay_state
-end
-
-local function update_selected_debug_visuals_for_player(player, tick)
-  if not (player and player.valid) then
-    return nil
-  end
-
-  local restored_squirrel = refresh_squirrel_selection(player, tick)
-
-  local station = current_selected_survey_station(player)
-  if station then
-    clear_feeder_overlay(player.index)
-    clear_squirrel_overlay(player.index)
-    clear_squirrel_panel(player.index)
-    update_survey_overlay_for_player(player, station, tick)
-    return "survey-station"
-  end
-
-  local feeder = current_selected_feeder(player)
-  if feeder then
-    clear_survey_overlay(player.index)
-    clear_survey_panel(player.index)
-    clear_squirrel_overlay(player.index)
-    clear_squirrel_panel(player.index)
-    render_feeder_overlay(player, feeder)
-    return "feeder"
-  end
-
-  local squirrel = restored_squirrel or current_selected_squirrel(player)
-  if squirrel then
-    clear_survey_overlay(player.index)
-    clear_survey_panel(player.index)
-    clear_feeder_overlay(player.index)
-    render_squirrel_panel(player, squirrel, tick)
-    if constants.debug_squirrel_selection_overlay then
-      render_squirrel_overlay(player, squirrel, tick)
-      return "squirrel"
-    end
-
-    clear_squirrel_overlay(player.index)
-    return nil
-  end
-
-  clear_survey_overlay(player.index)
-  clear_survey_panel(player.index)
-  clear_feeder_overlay(player.index)
-  clear_squirrel_overlay(player.index)
-  clear_squirrel_panel(player.index)
-  return nil
-end
-
-local function resolve_survey_request(force, surface, position, selected_entity)
-  if not force_has_technology(force, constants.technologies.forest_surveying) then
-    return {
-      mode = "research-required",
-      anchor_position = position
-    }
-  end
-
-  if selected_entity and selected_entity.valid and selected_entity.name == constants.names.survey_station then
-    return {
-      mode = is_powered_survey_station(selected_entity) and "exact" or "power-required",
-      anchor_position = selected_entity.position,
-      station = selected_entity,
-      source = "selected"
-    }
-  end
-
-  local station = find_nearest_survey_station(surface, position, constants.survey_station_exact_radius)
-  if station then
-    return {
-      mode = is_powered_survey_station(station) and "exact" or "power-required",
-      anchor_position = station.position,
-      station = station,
-      source = "nearby"
-    }
-  end
-
-  return {
-    mode = "broad",
-    anchor_position = position
-  }
-end
-
-local function print_survey_result(player, result)
-  if result.mode == "research-required" then
-    player.print({"message.squirrel-madness-forest-surveying-required"})
-    return
-  end
-
-  if result.mode == "exact" then
-    print_cluster_report(player, regions.get_forest_cluster_report_at_position(player.surface, result.anchor_position, game.tick))
-    return
-  end
-
-  local region = regions.get_region_report_at_position(player.surface, result.anchor_position, game.tick)
-  print_broad_region_report(player, region)
-
-  if result.mode == "power-required" then
-    player.print({"message.squirrel-madness-survey-power-required"})
-  else
-    player.print({"message.squirrel-madness-survey-exact-hint"})
-  end
-end
-
 local function on_selected_entity_changed(event)
   local player = game.get_player(event.player_index)
   if not player then
     return
   end
 
-  update_selected_debug_visuals_for_player(player, event.tick)
+  selection.update_for_player(player, event.tick)
 end
 
 local function survey_region_for_player(player)
-  if not (player and player.valid and player.surface) then
-    return
-  end
-
-  local result = resolve_survey_request(player.force, player.surface, player.position, player.selected)
-  print_survey_result(player, result)
+  selection.survey.run_for_player(player)
 end
 
 local function serialize_position(position)
@@ -1737,74 +848,13 @@ local function record_squirrel_incident(surface, position, force, player_index, 
   return incident
 end
 
-local function relocation_candidate_score(report, origin_region_x, origin_region_y)
-  local tree_mass = (report.tree_count or 0) + (report.sapling_count or 0) + (report.nut_tree_count or 0)
-  local distance = math.abs(report.region_x - origin_region_x) + math.abs(report.region_y - origin_region_y)
-
-  return (report.forest_health * 2.0)
-    + (report.squirrel_trust * 1.25)
-    + math.min(tree_mass, 32)
-    - (report.habitat_pressure * 1.5)
-    - (distance * 6)
-end
-
-find_relocation_destination = function(surface, origin_position, tick)
-  local origin_coord = regions.position_to_region_coord(origin_position)
-  local candidates = {}
-
-  for dx = -constants.relocation_search_radius, constants.relocation_search_radius do
-    for dy = -constants.relocation_search_radius, constants.relocation_search_radius do
-      if dx ~= 0 or dy ~= 0 then
-        local region_x = origin_coord.x + dx
-        local region_y = origin_coord.y + dy
-        local report = regions.get_region_report_by_coord(surface, region_x, region_y, tick)
-        local tree_mass = (report.tree_count or 0) + (report.sapling_count or 0) + (report.nut_tree_count or 0)
-
-        if report.forest_health >= constants.relocation_min_forest_health
-          and report.habitat_pressure <= constants.relocation_max_habitat_pressure
-          and report.squirrel_trust >= constants.relocation_min_trust
-          and tree_mass >= constants.relocation_min_tree_count
-        then
-          candidates[#candidates + 1] = {
-            region_x = region_x,
-            region_y = region_y,
-            forest_health = report.forest_health,
-            squirrel_trust = report.squirrel_trust,
-            habitat_pressure = report.habitat_pressure,
-            tree_mass = tree_mass,
-            score = relocation_candidate_score(report, origin_coord.x, origin_coord.y)
-          }
-        end
-      end
-    end
-  end
-
-  table.sort(candidates, function(left, right)
-    if left.score ~= right.score then
-      return left.score > right.score
-    end
-
-    if left.forest_health ~= right.forest_health then
-      return left.forest_health > right.forest_health
-    end
-
-    if left.region_x ~= right.region_x then
-      return left.region_x < right.region_x
-    end
-
-    return left.region_y < right.region_y
-  end)
-
-  return candidates[1], candidates
-end
-
 local function relocate_selected_squirrel(player, tick)
   if not force_has_technology(player.force, constants.technologies.wildlife_relocation) then
     player.print({"message.squirrel-madness-relocation-required"})
     return nil
   end
 
-  local squirrel_entity = current_selected_squirrel(player)
+  local squirrel_entity = selection.squirrel.current(player)
   if not squirrel_entity then
     player.print({"message.squirrel-madness-relocation-no-selection"})
     return nil
@@ -1823,7 +873,7 @@ local function relocate_selected_squirrel(player, tick)
   end
 
   local origin_position = snapshot.position
-  local destination, candidates = find_relocation_destination(player.surface, origin_position, tick)
+  local destination, candidates = relocation.find_destination(player.surface, origin_position, tick)
   if not destination then
     player.print({"message.squirrel-madness-relocation-no-destination"})
     return nil
@@ -1870,13 +920,8 @@ end
 
 local function on_init()
   storage_lib.ensure()
-  feeder_selection_overlays = {}
   storage.squirrel_step_feedback = nil
-  storage.squirrel_selection_locks = {}
-  storage.survey_station_overlays = {}
-  storage.survey_station_panels = {}
-  storage.squirrel_selection_overlays = {}
-  storage.squirrel_selection_panels = {}
+  selection.reset()
   feeders.rebuild_tracking()
   local nauvis = game.surfaces[constants.primary_surface_name]
   if nauvis then
@@ -1889,14 +934,8 @@ end
 
 local function on_configuration_changed()
   storage_lib.ensure()
-  clear_all_squirrel_overlays()
-  feeder_selection_overlays = {}
   storage.squirrel_step_feedback = nil
-  storage.squirrel_selection_locks = {}
-  storage.survey_station_overlays = {}
-  storage.survey_station_panels = {}
-  storage.squirrel_selection_overlays = {}
-  storage.squirrel_selection_panels = {}
+  selection.reset()
   feeders.rebuild_tracking()
   squirrels.normalize_entity_variants()
   feeders.sync_registered()
@@ -1918,78 +957,13 @@ local function on_tick(event)
 
   refresh_active_regions(false)
   process_region_refresh_queue(constants.region_refresh_batch_size, event.tick)
-  refresh_locked_squirrel_selections(event.tick)
-
-  if not constants.debug_squirrel_selection_overlay then
-    clear_all_squirrel_overlays()
-  end
+  selection.refresh_locked_squirrel_selections(event.tick)
 
   if event.tick % constants.feeder_visual_update_interval == 0 then
     feeders.sync_registered()
   end
 
-  if event.tick % constants.survey_overlay_refresh_interval == 0 then
-    local survey_overlays_to_clear = {}
-    local feeder_overlays_to_clear = {}
-    local squirrel_overlays_to_clear = {}
-
-    for player_index, overlay in pairs(get_survey_station_overlays()) do
-      local player = game.get_player(player_index)
-      local selected_station = player and current_selected_survey_station(player) or nil
-
-      if not selected_station
-        or selected_station.unit_number ~= overlay.station_unit_number
-        or selected_station.surface.index ~= overlay.surface_index
-      then
-        survey_overlays_to_clear[#survey_overlays_to_clear + 1] = player_index
-      else
-        render_survey_overlay(player, selected_station, event.tick)
-        render_survey_panel(player, selected_station, regions.get_forest_cluster_report_at_position(selected_station.surface, selected_station.position, event.tick))
-      end
-    end
-
-    for player_index, overlay in pairs(get_feeder_selection_overlays()) do
-      local player = game.get_player(player_index)
-      local selected_feeder = player and current_selected_feeder(player) or nil
-
-      if not selected_feeder
-        or selected_feeder.unit_number ~= overlay.feeder_unit_number
-        or selected_feeder.surface.index ~= overlay.surface_index
-      then
-        feeder_overlays_to_clear[#feeder_overlays_to_clear + 1] = player_index
-      else
-        render_feeder_overlay(player, selected_feeder)
-      end
-    end
-
-    for player_index, overlay in pairs(get_squirrel_selection_overlays()) do
-      local player = game.get_player(player_index)
-      local selected_squirrel = player and current_selected_squirrel(player) or nil
-
-      if not selected_squirrel
-        or selected_squirrel.unit_number ~= overlay.squirrel_unit_number
-        or selected_squirrel.surface.index ~= overlay.surface_index
-      then
-        squirrel_overlays_to_clear[#squirrel_overlays_to_clear + 1] = player_index
-      else
-        render_squirrel_overlay(player, selected_squirrel, event.tick)
-      end
-    end
-
-    for _, player_index in ipairs(survey_overlays_to_clear) do
-      clear_survey_overlay(player_index)
-      clear_survey_panel(player_index)
-    end
-
-    for _, player_index in ipairs(feeder_overlays_to_clear) do
-      clear_feeder_overlay(player_index)
-    end
-
-    for _, player_index in ipairs(squirrel_overlays_to_clear) do
-      clear_squirrel_overlay(player_index)
-      clear_squirrel_panel(player_index)
-    end
-  end
+  selection.refresh_overlays(event.tick)
 
   process_retaliation_feedback_expiry(event.tick)
   process_retaliation_waves(event.tick)
@@ -2015,18 +989,7 @@ local function on_entity_removed(event)
   end
 
   if squirrels.is_squirrel_entity(entity) then
-    local overlays_to_clear = {}
-
-    for player_index, overlay in pairs(get_squirrel_selection_overlays()) do
-      if overlay.squirrel_unit_number == entity.unit_number and overlay.surface_index == entity.surface.index then
-        overlays_to_clear[#overlays_to_clear + 1] = player_index
-      end
-    end
-
-    for _, player_index in ipairs(overlays_to_clear) do
-      clear_squirrel_overlay(player_index)
-      clear_squirrel_panel(player_index)
-    end
+    selection.squirrel.clear_entity(entity)
 
     if event.name == defines.events.on_entity_died then
       local player_index = player_index_from_actor(event.cause) or player_index_from_actor(event.source)
@@ -2087,19 +1050,7 @@ local function on_entity_removed(event)
   end
 
   if entity.name == constants.names.survey_station then
-    local overlays_to_clear = {}
-
-    for player_index, overlay in pairs(get_survey_station_overlays()) do
-      if overlay.station_unit_number == entity.unit_number and overlay.surface_index == entity.surface.index then
-        overlays_to_clear[#overlays_to_clear + 1] = player_index
-      end
-    end
-
-    for _, player_index in ipairs(overlays_to_clear) do
-      clear_survey_overlay(player_index)
-      clear_survey_panel(player_index)
-    end
-
+    selection.survey.clear_entity(entity)
     regions.mark_dirty(entity.surface.index, entity.position)
     enqueue_region_refresh_at_position(entity.surface, entity.position, game.tick)
   end
@@ -2196,7 +1147,7 @@ local function handle_squirrel_rough_handling(entity, player, tick)
   regions.note_rough_handling(entity.surface.index, entity.position, 1, tick)
   enqueue_region_refresh_at_position(entity.surface, entity.position, tick)
   local active_entity = squirrels.on_stepped(entity, tick, player) or entity
-  clear_player_squirrel_selection(player)
+  selection.squirrel.clear_player(player)
   player.play_sound({
     path = SQUIRREL_STEP_SOUND,
     volume_modifier = 0.85
@@ -2296,7 +1247,7 @@ local function install_remote_interface()
         selected_entity = surface.find_entity(constants.names.survey_station, {x = selected_x, y = selected_y})
       end
 
-      local result = resolve_survey_request(game.forces.player, surface, {x = x, y = y}, selected_entity)
+      local result = selection.survey.resolve_request(game.forces.player, surface, {x = x, y = y}, selected_entity)
       return {
         mode = result.mode,
         source = result.source,
@@ -2304,7 +1255,7 @@ local function install_remote_interface()
           x = result.anchor_position.x,
           y = result.anchor_position.y
         },
-        station_powered = is_powered_survey_station(result.station) or false
+        station_powered = selection.survey.is_powered_station(result.station) or false
       }
     end,
     debug_get_survey_station_state = function(surface_index, x, y)
@@ -2321,7 +1272,7 @@ local function install_remote_interface()
 
       return {
         energy = station.energy,
-        powered = is_powered_survey_station(station)
+        powered = selection.survey.is_powered_station(station)
       }
     end,
     debug_get_survey_cluster = function(surface_index, x, y)
@@ -2346,7 +1297,7 @@ local function install_remote_interface()
         return nil
       end
 
-      local cluster = update_survey_overlay_for_player(player, station, game.tick)
+      local cluster = selection.survey.update_for_player(player, station, game.tick)
       if not cluster then
         return nil
       end
@@ -2358,27 +1309,15 @@ local function install_remote_interface()
     end,
     debug_get_survey_overlay_state = function(player_index)
       storage_lib.ensure()
-      local overlay = get_survey_station_overlays()[player_index]
-      if not overlay then
-        return nil
-      end
-
-      return {
-        station_unit_number = overlay.station_unit_number,
-        surface_index = overlay.surface_index,
-        render_count = #overlay.render_ids,
-        region_count = overlay.region_count,
-        member_regions = overlay.member_regions,
-        exact_radius = overlay.exact_radius
-      }
+      return selection.survey.overlay_state(player_index)
     end,
     debug_get_survey_panel_state = function(player_index)
       storage_lib.ensure()
-      return get_survey_station_panels()[player_index]
+      return selection.survey.panel_state(player_index)
     end,
     debug_clear_survey_overlay = function(player_index)
       storage_lib.ensure()
-      return clear_survey_overlay(player_index)
+      return selection.survey.clear_overlay(player_index)
     end,
     debug_show_squirrel_overlay = function(player_index, surface_index, x, y)
       storage_lib.ensure()
@@ -2401,7 +1340,7 @@ local function install_remote_interface()
         return nil
       end
 
-      return render_squirrel_overlay(player, squirrel, game.tick)
+      return selection.squirrel.render_overlay(player, squirrel, game.tick)
     end,
     debug_show_squirrel_panel = function(player_index, surface_index, x, y)
       storage_lib.ensure()
@@ -2420,32 +1359,20 @@ local function install_remote_interface()
         return nil
       end
 
-      return render_squirrel_panel(player, squirrel, game.tick)
+      return selection.squirrel.render_panel(player, squirrel, game.tick)
     end,
     debug_get_squirrel_panel_state = function(player_index)
       storage_lib.ensure()
-      return get_squirrel_selection_panels()[player_index]
+      return selection.squirrel.panel_state(player_index)
     end,
     debug_get_squirrel_overlay_state = function(player_index)
       storage_lib.ensure()
-      local overlay = get_squirrel_selection_overlays()[player_index]
-      if not overlay then
-        return nil
-      end
-
-      return {
-        squirrel_unit_number = overlay.squirrel_unit_number,
-        surface_index = overlay.surface_index,
-        local_radius = overlay.local_radius,
-        belt_interest_radius = overlay.belt_interest_radius,
-        state = overlay.state,
-        render_count = #overlay.render_ids
-      }
+      return selection.squirrel.overlay_state(player_index)
     end,
     debug_clear_squirrel_overlay = function(player_index)
       storage_lib.ensure()
-      clear_squirrel_panel(player_index)
-      return clear_squirrel_overlay(player_index)
+      selection.squirrel.clear_panel(player_index)
+      return selection.squirrel.clear_overlay(player_index)
     end,
     debug_sync_feeders = function(surface_index)
       storage_lib.ensure()
@@ -2473,26 +1400,15 @@ local function install_remote_interface()
         return nil
       end
 
-      return render_feeder_overlay(player, feeder)
+      return selection.feeder.render_overlay(player, feeder)
     end,
     debug_get_feeder_overlay_state = function(player_index)
       storage_lib.ensure()
-      local overlay = get_feeder_selection_overlays()[player_index]
-      if not overlay then
-        return nil
-      end
-
-      return {
-        feeder_unit_number = overlay.feeder_unit_number,
-        surface_index = overlay.surface_index,
-        stocked = overlay.stocked,
-        radius = overlay.radius,
-        render_count = #overlay.render_ids
-      }
+      return selection.feeder.overlay_state(player_index)
     end,
     debug_clear_feeder_overlay = function(player_index)
       storage_lib.ensure()
-      return clear_feeder_overlay(player_index)
+      return selection.feeder.clear_overlay(player_index)
     end,
     force_recompute_at_position = function(surface_index, x, y)
       storage_lib.ensure()
@@ -2569,7 +1485,7 @@ local function install_remote_interface()
         return nil
       end
 
-      local best, candidates = find_relocation_destination(surface, {x = x, y = y}, game.tick)
+      local best, candidates = relocation.find_destination(surface, {x = x, y = y}, game.tick)
       return {
         best = best,
         candidates = candidates
@@ -2588,7 +1504,7 @@ local function install_remote_interface()
         return nil
       end
 
-      local destination = find_relocation_destination(surface, snapshot.position, game.tick)
+      local destination = relocation.find_destination(surface, snapshot.position, game.tick)
       if not destination then
         return nil
       end
@@ -2748,8 +1664,8 @@ local function install_remote_interface()
         return nil
       end
 
-      local restored = refresh_squirrel_selection(player, tick or game.tick)
-      update_selected_debug_visuals_for_player(player, tick or game.tick)
+      local restored = selection.squirrel.refresh(player, tick or game.tick)
+      selection.update_for_player(player, tick or game.tick)
 
       local selected = player.selected or restored
       if selected and selected.valid then
@@ -2760,7 +1676,7 @@ local function install_remote_interface()
         }
       end
 
-      local lock = get_squirrel_selection_locks()[player_index]
+      local lock = selection.squirrel.lock_state(player_index)
       if not lock then
         return nil
       end

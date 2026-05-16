@@ -50,7 +50,7 @@ Use these settled decisions as the implementation baseline:
 - `scripts/constants.lua`: names, tuning constants, region dimensions.
 - `scripts/storage.lua`: runtime storage initialization and migration guards.
 - `scripts/regions.lua`: region indexing, area math, ecology recomputation, metric serialization.
-- `scripts/runtime.lua`: event handlers, nearby-region refresh, survey access, debug and test interface.
+- `scripts/runtime.lua`: central runtime event registration and dispatch, nearby-region refresh, survey access, debug and test interface.
 
 ### Tests
 

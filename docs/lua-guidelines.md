@@ -12,6 +12,13 @@ These rules capture hard-won lessons from working with the Factorio 2.0 Lua API.
 - `storage.*` is runtime-only — never reference it during data stage.
 - `script.*`, `game.*`, `remote.*` are runtime-only — do not use in `data*.lua` or `settings*.lua`.
 
+## Runtime event registration
+
+- Register each Factorio event or custom input only once, from `control.lua` or the central runtime registration function in `scripts/runtime.lua`.
+- Treat the registered handler as a dispatcher: validate the event payload, filter by entity name/type/input/context, and then call the relevant subsystem function.
+- Do not register the same event independently from feature modules such as `scripts/squirrels.lua`, `scripts/habitat.lua`, `scripts/feeders.lua`, or `scripts/regions.lua`.
+- When adding a subsystem reaction to an existing event, extend the existing dispatcher and update `docs/hooks.md`; do not add a second `script.on_event` for that event.
+
 ## Storage / global state
 
 - Use `storage.*` for all persistent runtime state. `global` was renamed to `storage` in Factorio 2.0 — never write `global`.

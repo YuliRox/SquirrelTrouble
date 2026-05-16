@@ -25,6 +25,7 @@ The mod theme is scarcity, salvage, and ruined infrastructure. Prefer changes th
 - Prefer repo evidence over stale prose. When behavior docs and code disagree, update the docs or note the mismatch.
 - Keep Space Age content behind `if mods["space-age"] then`.
 - Favor small, targeted edits over broad rewrites unless the task explicitly calls for restructuring.
+- Register each Factorio runtime event exactly once in `control.lua` or its central derivative (`scripts/runtime.lua`). That handler is the dispatcher: filter by entity/input/context there, then call subsystem functions. Do not let feature modules call `script.on_event` for the same event independently.
 - Features demand tests. There should be no untested edges. When implementing functionality, always implement and accompanying test to verfiy functionality behaves as expected. Alway try to optimize the test surface if you feel that certain features miss tests.
 - Never write tests that regex or snapshot source-code structure to infer behavior. Behavioral claims must be verified through runtime tests; static tests are only acceptable for external artifacts such as asset/file existence or similarly non-behavioral build outputs.
 - For each milestone, create a manual playtest document for ingame testing.
