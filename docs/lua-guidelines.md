@@ -12,6 +12,13 @@ These rules capture hard-won lessons from working with the Factorio 2.0 Lua API.
 - `storage.*` is runtime-only — never reference it during data stage.
 - `script.*`, `game.*`, `remote.*` are runtime-only — do not use in `data*.lua` or `settings*.lua`.
 
+## `require()` is parse-time only
+
+- `require()` may only be called while `control.lua` (and its transitive requires) is being parsed. Calling it inside any function body that runs later — event handlers, remote interface methods, tick callbacks — crashes with `Require can't be used outside of control.lua parsing.` on first invocation.
+- All `require()` calls in every module must therefore be at the top of the file, before any function definitions. No lazy/inline requires.
+- This rules out the usual lazy-require workaround for circular dependencies between sibling modules. If sub-module A needs B and B needs A, the cycle must be broken structurally: move the called function into the caller's module, hoist the shared logic into a third module, or pass dependencies in via an `install(deps)` / setter pattern called from `control.lua` parse time.
+- When extracting a new sub-module from `scripts/runtime.lua` or another module, plan the dependency direction up front so all requires can stay top-level.
+
 ## Runtime event registration
 
 - Register each Factorio event or custom input only once, from `control.lua` or the central runtime registration function in `scripts/runtime.lua`.

@@ -12,6 +12,7 @@ yarn-error.log*
 art-files/
 sound-files/
 debug/
+!squirrel_madness/scripts/debug/
 
 # Local Factorio runtime and test scratch data
 .factorio/
