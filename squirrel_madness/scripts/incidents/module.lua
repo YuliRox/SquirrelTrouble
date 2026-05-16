@@ -33,15 +33,15 @@ function module.record(surface, position, force, player_index, kind, tick, extra
     tick = tick,
     region_x = coord.x,
     region_y = coord.y,
-    position = position_util.serialize(position),
-    marker_position = position_util.serialize(position)
+    position = position_util.clone(position),
+    marker_position = position_util.clone(position)
   }
 
   if kind == "relocation" then
     incident.message_key = "message.squirrel-madness-relocation-success"
     incident.destination_region_x = extra.destination_region_x
     incident.destination_region_y = extra.destination_region_y
-    incident.destination_position = position_util.serialize(extra.destination_position)
+    incident.destination_position = position_util.clone(extra.destination_position)
     incident.destination_forest_health = extra.destination_forest_health
     incident.destination_squirrel_trust = extra.destination_squirrel_trust
     incident.destination_habitat_pressure = extra.destination_habitat_pressure
@@ -71,8 +71,8 @@ function module.record(surface, position, force, player_index, kind, tick, extra
         tick = tick,
         severity = incident.severity,
         retaliation_level = state.total_severity,
-        target_position = position_util.serialize(position),
-        source_position = position_util.serialize(spawner and spawner.position or position),
+        target_position = position_util.clone(position),
+        source_position = position_util.clone((spawner and spawner.position) or position),
         source_unit_number = spawner and spawner.unit_number or nil
       }
 
@@ -80,7 +80,7 @@ function module.record(surface, position, force, player_index, kind, tick, extra
       incident.revenge_source = spawner and {
         unit_number = spawner.unit_number,
         name = spawner.name,
-        position = position_util.serialize(spawner.position)
+        position = position_util.clone(spawner and spawner.position)
       } or nil
       incident.marker_position = incident.revenge_source and incident.revenge_source.position or incident.marker_position
     end

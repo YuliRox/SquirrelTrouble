@@ -1,6 +1,6 @@
 local constants = require("scripts.constants")
+local math2d = require("math2d")
 local regions = require("scripts.regions")
-local position_util = require("scripts.util.position")
 local technologies = require("scripts.util.technologies")
 
 local survey = {}
@@ -120,7 +120,7 @@ function survey.find_nearest_station(surface, position, radius)
 
   for _, station in ipairs(stations) do
     if station.valid then
-      local distance = position_util.distance_squared(position, station.position)
+      local distance = math2d.position.distance_squared(position, station.position)
       if not nearest or distance < nearest_distance then
         nearest = station
         nearest_distance = distance

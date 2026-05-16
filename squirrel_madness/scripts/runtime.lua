@@ -5,13 +5,13 @@ local feeders = require("scripts.feeders")
 local feedback = require("scripts.feedback.module")
 local habitat = require("scripts.habitat")
 local incidents = require("scripts.incidents.module")
+local math2d = require("math2d")
 local relocation = require("scripts.relocation")
 local regions = require("scripts.regions")
 local retaliation = require("scripts.retaliation.module")
 local selection = require("scripts.selection.module")
 local squirrels = require("scripts.squirrels")
 local storage_lib = require("scripts.storage")
-local position_util = require("scripts.util.position")
 
 local runtime = {}
 
@@ -244,7 +244,7 @@ local function find_squirrel_at_position(surface, position)
     name = constants.squirrel_entity_name_list
   })) do
     if entity.valid then
-      local distance = position_util.distance_squared(position, entity.position)
+      local distance = math2d.position.distance_squared(position, entity.position)
       if distance <= (constants.squirrel_step_trigger_radius * constants.squirrel_step_trigger_radius)
         and (not nearest or distance < nearest_distance)
       then

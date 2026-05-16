@@ -1,5 +1,6 @@
 local constants = require("scripts.constants")
 local regions = require("scripts.regions")
+local math2d = require("math2d")
 
 local squirrels = {}
 
@@ -41,18 +42,12 @@ local function round_position_key(position)
   return math.floor((position.x * 10) + 0.5) .. ":" .. math.floor((position.y * 10) + 0.5)
 end
 
-local function distance_squared(left, right)
-  local dx = left.x - right.x
-  local dy = left.y - right.y
-  return (dx * dx) + (dy * dy)
-end
-
 local function nearest_player_distance_squared(surface_index, position)
   local nearest
 
   for _, player in ipairs(game.connected_players) do
     if player.valid and player.surface and player.surface.index == surface_index then
-      local distance = distance_squared(player.position, position)
+      local distance = math2d.position.distance_squared(player.position, position)
       if not nearest or distance < nearest then
         nearest = distance
       end
@@ -96,7 +91,7 @@ local function position_with_offset(origin, angle, distance)
 end
 
 local function reached_position(entity, position, max_distance)
-  return distance_squared(entity.position, position) <= ((max_distance or 1.4) ^ 2)
+  return math2d.position.distance_squared(entity.position, position) <= ((max_distance or 1.4) ^ 2)
 end
 
 local function region_key(region_x, region_y)
@@ -1159,7 +1154,7 @@ local function build_squirrel_target(record, opportunity, origin_position, tick,
     return nil
   end
 
-  local current_distance_squared = distance_squared(origin_position, entity.position)
+  local current_distance_squared = math2d.position.distance_squared(origin_position, entity.position)
   if max_distance_from_origin and current_distance_squared > (max_distance_from_origin * max_distance_from_origin) then
     return nil
   end
@@ -1171,7 +1166,7 @@ local function build_squirrel_target(record, opportunity, origin_position, tick,
     target_radius = math.min(target_radius, max_distance_from_home)
   end
 
-  if distance_squared(record.home_position, entity.position) > (target_radius * target_radius) then
+  if math2d.position.distance_squared(record.home_position, entity.position) > (target_radius * target_radius) then
     return nil
   end
 
@@ -1607,7 +1602,7 @@ local function bounded_roam_destination(record, entity, max_home_distance, prefe
 
   local candidate = position_with_offset(origin, angle, step_distance)
   local allowed_distance = max_home_distance or constants.squirrel_home_wander_distance
-  local home_distance = math.sqrt(distance_squared(candidate, record.home_position))
+  local home_distance = math2d.position.distance(candidate, record.home_position)
 
   if home_distance > allowed_distance then
     local clamp_angle = math.atan2(
@@ -1728,7 +1723,7 @@ local function compute_flee_goal_position(record, entity, avoid_position)
     y = origin.y + (preferred_direction.y * goal_distance)
   }
 
-  if distance_squared(goal, avoid_position) < (constants.squirrel_flee_min_distance_from_player ^ 2) then
+  if math2d.position.distance_squared(goal, avoid_position) < (constants.squirrel_flee_min_distance_from_player ^ 2) then
     local away_direction = player_away_direction or preferred_direction
     goal = {
       x = avoid_position.x + (away_direction.x * constants.squirrel_flee_min_distance_from_player),
@@ -1746,7 +1741,7 @@ local function flee_goal_position(record, entity, avoid_position)
 
   local current_goal = record.flee_goal_position
   if current_goal and avoid_position then
-    if distance_squared(current_goal, avoid_position) >= (constants.squirrel_flee_min_distance_from_player ^ 2) then
+    if math2d.position.distance_squared(current_goal, avoid_position) >= (constants.squirrel_flee_min_distance_from_player ^ 2) then
       return clone_position(current_goal)
     end
   elseif current_goal then
@@ -1781,10 +1776,10 @@ local function flee_destination(record, entity, avoid_position)
       local resolved = surface.find_non_colliding_position(constants.names.squirrel, candidate, 1.5, 0.25, true)
       if
         resolved
-        and distance_squared(resolved, avoid_position) > distance_squared(origin, avoid_position)
-        and distance_squared(resolved, origin) >= (constants.squirrel_flee_min_step_distance ^ 2)
+        and math2d.position.distance_squared(resolved, avoid_position) > math2d.position.distance_squared(origin, avoid_position)
+        and math2d.position.distance_squared(resolved, origin) >= (constants.squirrel_flee_min_step_distance ^ 2)
       then
-        local score = distance_squared(resolved, goal)
+        local score = math2d.position.distance_squared(resolved, goal)
         if not best_candidate or score < best_score then
           best_candidate = resolved
           best_score = score
@@ -1809,7 +1804,7 @@ local function flee_is_stuck(record, entity, tick)
     return false
   end
 
-  if distance_squared(entity.position, last_position) >= (constants.squirrel_flee_progress_distance ^ 2) then
+  if math2d.position.distance_squared(entity.position, last_position) >= (constants.squirrel_flee_progress_distance ^ 2) then
     reset_flee_progress(record, entity, tick)
     return false
   end
