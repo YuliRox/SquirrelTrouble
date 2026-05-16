@@ -13,6 +13,5 @@
             "protosPath": "../../../../Program Files/Factorio/doc-html/prototype-api.json"
         }
     ],
-    "Lua.workspace.checkThirdParty": "ApplyInMemory",
-    "Lua.workspace.userThirdParty": []
+    "Lua.workspace.checkThirdParty": "ApplyInMemory"
 }
