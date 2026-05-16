@@ -21,6 +21,14 @@ local function track_entity(entity)
   return entity
 end
 
+local function find_squirrel_entity(position)
+  return surface().find_entities_filtered({
+    position = position,
+    name = constants.squirrel_entity_name_list,
+    limit = 1
+  })[1]
+end
+
 local function square_area(origin, radius)
   return {
     left_top = {x = origin.x - radius, y = origin.y - radius},
@@ -280,5 +288,43 @@ describe("milestone 6 mitigation and nonlethal control", function()
     assert.equal(destination.best.habitat_pressure, incident.destination_habitat_pressure)
     assert.equal(destination.best.tree_mass, incident.destination_tree_mass)
     assert.equal(destination.best.score, incident.destination_score)
+  end)
+
+  it("clears squirrel selection locks after player deselects and does not keep extending lock expiry", function()
+    spawn_forest(18, ORIGIN)
+    local squirrel_id = remote.call(constants.mod_name, "debug_spawn_squirrel", surface().index, ORIGIN.x + 6, ORIGIN.y)
+    local snapshot = remote.call(constants.mod_name, "debug_get_squirrel_snapshot", squirrel_id)
+    local squirrel = find_squirrel_entity(snapshot.position)
+    local dummy = track_entity(surface().create_entity({
+      name = constants.names.feeder,
+      position = {x = ORIGIN.x + 20, y = ORIGIN.y},
+      force = game.forces.player
+    }))
+
+    assert.is_not_nil(squirrel)
+    assert.is_not_nil(dummy)
+
+    player().selected = squirrel
+    remote.call(constants.mod_name, "debug_refresh_player_selection", player().index, game.tick)
+    local initial_lock = remote.call(constants.mod_name, "debug_get_squirrel_selection_lock", player().index)
+
+    assert.is_table(initial_lock)
+    assert.equal(squirrel.unit_number, initial_lock.squirrel_unit_number)
+
+    player().selected = dummy
+    remote.call(constants.mod_name, "debug_refresh_locked_squirrel_selections", game.tick + 1)
+    local lock_after_tick_refresh = remote.call(constants.mod_name, "debug_get_squirrel_selection_lock", player().index)
+
+    assert.is_table(lock_after_tick_refresh)
+    assert.equal(initial_lock.expires_tick, lock_after_tick_refresh.expires_tick)
+
+    player().selected = nil
+    remote.call(constants.mod_name, "debug_refresh_player_selection", player().index, game.tick + 2)
+    for offset = 3, 25 do
+      remote.call(constants.mod_name, "debug_refresh_locked_squirrel_selections", game.tick + offset)
+    end
+    local cleared_lock = remote.call(constants.mod_name, "debug_get_squirrel_selection_lock", player().index)
+
+    assert.is_nil(cleared_lock)
   end)
 end)

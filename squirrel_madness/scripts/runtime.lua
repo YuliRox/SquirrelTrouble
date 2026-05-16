@@ -1518,6 +1518,15 @@ local function install_remote_interface()
         via_lock = true
       }
     end,
+    debug_get_squirrel_selection_lock = function(player_index)
+      storage_lib.ensure()
+      return selection.squirrel.lock_state(player_index)
+    end,
+    debug_refresh_locked_squirrel_selections = function(tick)
+      storage_lib.ensure()
+      selection.refresh_locked_squirrel_selections(tick or game.tick)
+      return true
+    end,
     debug_process_retaliation_feedback_expiry = function(tick)
       storage_lib.ensure()
       return process_retaliation_feedback_expiry(tick or game.tick)

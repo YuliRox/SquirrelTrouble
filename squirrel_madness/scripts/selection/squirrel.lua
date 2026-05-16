@@ -6,6 +6,8 @@ local squirrels = require("scripts.squirrels")
 local squirrel_selection = {}
 
 local SQUIRREL_SELECTION_HOLD_TICKS = constants.squirrel_selection_hold_ticks
+local LOCK_REFRESH_INTERVAL_TICKS = 10
+local LOCK_CLEAR_GRACE_TICKS = 20
 
 local function get_overlays()
   storage.squirrel_selection_overlays = storage.squirrel_selection_overlays or {}
@@ -146,7 +148,7 @@ function squirrel_selection.clear_player(player)
   end
 end
 
-function squirrel_selection.refresh(player, tick)
+function squirrel_selection.refresh(player, tick, from_lock_refresh)
   if not (player and player.valid) then
     return nil
   end
@@ -155,16 +157,49 @@ function squirrel_selection.refresh(player, tick)
   local squirrel = squirrel_selection.current(player)
 
   if squirrel then
+    local lock = get_locks()[player.index]
+    local squirrel_id = squirrels.squirrel_id_for_entity(squirrel)
+    local expires_tick = tick + SQUIRREL_SELECTION_HOLD_TICKS
+
+    if
+      lock
+      and (
+        from_lock_refresh
+        or (lock.skip_extend_until_tick and tick <= lock.skip_extend_until_tick)
+      )
+      and lock.squirrel_id == squirrel_id
+      and lock.squirrel_unit_number == squirrel.unit_number
+      and lock.surface_index == squirrel.surface.index
+    then
+      lock.clear_candidate_tick = nil
+      return squirrel
+    end
+
+    local next_refresh_tick = lock and lock.next_refresh_tick or tick
     get_locks()[player.index] = {
-      squirrel_id = squirrels.squirrel_id_for_entity(squirrel),
+      squirrel_id = squirrel_id,
       squirrel_unit_number = squirrel.unit_number,
       surface_index = squirrel.surface.index,
-      expires_tick = tick + SQUIRREL_SELECTION_HOLD_TICKS
+      expires_tick = expires_tick,
+      next_refresh_tick = next_refresh_tick,
+      clear_candidate_tick = nil
     }
     return squirrel
   end
 
   local lock = get_locks()[player.index]
+  if lock and (not selected or not selected.valid) and not squirrels.is_squirrel_entity(player.opened) then
+    lock.clear_candidate_tick = lock.clear_candidate_tick or tick
+    if tick >= (lock.clear_candidate_tick + LOCK_CLEAR_GRACE_TICKS) then
+      squirrel_selection.clear_lock(player.index)
+    end
+    return nil
+  end
+
+  if lock and selected and selected.valid then
+    lock.clear_candidate_tick = nil
+  end
+
   if selected and selected.valid then
     if
       lock
@@ -196,6 +231,11 @@ function squirrel_selection.refresh(player, tick)
     return nil
   end
 
+  if selected and selected.valid and selected.unit_number == locked.unit_number then
+    return selected
+  end
+
+  lock.skip_extend_until_tick = tick + 1
   player.update_selected_entity(locked.position)
 
   local refreshed = squirrel_selection.current(player)
@@ -210,7 +250,16 @@ function squirrel_selection.refresh_locked(tick)
   for player_index, lock in pairs(get_locks()) do
     local player = game.get_player(player_index)
     if player and player.valid and lock then
-      squirrel_selection.refresh(player, tick)
+      local selected = squirrel_selection.current(player)
+      if selected and selected.unit_number == lock.squirrel_unit_number and selected.surface.index == lock.surface_index then
+        -- Keep lock stable while directly selected, but do not force reselection every tick.
+      elseif tick >= (lock.next_refresh_tick or 0) then
+        squirrel_selection.refresh(player, tick, true)
+        local refreshed_lock = get_locks()[player_index]
+        if refreshed_lock then
+          refreshed_lock.next_refresh_tick = tick + LOCK_REFRESH_INTERVAL_TICKS
+        end
+      end
     end
   end
 end

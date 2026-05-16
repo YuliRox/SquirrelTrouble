@@ -46,7 +46,13 @@ function selection.update_for_player(player, tick)
     survey.clear_overlay(player.index)
     survey.clear_panel(player.index)
     feeder.clear_overlay(player.index)
-    squirrel.render_panel(player, selected_squirrel, tick)
+    local panel = squirrel.panel_state(player.index)
+    if not panel
+      or panel.squirrel_unit_number ~= selected_squirrel.unit_number
+      or panel.surface_index ~= selected_squirrel.surface.index
+    then
+      squirrel.render_panel(player, selected_squirrel, tick)
+    end
     if constants.debug_squirrel_selection_overlay then
       squirrel.render_overlay(player, selected_squirrel, tick)
       return "squirrel"
