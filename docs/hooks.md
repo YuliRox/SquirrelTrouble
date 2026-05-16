@@ -13,7 +13,7 @@ This file maps Factorio runtime registrations to the central handlers in `squirr
 
 | Event or input | Handler | Dispatches to |
 | --- | --- | --- |
-| `defines.events.on_tick` | `on_tick` | pending habitat replacements, active region refresh, selection locks, overlay refresh, feeder visuals, retaliation feedback/waves, `squirrels.on_tick` |
+| `defines.events.on_tick` | `on_tick` | pending habitat replacements, `active_regions` refresh queue, selection locks, overlay refresh, feeder visuals, retaliation feedback/waves, `squirrels.on_tick` |
 | `defines.events.on_player_mined_entity` | `on_entity_removed` | nut-tree harvest, tree-loss bookkeeping, feeder/station/sapling cleanup |
 | `defines.events.on_robot_mined_entity` | `on_entity_removed` | nut-tree harvest, tree-loss bookkeeping, feeder/station/sapling cleanup |
 | `defines.events.on_entity_died` | `on_entity_removed` | squirrel death handling, tree-loss bookkeeping, feeder/station/sapling cleanup |

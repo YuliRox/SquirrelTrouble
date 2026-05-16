@@ -1,3 +1,4 @@
+local active_regions = require("scripts.active_regions")
 local constants = require("scripts.constants")
 local feeders = require("scripts.feeders")
 local habitat = require("scripts.habitat")
@@ -13,27 +14,6 @@ local destroy_feedback_pin
 
 local function get_created_entity(event)
   return event.entity or event.created_entity or event.destination
-end
-
-local ACTIVE_REGION_OFFSETS
-
-local function refresh_region_key(surface_index, region_x, region_y)
-  return surface_index .. ":" .. region_x .. ":" .. region_y
-end
-
-local function get_region_refresh_queue()
-  storage.region_refresh_queue = storage.region_refresh_queue or {}
-  return storage.region_refresh_queue
-end
-
-local function get_region_refresh_enqueued()
-  storage.region_refresh_enqueued = storage.region_refresh_enqueued or {}
-  return storage.region_refresh_enqueued
-end
-
-local function get_player_region_centers()
-  storage.player_region_centers = storage.player_region_centers or {}
-  return storage.player_region_centers
 end
 
 local function get_squirrel_damage_attribution()
@@ -65,156 +45,6 @@ end
 
 local function get_squirrel_step_feedback()
   return storage.squirrel_step_feedback
-end
-
-local function active_region_offsets()
-  if ACTIVE_REGION_OFFSETS then
-    return ACTIVE_REGION_OFFSETS
-  end
-
-  local offsets = {}
-
-  for dx = -constants.active_region_radius, constants.active_region_radius do
-    for dy = -constants.active_region_radius, constants.active_region_radius do
-      offsets[#offsets + 1] = {
-        dx = dx,
-        dy = dy,
-        distance_squared = (dx * dx) + (dy * dy),
-        manhattan = math.abs(dx) + math.abs(dy)
-      }
-    end
-  end
-
-  table.sort(offsets, function(left, right)
-    if left.distance_squared ~= right.distance_squared then
-      return left.distance_squared < right.distance_squared
-    end
-
-    if left.manhattan ~= right.manhattan then
-      return left.manhattan < right.manhattan
-    end
-
-    if left.dx ~= right.dx then
-      return left.dx < right.dx
-    end
-
-    return left.dy < right.dy
-  end)
-
-  ACTIVE_REGION_OFFSETS = offsets
-  return ACTIVE_REGION_OFFSETS
-end
-
-local function enqueue_region_refresh(surface, region_x, region_y, tick)
-  if not (surface and surface.valid) then
-    return false
-  end
-
-  if not regions.needs_recompute(surface, region_x, region_y, tick) then
-    return false
-  end
-
-  local key = refresh_region_key(surface.index, region_x, region_y)
-  local enqueued = get_region_refresh_enqueued()
-  if enqueued[key] then
-    return false
-  end
-
-  get_region_refresh_queue()[#get_region_refresh_queue() + 1] = {
-    surface_index = surface.index,
-    region_x = region_x,
-    region_y = region_y
-  }
-  enqueued[key] = true
-  return true
-end
-
-local function enqueue_region_refresh_at_position(surface, position, tick)
-  if not (surface and position) then
-    return false
-  end
-
-  local coord = regions.position_to_region_coord(position)
-  return enqueue_region_refresh(surface, coord.x, coord.y, tick)
-end
-
-local function process_region_refresh_queue(limit, tick)
-  local queue = get_region_refresh_queue()
-  local enqueued = get_region_refresh_enqueued()
-  local processed = 0
-  local current_tick = tick or game.tick
-  local batch_limit = limit or constants.region_refresh_batch_size
-
-  while processed < batch_limit and #queue > 0 do
-    local entry = table.remove(queue, 1)
-    local key = refresh_region_key(entry.surface_index, entry.region_x, entry.region_y)
-    enqueued[key] = nil
-
-    local surface = game.surfaces[entry.surface_index]
-    if surface and regions.needs_recompute(surface, entry.region_x, entry.region_y, current_tick) then
-      regions.recompute_region(surface, entry.region_x, entry.region_y, current_tick)
-      processed = processed + 1
-    end
-  end
-
-  return {
-    processed = processed,
-    queued = #queue
-  }
-end
-
-local function refresh_active_regions(force)
-  local seen = {}
-  local player_centers = get_player_region_centers()
-  local connected_players = {}
-  local enqueued = 0
-  local current_tick = game.tick
-
-  for _, player in ipairs(game.connected_players) do
-    if player.valid and player.surface then
-      local center = regions.position_to_region_coord(player.position)
-      local previous = player_centers[player.index]
-      local center_changed = force
-        or not previous
-        or previous.surface_index ~= player.surface.index
-        or previous.x ~= center.x
-        or previous.y ~= center.y
-
-      connected_players[player.index] = true
-      player_centers[player.index] = {
-        surface_index = player.surface.index,
-        x = center.x,
-        y = center.y
-      }
-
-      if center_changed then
-        for _, offset in ipairs(active_region_offsets()) do
-          local region_x = center.x + offset.dx
-          local region_y = center.y + offset.dy
-          local key = refresh_region_key(player.surface.index, region_x, region_y)
-
-          if not seen[key] then
-            if enqueue_region_refresh(player.surface, region_x, region_y, current_tick) then
-              enqueued = enqueued + 1
-            end
-            seen[key] = true
-          end
-        end
-      end
-    end
-  end
-
-  for player_index in pairs(player_centers) do
-    if not connected_players[player_index] then
-      player_centers[player_index] = nil
-    end
-  end
-
-  if force or enqueued > 0 then
-    storage.last_refresh_tick = current_tick
-  end
-
-  return enqueued
 end
 
 local function force_has_technology(force, technology_name)
@@ -886,8 +716,8 @@ local function relocate_selected_squirrel(player, tick)
   end
 
   regions.note_successful_relocation(player.surface.index, origin_position, 1, tick)
-  enqueue_region_refresh_at_position(player.surface, origin_position, tick)
-  enqueue_region_refresh_at_position(player.surface, result.position, tick)
+  active_regions.enqueue_at_position(player.surface, origin_position, tick)
+  active_regions.enqueue_at_position(player.surface, result.position, tick)
 
   local incident = record_squirrel_incident(player.surface, origin_position, player.force, player.index, "relocation", tick, {
     destination_region_x = destination.region_x,
@@ -928,8 +758,8 @@ local function on_init()
     habitat.ensure_starting_grove(nauvis)
   end
   feeders.sync_registered()
-  refresh_active_regions(true)
-  process_region_refresh_queue(constants.region_refresh_batch_size, game.tick)
+  active_regions.refresh(true)
+  active_regions.process_queue(constants.region_refresh_batch_size, game.tick)
 end
 
 local function on_configuration_changed()
@@ -939,7 +769,7 @@ local function on_configuration_changed()
   feeders.rebuild_tracking()
   squirrels.normalize_entity_variants()
   feeders.sync_registered()
-  refresh_active_regions(true)
+  active_regions.refresh(true)
 end
 
 local function on_periodic_refresh()
@@ -947,7 +777,7 @@ local function on_periodic_refresh()
   habitat.resolve_pending_replacements(game.tick)
   habitat.recover_ready_harvested_nut_trees(game.tick)
   habitat.mature_ready_saplings(game.tick)
-  refresh_active_regions(true)
+  active_regions.refresh(true)
 end
 
 local function on_tick(event)
@@ -955,8 +785,8 @@ local function on_tick(event)
     habitat.resolve_pending_replacements(event.tick)
   end
 
-  refresh_active_regions(false)
-  process_region_refresh_queue(constants.region_refresh_batch_size, event.tick)
+  active_regions.refresh(false)
+  active_regions.process_queue(constants.region_refresh_batch_size, event.tick)
   selection.refresh_locked_squirrel_selections(event.tick)
 
   if event.tick % constants.feeder_visual_update_interval == 0 then
@@ -984,7 +814,7 @@ local function on_entity_removed(event)
   if entity.name == constants.names.nut_sapling then
     habitat.unregister_sapling(entity.surface.index, entity.position)
     regions.mark_dirty(entity.surface.index, entity.position)
-    enqueue_region_refresh_at_position(entity.surface, entity.position, game.tick)
+    active_regions.enqueue_at_position(entity.surface, entity.position, game.tick)
     return
   end
 
@@ -995,7 +825,7 @@ local function on_entity_removed(event)
       local player_index = player_index_from_actor(event.cause) or player_index_from_actor(event.source)
       if player_index then
         regions.note_squirrel_death(entity.surface.index, entity.position, 1, game.tick)
-        enqueue_region_refresh_at_position(entity.surface, entity.position, game.tick)
+        active_regions.enqueue_at_position(entity.surface, entity.position, game.tick)
 
         local player = game.get_player(player_index)
         if player then
@@ -1012,7 +842,7 @@ local function on_entity_removed(event)
   if entity.name == constants.names.nut_tree then
     if event.name == defines.events.on_player_mined_entity or event.name == defines.events.on_robot_mined_entity then
       habitat.harvest_nut_tree(entity, game.tick)
-      enqueue_region_refresh_at_position(entity.surface, entity.position, game.tick)
+      active_regions.enqueue_at_position(entity.surface, entity.position, game.tick)
 
       if event.player_index then
         habitat.maybe_show_harvest_hint(event.player_index)
@@ -1022,7 +852,7 @@ local function on_entity_removed(event)
     end
 
     regions.note_tree_loss(entity.surface.index, entity.position, 1, game.tick)
-    enqueue_region_refresh_at_position(entity.surface, entity.position, game.tick)
+    active_regions.enqueue_at_position(entity.surface, entity.position, game.tick)
     habitat.maybe_show_deforestation_hint(event.player_index, entity.surface, entity.position, game.tick)
     return
   end
@@ -1030,14 +860,14 @@ local function on_entity_removed(event)
   if entity.name == constants.names.nut_tree_harvested then
     habitat.unregister_harvested_nut_tree(entity.surface.index, entity.position)
     regions.note_tree_loss(entity.surface.index, entity.position, 1, game.tick)
-    enqueue_region_refresh_at_position(entity.surface, entity.position, game.tick)
+    active_regions.enqueue_at_position(entity.surface, entity.position, game.tick)
     habitat.maybe_show_deforestation_hint(event.player_index, entity.surface, entity.position, game.tick)
     return
   end
 
   if entity.type == "tree" then
     regions.note_tree_loss(entity.surface.index, entity.position, 1, game.tick)
-    enqueue_region_refresh_at_position(entity.surface, entity.position, game.tick)
+    active_regions.enqueue_at_position(entity.surface, entity.position, game.tick)
     habitat.maybe_show_deforestation_hint(event.player_index, entity.surface, entity.position, game.tick)
     return
   end
@@ -1045,14 +875,14 @@ local function on_entity_removed(event)
   if feeders.is_feeder_entity(entity) then
     feeders.unregister(entity)
     regions.mark_dirty(entity.surface.index, entity.position)
-    enqueue_region_refresh_at_position(entity.surface, entity.position, game.tick)
+    active_regions.enqueue_at_position(entity.surface, entity.position, game.tick)
     return
   end
 
   if entity.name == constants.names.survey_station then
     selection.survey.clear_entity(entity)
     regions.mark_dirty(entity.surface.index, entity.position)
-    enqueue_region_refresh_at_position(entity.surface, entity.position, game.tick)
+    active_regions.enqueue_at_position(entity.surface, entity.position, game.tick)
   end
 end
 
@@ -1065,7 +895,7 @@ local function on_entity_created(event)
   if entity.name == constants.names.nut_sapling then
     habitat.register_sapling(entity, game.tick)
     regions.mark_dirty(entity.surface.index, entity.position)
-    enqueue_region_refresh_at_position(entity.surface, entity.position, game.tick)
+    active_regions.enqueue_at_position(entity.surface, entity.position, game.tick)
 
     if event.player_index then
       habitat.maybe_show_sapling_hint(event.player_index)
@@ -1073,7 +903,7 @@ local function on_entity_created(event)
   elseif feeders.is_feeder_entity(entity) then
     feeders.register(entity)
     regions.mark_dirty(entity.surface.index, entity.position)
-    enqueue_region_refresh_at_position(entity.surface, entity.position, game.tick)
+    active_regions.enqueue_at_position(entity.surface, entity.position, game.tick)
 
     if event.player_index then
       local player = game.get_player(event.player_index)
@@ -1083,7 +913,7 @@ local function on_entity_created(event)
     end
   elseif entity.name == constants.names.survey_station then
     regions.mark_dirty(entity.surface.index, entity.position)
-    enqueue_region_refresh_at_position(entity.surface, entity.position, game.tick)
+    active_regions.enqueue_at_position(entity.surface, entity.position, game.tick)
 
     if event.player_index then
       local player = game.get_player(event.player_index)
@@ -1145,7 +975,7 @@ local function handle_squirrel_rough_handling(entity, player, tick)
 
   attribution[cooldown_key] = tick
   regions.note_rough_handling(entity.surface.index, entity.position, 1, tick)
-  enqueue_region_refresh_at_position(entity.surface, entity.position, tick)
+  active_regions.enqueue_at_position(entity.surface, entity.position, tick)
   local active_entity = squirrels.on_stepped(entity, tick, player) or entity
   selection.squirrel.clear_player(player)
   player.play_sound({
@@ -1430,11 +1260,11 @@ local function install_remote_interface()
     end,
     debug_enqueue_active_regions = function(force)
       storage_lib.ensure()
-      return refresh_active_regions(force ~= false)
+      return active_regions.refresh(force ~= false)
     end,
     debug_process_region_refresh_queue = function(limit)
       storage_lib.ensure()
-      return process_region_refresh_queue(limit, game.tick)
+      return active_regions.process_queue(limit, game.tick)
     end,
     seed_nut_trees_in_area = function(surface_index, left, top, right, bottom, desired_count)
       storage_lib.ensure()
@@ -1515,8 +1345,8 @@ local function install_remote_interface()
       end
 
       regions.note_successful_relocation(surface.index, snapshot.position, 1, game.tick)
-      enqueue_region_refresh_at_position(surface, snapshot.position, game.tick)
-      enqueue_region_refresh_at_position(surface, result.position, game.tick)
+      active_regions.enqueue_at_position(surface, snapshot.position, game.tick)
+      active_regions.enqueue_at_position(surface, result.position, game.tick)
 
       local incident = record_squirrel_incident(surface, snapshot.position, player.force, player.index, "relocation", game.tick, {
         destination_region_x = destination.region_x,
