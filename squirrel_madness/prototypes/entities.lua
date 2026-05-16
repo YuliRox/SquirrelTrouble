@@ -69,6 +69,8 @@ local function stash_picture(filename)
 end
 
 local squirrel_scale = 0.581818
+local squirrel_shift_x = 0.714844
+local squirrel_shift_y =-0.246094
 local squirrel_corpse_scale = squirrel_scale * 0.5
 local squirrel_shadow_tint = {r = 0, g = 0, b = 0, a = 1}
 local squirrel_corpse_name = "squirrel-corpse"
@@ -80,7 +82,7 @@ local function squirrel_animation_layer(filename, animation_speed, draw_as_shado
     frame_count = 5,
     direction_count = 16,
     animation_speed = animation_speed,
-    shift = {squirrel_scale * 0.714844, squirrel_scale * -0.246094},
+    shift = util.by_pixel_hr(squirrel_shift_x, squirrel_shift_y),
     scale = squirrel_scale,
     stripes = {
       {
@@ -126,7 +128,7 @@ local function squirrel_corpse_animation()
         height = 78,
         frame_count = 1,
         direction_count = 1,
-        shift = {squirrel_scale * 0.714844, squirrel_scale * -0.246094},
+        shift = util.by_pixel_hr(squirrel_shift_x, squirrel_shift_y),
         scale = squirrel_corpse_scale
       },
       {
@@ -136,7 +138,7 @@ local function squirrel_corpse_animation()
         height = 74,
         frame_count = 1,
         direction_count = 1,
-        shift = {squirrel_scale * 0.714844, squirrel_scale * -0.246094},
+        shift = util.by_pixel_hr(squirrel_shift_x, squirrel_shift_y),
         draw_as_shadow = true,
         tint = squirrel_shadow_tint,
         scale = squirrel_corpse_scale
@@ -157,10 +159,10 @@ local function configure_squirrel(prototype, animation)
   prototype.vision_distance = 15
   prototype.movement_speed = 0.11
   prototype.distance_per_frame = 0.11
-  prototype.collision_box = {{-0.34, -0.34}, {0.34, 0.34}}
-  prototype.selection_box = {{-0.35, -0.95}, {1.15, 0.55}}
-  prototype.hit_visualization_box = {{0.05, -0.34}, {0.75, 0.34}}
-  prototype.sticker_box = {{-0.1, -0.55}, {0.5, 0.1}}
+  prototype.collision_box = {{-0.15, -0.15}, {0.15, 0.15}}
+  prototype.selection_box = {{-0.75, -0.75}, {0.75, 0.75}}
+  prototype.hit_visualization_box = {{-0.15, -0.15}, {0.15, 0.15}}
+  prototype.sticker_box = {{-0.15, -0.15}, {0.15, 0.15}}
   prototype.selectable_in_game = true
   prototype.distraction_cooldown = 30
   prototype.damaged_trigger_effect = nil
@@ -411,7 +413,6 @@ stash.resistances = {
 }
 stash.corpse = nil
 stash.dying_explosion = nil
-stash.dying_sound = nil
 stash.localised_description = {"entity-description.forest-stash"}
 stash.picture = stash_picture("__squirrel_madness__/graphics/entities/structures/stash.png")
 
