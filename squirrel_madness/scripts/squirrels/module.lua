@@ -5,6 +5,7 @@ local flee_module = require("scripts.squirrels.flee")
 local position_ops = require("scripts.squirrels.position")
 local storage_ops = require("scripts.squirrels.storage")
 local targeting_module = require("scripts.squirrels.targeting")
+local render_ops = require("scripts.squirrels.render")
 
 local squirrels = {}
 
@@ -319,18 +320,7 @@ local function resolve_entity_by_unit_number(unit_number)
   return game.get_entity_by_unit_number(unit_number)
 end
 
-direction_to_orientation = function(direction)
-  if direction == defines.direction.east then
-    return 0.25
-  end
-  if direction == defines.direction.south then
-    return 0.5
-  end
-  if direction == defines.direction.west then
-    return 0.75
-  end
-  return 0
-end
+direction_to_orientation = render_ops.direction_to_orientation
 
 local function replace_record_entity(record, replacement)
   if not (record and replacement and replacement.valid and replacement.unit_number) then
@@ -451,69 +441,9 @@ local function set_excursion_focus(record, target, intent)
   record.excursion_intent = target and intent or nil
 end
 
-destroy_render = function(record)
-  if record.render_id then
-    record.render_id.destroy()
-  end
+destroy_render = render_ops.destroy_render
 
-  if record.render_count_id then
-    record.render_count_id.destroy()
-  end
-
-  record.render_id = nil
-  record.render_count_id = nil
-end
-
-sync_render = function(record, entity)
-  destroy_render(record)
-
-  if not (record.carrying and record.carrying.name and entity and entity.valid) then
-    return
-  end
-
-  local sprite = "item/" .. record.carrying.name
-  local render_id = rendering.draw_sprite({
-    sprite = sprite,
-    target = {
-      entity = entity,
-      offset = {0, -0.9}
-    },
-    surface = entity.surface,
-    x_scale = 0.55,
-    y_scale = 0.55,
-    render_layer = "higher-object-under"
-  })
-
-  if render_id then
-    record.render_id = render_id
-  else
-    record.render_id = rendering.draw_sprite({
-      sprite = "utility/questionmark",
-      target = {
-        entity = entity,
-        offset = {0, -0.9}
-      },
-      surface = entity.surface,
-      x_scale = 0.55,
-      y_scale = 0.55,
-      render_layer = "higher-object-under"
-    })
-  end
-
-  record.render_count_id = rendering.draw_text({
-    text = tostring(record.carrying.count or 0),
-    target = {
-      entity = entity,
-      offset = {0.45, -0.95}
-    },
-    surface = entity.surface,
-    color = {r = 1, g = 1, b = 1, a = 1},
-    scale = 1.0,
-    alignment = "center",
-    vertical_alignment = "middle",
-    use_rich_text = false
-  })
-end
+sync_render = render_ops.sync_render
 
 local function set_record_stash(record, stash_id)
   if not record or record.stash_id == stash_id then
