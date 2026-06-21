@@ -3,7 +3,12 @@ local regions = require("scripts.regions.module")
 local position_ops = require("scripts.squirrels.position")
 local storage_ops = require("scripts.squirrels.storage")
 local render_ops = require("scripts.squirrels.render")
+local target_ops = require("scripts.squirrels.target")
+local state_ops = require("scripts.squirrels.state")
 
+local region_report = state_ops.region_report
+local squirrel_state_for_region = state_ops.squirrel_state_for_region
+local resolve_entity_reference = target_ops.resolve_entity_reference
 local clone_position = position_ops.clone
 local get_squirrel_store = storage_ops.get_squirrel_store
 local get_entity_squirrel_index = storage_ops.get_entity_squirrel_index
@@ -13,9 +18,11 @@ local destroy_render = render_ops.destroy_render
 local M = {}
 
 function M.install(deps)
-  local resolve_entity_reference = deps.resolve_entity_reference
   local note_squirrel_loss = deps.note_squirrel_loss
   local remove_record = deps.remove_record
+  local create_record = deps.create_record
+  local ensure_squirrel_force = deps.ensure_squirrel_force
+  local spawn_position_near_anchor = deps.spawn_position_near_anchor
   local theft_is_available = deps.theft_is_available
   local choose_belt_item = deps.choose_belt_item
   local choose_chest_item = deps.choose_chest_item
@@ -27,8 +34,6 @@ function M.install(deps)
   local deposit_or_spill = deps.deposit_or_spill
   local send_home = deps.send_home
   local perform_chest_scavenge = deps.perform_chest_scavenge
-  local region_report = deps.region_report
-  local squirrel_state_for_region = deps.squirrel_state_for_region
   local find_local_target = deps.find_local_target
   local find_excursion_target = deps.find_excursion_target
   local inventory_total_count = deps.inventory_total_count
@@ -472,6 +477,35 @@ function M.install(deps)
     end
 
     return get_belt_block_counts()[target_key(belt)] or 0
+  end
+
+  function debug.debug_spawn_squirrel(surface_index, position, tick)
+    local surface = game.surfaces[surface_index]
+    if not surface then
+      return nil
+    end
+
+    local squirrel_force = ensure_squirrel_force()
+    local spawn_position = spawn_position_near_anchor(surface, position, 16, squirrel_force)
+    if not spawn_position then
+      return nil
+    end
+
+    local entity = surface.create_entity({
+      name = constants.names.squirrel,
+      position = spawn_position,
+      force = squirrel_force,
+      create_build_effect_smoke = false,
+      spawn_decorations = false
+    })
+
+    if not (entity and entity.valid) then
+      return nil
+    end
+
+    local coord = regions.position_to_region_coord(spawn_position)
+    local record = create_record(entity, spawn_position, coord.x, coord.y, tick or game.tick)
+    return record and record.squirrel_id or nil
   end
 
   return debug

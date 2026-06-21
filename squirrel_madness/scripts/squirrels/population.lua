@@ -2,7 +2,11 @@ local constants = require("scripts.constants")
 local regions = require("scripts.regions.module")
 local position_ops = require("scripts.squirrels.position")
 local storage_ops = require("scripts.squirrels.storage")
+local target_ops = require("scripts.squirrels.target")
+local state_ops = require("scripts.squirrels.state")
 
+local region_report = state_ops.region_report
+local resolve_entity_reference = target_ops.resolve_entity_reference
 local clone_position = position_ops.clone
 local position_respects_player_buffer = position_ops.position_respects_player_buffer
 local nearest_player_distance_squared = position_ops.nearest_player_distance_squared
@@ -17,9 +21,7 @@ function M.install(deps)
   local create_record = deps.create_record
   local process_idle_decision = deps.process_idle_decision
   local ensure_squirrel_force = deps.ensure_squirrel_force
-  local region_report = deps.region_report
   local chunk_area = deps.chunk_area
-  local resolve_entity_reference = deps.resolve_entity_reference
   local remove_record = deps.remove_record
   local deposit_or_spill = deps.deposit_or_spill
   local clear_carrying = deps.clear_carrying

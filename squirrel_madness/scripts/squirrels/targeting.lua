@@ -1,5 +1,11 @@
 local constants = require("scripts.constants")
 local math2d = require("math2d")
+local target_ops = require("scripts.squirrels.target")
+local state_ops = require("scripts.squirrels.state")
+
+local serialize_target = target_ops.serialize_target
+local resolve_target_reference = target_ops.resolve_target_reference
+local squirrel_state_for_region = state_ops.squirrel_state_for_region
 
 local M = {}
 
@@ -8,11 +14,8 @@ function M.install(deps)
   local CHEST_TYPES = deps.CHEST_TYPES
   local round_position_key = deps.round_position_key
   local get_target_cooldowns = deps.get_target_cooldowns
-  local serialize_target = deps.serialize_target
-  local resolve_target_reference = deps.resolve_target_reference
   local theft_is_available = deps.theft_is_available
   local start_target_run = deps.start_target_run
-  local squirrel_state_for_region = deps.squirrel_state_for_region
   local reached_position = deps.reached_position
   local set_excursion_focus = deps.set_excursion_focus
 

@@ -216,8 +216,6 @@ function M.install(deps)
   end
 
   return {
-    squirrel_fear_is_active = squirrel_fear_is_active,
-    clear_squirrel_fear = clear_squirrel_fear,
     current_fear_position = current_fear_position,
     set_squirrel_fear = set_squirrel_fear,
     flee_is_stuck = flee_is_stuck,

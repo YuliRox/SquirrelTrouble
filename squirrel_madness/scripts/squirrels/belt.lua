@@ -1,8 +1,12 @@
 local constants = require("scripts.constants")
 local position_ops = require("scripts.squirrels.position")
 local storage_ops = require("scripts.squirrels.storage")
+local target_ops = require("scripts.squirrels.target")
 
 local round_position_key = position_ops.round_key
+local serialize_target = target_ops.serialize_target
+local resolve_target_reference = target_ops.resolve_target_reference
+local resolve_entity_reference = target_ops.resolve_entity_reference
 local get_active_belt_riders = storage_ops.get_active_belt_riders
 local get_belt_block_counts = storage_ops.get_belt_block_counts
 local get_squirrel_store = storage_ops.get_squirrel_store
@@ -22,9 +26,6 @@ local M = {}
 
 function M.install(deps)
   local BELT_TYPES = deps.BELT_TYPES
-  local serialize_target = deps.serialize_target
-  local resolve_target_reference = deps.resolve_target_reference
-  local resolve_entity_reference = deps.resolve_entity_reference
   local direction_to_orientation = deps.direction_to_orientation
 
   local function belt_direction_vector(direction)

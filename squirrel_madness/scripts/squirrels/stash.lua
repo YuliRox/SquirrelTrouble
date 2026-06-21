@@ -1,7 +1,9 @@
 local constants = require("scripts.constants")
 local position_ops = require("scripts.squirrels.position")
 local storage_ops = require("scripts.squirrels.storage")
+local target_ops = require("scripts.squirrels.target")
 
+local resolve_entity_reference = target_ops.resolve_entity_reference
 local clone_position = position_ops.clone
 local region_key = storage_ops.region_key
 local get_stash_target_counts = storage_ops.get_stash_target_counts
@@ -13,8 +15,6 @@ local get_surface_stashes_by_region = storage_ops.get_surface_stashes_by_region
 local M = {}
 
 function M.install(deps)
-  local resolve_entity_reference = deps.resolve_entity_reference
-
   local function set_record_stash(record, stash_id)
     if not record or record.stash_id == stash_id then
       return

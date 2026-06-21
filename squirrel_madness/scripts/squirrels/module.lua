@@ -1,6 +1,5 @@
 local constants = require("scripts.constants")
 local regions = require("scripts.regions.module")
-local math2d = require("math2d")
 local flee_module = require("scripts.squirrels.flee")
 local position_ops = require("scripts.squirrels.position")
 local storage_ops = require("scripts.squirrels.storage")
@@ -11,6 +10,9 @@ local stash_module = require("scripts.squirrels.stash")
 local belt_module = require("scripts.squirrels.belt")
 local debug_module = require("scripts.squirrels.debug")
 local population_module = require("scripts.squirrels.population")
+local target_ops = require("scripts.squirrels.target")
+local state_ops = require("scripts.squirrels.state")
+local roam_ops = require("scripts.squirrels.roam")
 
 local squirrels = {}
 
@@ -30,8 +32,6 @@ local process_idle_decision
 local theft_is_available
 local start_target_run
 local target_key
-local serialize_target
-local resolve_target_reference
 local destroy_render
 local sync_render
 local direction_to_orientation
@@ -58,14 +58,11 @@ end
 
 local clone_position = position_ops.clone
 local round_position_key = position_ops.round_key
-local nearest_player_distance_squared = position_ops.nearest_player_distance_squared
 local player_position_for_index = position_ops.player_position_for_index
-local position_respects_player_buffer = position_ops.position_respects_player_buffer
 local position_with_offset = position_ops.with_offset
 local reached_position = position_ops.reached_position
 
 local region_key = storage_ops.region_key
-local parse_region_key = storage_ops.parse_region_key
 local active_region_key = storage_ops.active_region_key
 
 local function ensure_squirrel_force()
@@ -89,46 +86,20 @@ end
 
 local get_squirrel_store = storage_ops.get_squirrel_store
 local next_squirrel_id = storage_ops.next_squirrel_id
-local get_surface_stashes = storage_ops.get_surface_stashes
-local next_stash_id = storage_ops.next_stash_id
-local get_surface_region_activity = storage_ops.get_surface_region_activity
 local get_surface_region_index = storage_ops.get_surface_region_index
 local get_region_squirrel_entry = storage_ops.get_region_squirrel_entry
 local get_entity_squirrel_index = storage_ops.get_entity_squirrel_index
-local get_surface_stashes_by_region = storage_ops.get_surface_stashes_by_region
-local get_region_stash_entry = storage_ops.get_region_stash_entry
 local get_stash_target_counts = storage_ops.get_stash_target_counts
 local get_target_cooldowns = storage_ops.get_target_cooldowns
-local get_active_belt_riders = storage_ops.get_active_belt_riders
 local get_ignored_removals = storage_ops.get_ignored_removals
-local get_belt_block_counts = storage_ops.get_belt_block_counts
 
-local function get_region_activity(surface_index, region_x, region_y)
-  local activities = get_surface_region_activity(surface_index)
-  local key = region_key(region_x, region_y)
-  activities[key] = activities[key] or {
-    last_theft_tick = 0,
-    grief_until_tick = 0,
-    last_spawn_tick = 0
-  }
-  return activities[key]
-end
+local get_region_activity = state_ops.get_region_activity
+local region_report = state_ops.region_report
+local squirrel_state_for_region = state_ops.squirrel_state_for_region
 
-local function resolve_entity_reference(entity)
-  if not (entity and entity.valid) then
-    return nil
-  end
-
-  return entity
-end
-
-local function resolve_entity_by_unit_number(unit_number)
-  if not unit_number then
-    return nil
-  end
-
-  return game.get_entity_by_unit_number(unit_number)
-end
+local resolve_entity_reference = target_ops.resolve_entity_reference
+local serialize_target = target_ops.serialize_target
+local resolve_target_reference = target_ops.resolve_target_reference
 
 direction_to_orientation = render_ops.direction_to_orientation
 
@@ -189,60 +160,12 @@ local function ensure_entity_variant(record, desired_name, direction)
   return replacement
 end
 
-serialize_target = function(entity, target_type, item_name, count)
-  if not (entity and entity.valid) then
-    return nil
-  end
-
-  return {
-    target_type = target_type,
-    entity = entity,
-    unit_number = entity.unit_number,
-    name = entity.name,
-    position = clone_position(entity.position),
-    item_name = item_name,
-    count = count or 1
-  }
-end
-
-resolve_target_reference = function(surface_index, target)
-  if not target then
-    return nil
-  end
-
-  local entity = resolve_entity_reference(target.entity)
-  if entity then
-    return entity
-  end
-
-  entity = resolve_entity_by_unit_number(target.unit_number)
-  if entity and entity.valid then
-    return entity
-  end
-
-  local surface = game.surfaces[surface_index]
-  if not surface then
-    return nil
-  end
-
-  local matches = surface.find_entities_filtered({
-    position = target.position,
-    name = target.name,
-    limit = 1
-  })
-
-  return matches[1]
-end
-
 local function resolve_target(record)
   return resolve_target_reference(record.surface_index, record.target)
 end
 
 local belt_ops = belt_module.install({
   BELT_TYPES = BELT_TYPES,
-  serialize_target = serialize_target,
-  resolve_target_reference = resolve_target_reference,
-  resolve_entity_reference = resolve_entity_reference,
   direction_to_orientation = direction_to_orientation
 })
 
@@ -269,9 +192,7 @@ destroy_render = render_ops.destroy_render
 
 sync_render = render_ops.sync_render
 
-local stash_ops = stash_module.install({
-  resolve_entity_reference = resolve_entity_reference
-})
+local stash_ops = stash_module.install({})
 
 local set_record_stash = stash_ops.set_record_stash
 local inventory_total_count = stash_ops.inventory_total_count
@@ -339,49 +260,6 @@ local function remove_record(squirrel_id)
   records[squirrel_id] = nil
 end
 
-local function region_report(surface_index, region_x, region_y, tick, force_recompute)
-  local surface = game.surfaces[surface_index]
-  if not surface then
-    return nil
-  end
-
-  if force_recompute then
-    return regions.get_region_report_by_coord(surface, region_x, region_y, tick)
-  end
-
-  return regions.get_cached_region_report_by_coord(surface, region_x, region_y)
-end
-
-local function squirrel_state_for_region(surface_index, region_x, region_y, tick, force_recompute)
-  local report = region_report(surface_index, region_x, region_y, tick, force_recompute)
-  if not report then
-    return "calm", nil
-  end
-
-  local activity = get_region_activity(surface_index, region_x, region_y)
-  if activity.grief_until_tick > tick then
-    return "grieving", report
-  end
-
-  if report.habitat_pressure >= constants.squirrel_agitated_pressure or report.squirrel_unrest >= 75 then
-    return "agitated", report
-  end
-
-  if report.habitat_pressure >= constants.squirrel_mischief_pressure or report.squirrel_unrest >= 45 then
-    return "mischievous", report
-  end
-
-  if
-    report.habitat_pressure >= constants.squirrel_curious_pressure
-    or report.recent_tree_loss > 0
-    or report.instant_pollution > 0
-  then
-    return "curious", report
-  end
-
-  return "calm", report
-end
-
 local function chunk_area(chunk_position)
   local left = chunk_position.x * constants.chunk_size
   local top = chunk_position.y * constants.chunk_size
@@ -443,95 +321,13 @@ local flee_ops = flee_module.install({
   move_entity = move_entity
 })
 
-local squirrel_fear_is_active = flee_ops.squirrel_fear_is_active
-local clear_squirrel_fear = flee_ops.clear_squirrel_fear
 local current_fear_position = flee_ops.current_fear_position
 local set_squirrel_fear = flee_ops.set_squirrel_fear
 local flee_is_stuck = flee_ops.flee_is_stuck
 local start_flee = flee_ops.start_flee
 
-local function roam_step_distance(record)
-  local step_span = math.max(
-    0,
-    constants.squirrel_roam_step_max_distance - constants.squirrel_roam_step_min_distance
-  )
-  local distance_seed = (((record.squirrel_id or 1) * 31) + (record.roam_step * 17)) % 100
-  return constants.squirrel_roam_step_min_distance + ((distance_seed / 100) * step_span)
-end
-
-local function excursion_step_distance(record, state)
-  local step_span = math.max(
-    0,
-    constants.squirrel_excursion_step_max_distance - constants.squirrel_excursion_step_min_distance
-  )
-  local distance_seed = (((record.squirrel_id or 1) * 43) + (record.roam_step * 29)) % 100
-  local step_distance = constants.squirrel_excursion_step_min_distance + ((distance_seed / 100) * step_span)
-
-  if state == "agitated" then
-    step_distance = step_distance + 0.75
-  elseif state == "grieving" then
-    step_distance = step_distance + 1.25
-  elseif state == "mischievous" then
-    step_distance = step_distance + 0.4
-  end
-
-  return step_distance
-end
-
-local function bounded_roam_destination(record, entity, max_home_distance, preferred_target_position, state)
-  local origin = (entity and entity.valid and entity.position) or record.home_position
-  local angle_seed = ((record.squirrel_id or 1) * 67) + (record.roam_step * 97)
-  local angle = ((angle_seed % 360) / 180) * math.pi
-  local step_distance = roam_step_distance(record)
-
-  if preferred_target_position then
-    angle = math.atan2(
-      preferred_target_position.y - origin.y,
-      preferred_target_position.x - origin.x
-    )
-    local jitter_seed = (((record.squirrel_id or 1) * 17) + (record.roam_step * 11)) % 7
-    angle = angle + ((jitter_seed - 3) * 0.12)
-    step_distance = excursion_step_distance(record, state)
-  end
-
-  local candidate = position_with_offset(origin, angle, step_distance)
-  local allowed_distance = max_home_distance or constants.squirrel_home_wander_distance
-  local home_distance = math2d.position.distance(candidate, record.home_position)
-
-  if home_distance > allowed_distance then
-    local clamp_angle = math.atan2(
-      candidate.y - record.home_position.y,
-      candidate.x - record.home_position.x
-    )
-    candidate = position_with_offset(
-      record.home_position,
-      clamp_angle,
-      math.max(constants.squirrel_home_wander_min_distance, allowed_distance)
-    )
-  end
-
-  return candidate
-end
-
-local function idle_pause_duration(record)
-  local pause_span = math.max(0, constants.squirrel_idle_pause_max - constants.squirrel_idle_pause_min)
-  local pause_seed = (((record.squirrel_id or 1) * 19) + ((record.roam_step or 0) * 23)) % (pause_span + 1)
-  local base_pause = constants.squirrel_idle_pause_min + pause_seed
-  local state = record.state or "calm"
-  local multiplier = 1
-
-  if state == "calm" then
-    multiplier = 1.8
-  elseif state == "curious" then
-    multiplier = 1.5
-  elseif state == "mischievous" then
-    multiplier = 1.15
-  elseif state == "agitated" or state == "grieving" then
-    multiplier = 0.8
-  end
-
-  return math.floor(base_pause * multiplier)
-end
+local bounded_roam_destination = roam_ops.bounded_roam_destination
+local idle_pause_duration = roam_ops.idle_pause_duration
 
 local function enter_idle(record, entity, tick)
   entity = ensure_entity_variant(record, constants.names.squirrel) or entity
@@ -659,11 +455,8 @@ local targeting_ops = targeting_module.install({
   CHEST_TYPES = CHEST_TYPES,
   round_position_key = round_position_key,
   get_target_cooldowns = get_target_cooldowns,
-  serialize_target = serialize_target,
-  resolve_target_reference = resolve_target_reference,
   theft_is_available = theft_is_available,
   start_target_run = start_target_run,
-  squirrel_state_for_region = squirrel_state_for_region,
   reached_position = reached_position,
   set_excursion_focus = set_excursion_focus
 })
@@ -973,9 +766,7 @@ local population_ops = population_module.install({
   create_record = create_record,
   process_idle_decision = process_idle_decision,
   ensure_squirrel_force = ensure_squirrel_force,
-  region_report = region_report,
   chunk_area = chunk_area,
-  resolve_entity_reference = resolve_entity_reference,
   remove_record = remove_record,
   deposit_or_spill = deposit_or_spill,
   clear_carrying = clear_carrying
@@ -1283,35 +1074,6 @@ function squirrels.relocate_squirrel(squirrel_id, region_x, region_y, tick)
   }
 end
 
-function squirrels.debug_spawn_squirrel(surface_index, position, tick)
-  local surface = game.surfaces[surface_index]
-  if not surface then
-    return nil
-  end
-
-  local squirrel_force = ensure_squirrel_force()
-  local spawn_position = spawn_position_near_anchor(surface, position, 16, squirrel_force)
-  if not spawn_position then
-    return nil
-  end
-
-  local entity = surface.create_entity({
-    name = constants.names.squirrel,
-    position = spawn_position,
-    force = squirrel_force,
-    create_build_effect_smoke = false,
-    spawn_decorations = false
-  })
-
-  if not (entity and entity.valid) then
-    return nil
-  end
-
-  local coord = regions.position_to_region_coord(spawn_position)
-  local record = create_record(entity, spawn_position, coord.x, coord.y, tick or game.tick)
-  return record and record.squirrel_id or nil
-end
-
 function squirrels.squirrel_id_for_entity(entity)
   if not (is_squirrel_entity(entity) and entity.unit_number) then
     return nil
@@ -1349,7 +1111,9 @@ function squirrels.entity_for_squirrel_id(squirrel_id)
 end
 
 local debug_ops = debug_module.install({
-  resolve_entity_reference = resolve_entity_reference,
+  create_record = create_record,
+  ensure_squirrel_force = ensure_squirrel_force,
+  spawn_position_near_anchor = spawn_position_near_anchor,
   note_squirrel_loss = note_squirrel_loss,
   remove_record = remove_record,
   theft_is_available = theft_is_available,
@@ -1363,8 +1127,6 @@ local debug_ops = debug_module.install({
   deposit_or_spill = deposit_or_spill,
   send_home = send_home,
   perform_chest_scavenge = perform_chest_scavenge,
-  region_report = region_report,
-  squirrel_state_for_region = squirrel_state_for_region,
   find_local_target = find_local_target,
   find_excursion_target = find_excursion_target,
   inventory_total_count = inventory_total_count,
@@ -1377,6 +1139,7 @@ local debug_ops = debug_module.install({
 })
 
 squirrels.snapshot = debug_ops.snapshot
+squirrels.debug_spawn_squirrel = debug_ops.debug_spawn_squirrel
 squirrels.debug_kill_squirrel = debug_ops.debug_kill_squirrel
 squirrels.debug_clear_surface = debug_ops.debug_clear_surface
 squirrels.debug_force_belt_theft = debug_ops.debug_force_belt_theft
