@@ -1,5 +1,5 @@
 local constants = require("scripts.constants")
-local regions = require("scripts.regions")
+local regions = require("scripts.regions.module")
 local math2d = require("math2d")
 local flee_module = require("scripts.squirrels.flee")
 local position_ops = require("scripts.squirrels.position")

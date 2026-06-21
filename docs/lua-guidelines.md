@@ -23,7 +23,7 @@ These rules capture hard-won lessons from working with the Factorio 2.0 Lua API.
 
 - Register each Factorio event or custom input only once, from `control.lua` or the central runtime registration function in `scripts/runtime.lua`.
 - Treat the registered handler as a dispatcher: validate the event payload, filter by entity name/type/input/context, and then call the relevant subsystem function.
-- Do not register the same event independently from feature modules such as `scripts/squirrels.lua`, `scripts/habitat.lua`, `scripts/feeders.lua`, or `scripts/regions.lua`.
+- Do not register the same event independently from feature modules such as `scripts/squirrels/`, `scripts/habitat/`, `scripts/feeders/`, or `scripts/regions/`.
 - When adding a subsystem reaction to an existing event, extend the existing dispatcher and update `docs/hooks.md`; do not add a second `script.on_event` for that event.
 
 ## Storage / global state

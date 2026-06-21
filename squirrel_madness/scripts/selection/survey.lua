@@ -1,6 +1,6 @@
 local constants = require("scripts.constants")
 local math2d = require("math2d")
-local regions = require("scripts.regions")
+local regions = require("scripts.regions.module")
 local technologies = require("scripts.util.technologies")
 
 local survey = {}

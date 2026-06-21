@@ -33,7 +33,7 @@ This is the direct answer to the “what does the red ring mean?” question:
 Relevant files:
 - [constants.lua](../squirrel_madness/scripts/constants.lua)
 - [runtime.lua](../squirrel_madness/scripts/runtime.lua)
-- [squirrels.lua](../squirrel_madness/scripts/squirrels.lua)
+- [squirrels/module.lua](../squirrel_madness/scripts/squirrels/module.lua)
 
 ## Remote Debug Interface
 

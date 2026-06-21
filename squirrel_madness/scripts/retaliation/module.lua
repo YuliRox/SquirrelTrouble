@@ -1,6 +1,6 @@
 local constants = require("scripts.constants")
 local math2d = require("math2d")
-local squirrels = require("scripts.squirrels")
+local squirrels = require("scripts.squirrels.module")
 local position_util = require("scripts.util.position")
 
 local module = {}

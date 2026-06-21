@@ -1,5 +1,5 @@
 local constants = require("scripts.constants")
-local feeders = require("scripts.feeders")
+local feeders = require("scripts.feeders.module")
 
 local feeder_selection = {}
 local feeder_selection_overlays = {}

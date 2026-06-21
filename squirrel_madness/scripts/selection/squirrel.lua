@@ -1,7 +1,7 @@
 local constants = require("scripts.constants")
 local relocation = require("scripts.relocation")
-local regions = require("scripts.regions")
-local squirrels = require("scripts.squirrels")
+local regions = require("scripts.regions.module")
+local squirrels = require("scripts.squirrels.module")
 local technologies = require("scripts.util.technologies")
 
 local squirrel_selection = {}

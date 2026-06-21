@@ -1,10 +1,10 @@
 local constants = require("scripts.constants")
 local active_regions = require("scripts.active_regions")
 local incidents = require("scripts.incidents.module")
-local regions = require("scripts.regions")
+local regions = require("scripts.regions.module")
 local retaliation = require("scripts.retaliation.module")
 local selection = require("scripts.selection.module")
-local squirrels = require("scripts.squirrels")
+local squirrels = require("scripts.squirrels.module")
 
 local module = {}
 local SQUIRREL_STEP_SOUND = "squirrel-madness-angry-squeak"

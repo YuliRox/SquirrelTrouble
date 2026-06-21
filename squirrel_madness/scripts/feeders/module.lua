@@ -1,63 +1,19 @@
 local constants = require("scripts.constants")
-local regions = require("scripts.regions")
+local regions = require("scripts.regions.module")
+local inventory_ops = require("scripts.feeders.inventory")
+
+local is_feeder_name = inventory_ops.is_feeder_name
+local get_inventory = inventory_ops.get_inventory
+local get_nut_count = inventory_ops.get_nut_count
+local is_stocked = inventory_ops.is_stocked
+local wants_full_variant = inventory_ops.wants_full_variant
+local snapshot_contents = inventory_ops.snapshot_contents
+local restore_contents = inventory_ops.restore_contents
 
 local feeders = {}
 
-local function is_feeder_name(name)
-  return constants.feeder_variant_by_name[name] ~= nil
-end
-
 local function clone_position(position)
   return {x = position.x, y = position.y}
-end
-
-local function get_inventory(entity)
-  return entity.get_inventory(defines.inventory.chest)
-end
-
-local function get_nut_count(entity)
-  local inventory = get_inventory(entity)
-  if not (inventory and inventory.valid) then
-    return 0
-  end
-
-  return inventory.get_item_count(constants.names.nut)
-end
-
-local function is_stocked(nut_count)
-  return nut_count >= constants.stocked_feeder_threshold
-end
-
-local function wants_full_variant(nut_count)
-  return nut_count >= constants.feeder_visual_stock_threshold
-end
-
-local function snapshot_contents(inventory)
-  local contents = {}
-
-  if not (inventory and inventory.valid) then
-    return contents
-  end
-
-  for _, item in ipairs(inventory.get_contents()) do
-    contents[#contents + 1] = {
-      name = item.name,
-      count = item.count,
-      quality = item.quality
-    }
-  end
-
-  return contents
-end
-
-local function restore_contents(inventory, contents)
-  if not (inventory and inventory.valid) then
-    return
-  end
-
-  for _, item in ipairs(contents) do
-    inventory.insert(item)
-  end
 end
 
 local function find_feeder_at(surface, position)

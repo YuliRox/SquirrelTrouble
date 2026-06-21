@@ -1,6 +1,6 @@
 local constants = require("scripts.constants")
-local regions = require("scripts.regions")
-local squirrels = require("scripts.squirrels")
+local regions = require("scripts.regions.module")
+local squirrels = require("scripts.squirrels.module")
 
 local BARREN_ORIGIN = {x = 1232, y = 80}
 local FOREST_ORIGIN = {x = 1296, y = 144}

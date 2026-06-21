@@ -1,5 +1,5 @@
 local constants = require("scripts.constants")
-local regions = require("scripts.regions")
+local regions = require("scripts.regions.module")
 
 local ORIGIN = {x = 1568, y = 144}
 local TREE_NAME = "tree-01"

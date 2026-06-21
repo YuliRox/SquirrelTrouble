@@ -1,6 +1,6 @@
 local constants = require("scripts.constants")
-local habitat = require("scripts.habitat")
-local regions = require("scripts.regions")
+local habitat = require("scripts.habitat.module")
+local regions = require("scripts.regions.module")
 
 local DENSE_FOREST_ORIGIN = {x = 384, y = 64}
 local RECOVERY_ORIGIN = {x = 512, y = 256}

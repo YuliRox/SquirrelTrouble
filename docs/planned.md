@@ -49,7 +49,7 @@ Use these settled decisions as the implementation baseline:
 - `control.lua`: lifecycle registration plus FactorioTest bootstrap.
 - `scripts/constants.lua`: names, tuning constants, region dimensions.
 - `scripts/storage.lua`: runtime storage initialization and migration guards.
-- `scripts/regions.lua`: region indexing, area math, ecology recomputation, metric serialization.
+- `scripts/regions/`: region indexing, area math, ecology recomputation, metric serialization (`module` public API over `math`/`store`/`recompute`/`cluster` submodules).
 - `scripts/active_regions.lua`: active-player region refresh scheduling and refresh queue processing.
 - `scripts/runtime.lua`: central runtime event registration and dispatch, nearby-region refresh, survey access, debug and test interface.
 

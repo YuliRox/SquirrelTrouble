@@ -1,5 +1,5 @@
 local constants = require("scripts.constants")
-local regions = require("scripts.regions")
+local regions = require("scripts.regions.module")
 
 local active_regions = {}
 local ACTIVE_REGION_OFFSETS

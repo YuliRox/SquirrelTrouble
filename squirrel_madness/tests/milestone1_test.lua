@@ -1,5 +1,5 @@
 local constants = require("scripts.constants")
-local regions = require("scripts.regions")
+local regions = require("scripts.regions.module")
 
 local TEST_POSITION = {x = 192, y = 192}
 local TREE_NAME = "tree-01"
