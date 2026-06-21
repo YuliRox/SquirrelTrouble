@@ -11,7 +11,18 @@
             "configPath": "/mnt/c/Code/SquirrelTrouble/.factorio-test/config.ini",
             "docsPath": "../../../../Program Files/Factorio/doc-html/runtime-api.json",
             "protosPath": "../../../../Program Files/Factorio/doc-html/prototype-api.json"
+        },
+        {
+            "name": "Factorio 2.0.76 (Steam, Windows)",
+            "factorioPath": "C:/Program Files (x86)/Steam/steamapps/common/Factorio/bin/x64/factorio.exe",
+            "configPath": "C:/Code/.factorio-test/config.ini"
         }
     ],
-    "Lua.workspace.checkThirdParty": "ApplyInMemory"
+    "Lua.workspace.checkThirdParty": "ApplyInMemory",
+    "Lua.workspace.userThirdParty": [
+        "c:\\Users\\Xemrox\\AppData\\Roaming\\Code\\User\\workspaceStorage\\f5a484ec04c4e5f53ca41881f8a87222\\justarandomgeek.factoriomod-debug\\sumneko-3rd"
+    ],
+    "Lua.workspace.library": [
+        "c:\\Program Files (x86)\\Steam\\steamapps\\common\\Factorio\\data"
+    ]
 }
