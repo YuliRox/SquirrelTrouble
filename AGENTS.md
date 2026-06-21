@@ -35,6 +35,21 @@ The mod theme is scarcity, salvage, and ruined infrastructure. Prefer changes th
 - In markdown and repo documentation, keep paths and links repo-relative unless an absolute path is genuinely necessary.
 - If an assistant response would exceed roughly 30 lines, do not send it as chat prose. Write it to a markdown file in the repo and point the user to that file instead.
 
+## Module and Test Structure
+
+Large runtime modules are organized as package directories rather than single files. Follow these conventions when growing or splitting a module.
+
+- A package lives at `scripts/<name>/` with `module.lua` as the entry point and hub. Consumers require the package via `scripts.<name>.module` (for example `require("scripts.regions.module")`). Do not reintroduce single-file shims such as `scripts/<name>.lua`; the canonical entry is always `<name>/module.lua`.
+- Split a module by cohesive subsystem, ordering extractions by inbound coupling (smallest, least-depended-on first). Keep the most entangled core (state machine, tick loop) in `module.lua`.
+- `require()` is parse-time only and lazy requires are banned (see [docs/lua-guidelines.md](docs/lua-guidelines.md)), so plan dependency direction up front:
+  - A submodule may directly `require` only leaf modules it does not cycle with (e.g. `constants`, `scripts.<pkg>.position`, `scripts.<pkg>.storage`, `scripts.regions.module`). Never directly require a sibling subsystem you also call back into.
+  - When a subsystem needs functions from the hub or from a sibling subsystem, expose `function M.install(deps) ... return { ... } end` and let `module.lua` inject the callbacks and assign the returned functions to locals. This is the established pattern (`flee`, `targeting`, `carrying`, `stash`).
+  - Pure leaf submodules with no hub dependencies (e.g. `render`, `position`, `storage`) are plain tables required directly — no `install`.
+- Preserve forward-declared-local upvalues when extracting. Leave the `local X` declaration and its assignment site in place; only swap the inline body for `X = ops.X`. Moving a declaration below a closure that captures it produces a nil upvalue that no grep or parse check will catch.
+- Mirror the package layout in tests: behavioral tests for `scripts/<pkg>/<sub>.lua` live in `tests/<pkg>/<sub>_test.lua`, one focused file per submodule. Keep test files small and register each in `scripts/tests.lua`.
+- Test submodules behaviorally at runtime (per the no-structural-tests rule above): `install` the submodule with controllable stubs and exercise the real logic against real prototypes, entities, inventories, and `storage`.
+- Every extraction must keep the full suite green. Assert the total passed count, not merely the absence of `FAIL`: a load-time mis-wire makes a test file fail to load, which lowers the test count rather than reporting a failure.
+
 ## Canonical References
 
 - Runtime hooks: [docs/hooks.md](docs/hooks.md)
